@@ -210,10 +210,10 @@ Eight mental inspiration kinds and their effects · 2026-11-16 · local PR
 Artistic skill, Brawler trait and v18 save boundary · 2026-11-16 · local PR
 - Changed: Artistic is a regular twelfth skill.ID with one skill.Set and the same XP, passion, saturated learning, Bio view, work-speed and save paths as the other eleven skills; sculpting quality and work read Artistic directly.
 - Changed: Inspired creativity eligibility includes Artistic/Crafting/Construction >= 3; weighting reads Artistic passion. Brawler adjusts generated combat skills, melee hit, bans shooting inspiration and adds a ranged-weapon mood state.
-- Save: intentionally incompatible v18 changes all stored skill arrays in place; Load refuses v1-v17 before gob body decode. A future one-shot conversion, if needed, belongs outside the runtime model. No shadow skill field, alias arrays or per-tick compatibility branch.
+- Save: v18 writes canonical 12-skill fields. `Load` accepts v1-v17 through read-only gob wire fields for the original 11-skill arrays, performs a single conversion to the current layout before importing the state, then runs the existing `migrateSave` steps. Missing Artistic in old characters is initialized to neutral level 7. New saves never write legacy skill payloads; gameplay and normal v18 loads do no legacy conversion.
 - UI: Bio, new-game candidate skills and work skill text use the normal skill catalogue; Brawler's ranged-weapon mood appears in the existing thought list.
-- Proof: dedicated Artistic learning/save/recipe tests, Brawler combat/mood/eligibility tests, historical fixture rejection and save schema pin; old generation golden is repinned because the skill roster changed.
-- Open: separate Art work priority remains outside this task (WRK-102 scope); the v1-v17 game-load converter is optional.
+- Proof: dedicated Artistic learning/save/recipe tests and Brawler combat/mood/eligibility tests; v2 and v12 historical save fixtures load, round-trip and continue deterministically; `TestV17SkillArraysMigrateIntoCanonicalFields` checks all saved skill carriers, learned saturation, carries, setup pawns, off-map people, and that re-saved v18 state contains no legacy data. Save schema pin refreshed for the explicit v18 migration.
+- Open: separate Art work priority remains outside this task (WRK-102 scope).
 
 ## WRK-001-work-order
 Work order and harvesting · 2026-11-04 · d707f6131

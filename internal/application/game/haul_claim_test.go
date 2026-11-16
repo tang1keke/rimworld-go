@@ -513,9 +513,6 @@ func TestHaulClaimSaveRoundTrip(t *testing.T) {
 // loadAsVersion saves g, rewrites the header to version v and loads it.
 func loadAsVersion(t *testing.T, g *Game, v int) *Game {
 	t.Helper()
-	if !SupportedSaveVersion(v) {
-		t.Skipf("legacy migration fixture v%d is outside the v18+ runtime save contract", v)
-	}
 	var buf bytes.Buffer
 	if err := g.Save(&buf, "old"); err != nil {
 		t.Fatal(err)

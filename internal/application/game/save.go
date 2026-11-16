@@ -26,6 +26,7 @@ import (
 	"rimworld-go/internal/application/game/resize"
 	"rimworld-go/internal/application/game/rest"
 	"rimworld-go/internal/application/game/savefmt"
+	"rimworld-go/internal/application/game/savelegacy"
 	"rimworld-go/internal/application/game/sense"
 	"rimworld-go/internal/application/game/ship"
 	"rimworld-go/internal/application/game/thermo"
@@ -71,20 +72,14 @@ import (
 	"rimworld-go/internal/domain/world/weather"
 )
 
-// Saved games contain the authoritative simulation state as a gob stream
-// behind a compressed header. Only v18 and newer saves use the 12-skill
-// schema; the decoder rejects older formats before reading the body.
-// Derived caches are rebuilt after import.
+// Saved games use gzip-compressed gob. V18 widens skills to include Artistic;
+// earlier skill arrays are expanded at load time before importing game state.
 
-// Legacy migration helpers below document earlier save formats. They
-// remain unreachable from the public loader while minSaveVersion is 18.
-
-// SaveVersion is the version new saves are written with.
-// v18 replaces 11-skill gob arrays with the canonical 12-skill arrays.
+// SaveVersion is 18: the canonical skill arrays have 12 entries.
 const SaveVersion = 18
 
 // minSaveVersion is the oldest version Load still reads.
-const minSaveVersion = 18
+const minSaveVersion = 1
 
 // SupportedSaveVersion reports whether Load can read a save of version v.
 func SupportedSaveVersion(v int) bool { return v >= minSaveVersion && v <= SaveVersion }
@@ -228,19 +223,21 @@ type saveState struct {
 	ResearchAll []int
 	// NG1 is the new-game setup and its live state (scenario, storyteller,
 	// difficulty, factions, climate, conditions, arrival); nil = legacy.
-	NG1 *SetupState
+	NG1   *savelegacy.SetupState
+	NG118 *SetupState
 	// DoorsOriented: door facings are stored (PLAY-011); a save without it
 	// re-derives every door's facing from its neighbours on load.
 	DoorsOriented bool
-	// Bios, Skills, WorkCarry (NG-1 §5.4): each colonist's identity, skills
-	// and fractional work progress; absent in older saves (neutral bios).
-	Bios      map[entity.EntityID]pawngen.Pawn
-	Skills    map[entity.EntityID]skill.Set
-	WorkCarry map[entity.EntityID]int32
-	// SkillLive (v2): the rest of the skill state that moves the game —
-	// learning saturation, fractional need drains, the last skilled work
-	// (passion joy) and fractional research; absent in older saves.
-	SkillLive   *savedSkillLive
+	// The v1-v17 skill fields retain their wire names solely for decoding.
+	// V18 always writes the canonical 12-skill fields below; these remain nil.
+	Bios      map[entity.EntityID]savelegacy.Pawn
+	Skills    map[entity.EntityID]savelegacy.SkillSet
+	SkillLive *savelegacy.SkillLive
+	// V18 fields have a new wire name because gob array widths are strict.
+	Bios18      map[entity.EntityID]pawngen.Pawn
+	Skills18    map[entity.EntityID]skill.Set
+	SkillLive18 *savedSkillLive
+	WorkCarry   map[entity.EntityID]int32
 	ResearchCur research.Project
 	ResearchSet bool
 	// ResearchCold (v9, RSCH-1): research benches in the bad temperature
@@ -345,7 +342,8 @@ type saveState struct {
 	// fresh). Each block is filled by its milestone; RNGStreams holds the
 	// base seed and the state of every stream used so far.
 	Social     *socialSave
-	People     *peopleSave
+	People     *savelegacy.People
+	People18   *peopleSave
 	Bodies     []entry[savedBody] // body.go: slices since MED-00, gob reads the older shape
 	Surgery    *surgerySave
 	Drugs      []entry[savedDrug] // dose_host.go: slices since MED-00
@@ -489,7 +487,7 @@ func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
 		Breaks: map[entity.EntityID]savedBreak{}, Memories: g.memories, Pending: g.pending,
 		AteAt: g.ateAt, Draft: g.draft, SleptAt: g.sleptAt, Equip: g.equip,
 		Carrying: g.care.Carry.Export(), TendedUntil: g.care.Doctor.ExportTended(),
-		Research: g.lab.Prog.V1(), ResearchAll: g.lab.Prog.Slice(), NG1: g.exportSetupState(), ResearchCur: g.lab.Cur, ResearchSet: g.lab.Set,
+		Research: g.lab.Prog.V1(), ResearchAll: g.lab.Prog.Slice(), NG118: g.exportSetupState(), ResearchCur: g.lab.Cur, ResearchSet: g.lab.Set,
 		ResearchCold: g.lab.ColdList(), Strikes: g.lastStrike, Hits: g.lastHit, Graves: g.graves,
 	}
 	exportMapFields(g, &s)
@@ -499,8 +497,8 @@ func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
 		}
 	})
 	s.Landing = g.exportLanding() // setup_mapgen.go: nil for the map centre
-	s.Bios, s.Skills, s.WorkCarry = g.exportBios()
-	s.SkillLive = g.exportSkillLive()
+	s.Bios18, s.Skills18, s.WorkCarry = g.exportBios()
+	s.SkillLive18 = g.exportSkillLive()
 	s.Troughs = g.troughs
 	for id, e := range g.exposure { // TEMP-3: the wiki scale (bodytemp.Ledger); the dead drop out
 		if g.vital.Has(id) || slices.ContainsFunc(g.maps, func(m *mapState) bool { return m.animals.Has(id) }) {
@@ -517,7 +515,7 @@ func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
 		s.Breaks[id] = savedBreak{b.kind, b.until}
 	}
 	s.Logs = g.exportLogs()
-	s.Social, s.People, s.World = g.exportSocial(), g.exportPeople(), g.exportWorld()
+	s.Social, s.People18, s.World = g.exportSocial(), g.exportPeople(), g.exportWorld()
 	if g.soc != nil { // AX-6
 		s.Recreation = g.soc.rec.Export()
 	}
@@ -649,6 +647,11 @@ func Load(r io.Reader) (*Game, SaveInfo, error) {
 	if err := savefmt.Finish(dec.Decode(&s), zr); err != nil { // the body decodes and the CRC holds (SAV-022)
 		return nil, info, fmt.Errorf("read save state: %w", err)
 	}
+	if info.Version < 18 {
+		if err := s.migrateSkillArrays(); err != nil {
+			return nil, info, fmt.Errorf("migrate v%d skill state: %w", info.Version, err)
+		}
+	}
 	g := New(Config{Width: s.W, Height: s.H})
 	if err := g.rng.UnmarshalBinary(s.RNG); err != nil {
 		return nil, info, fmt.Errorf("restore rng: %w", err)
@@ -710,11 +713,11 @@ func Load(r io.Reader) (*Game, SaveInfo, error) {
 		}
 	}
 	importMapFields(g, &s)
-	g.importSetupState(s.NG1)                   // setup.go: overrides the climate from the site
-	g.applyClimate(uint64(max(s.Tick, 1) - 1))  // weather_ng1.go (TEMP-2): the climate event's offset as at the last tick
-	g.importLanding(s.Landing)                  // setup_mapgen.go: after importSetupState
-	g.importBios(s.Bios, s.Skills, s.WorkCarry) // skills.go: older saves get neutral bios
-	g.importSkillLive(s.SkillLive)
+	g.importSetupState(s.NG118)                     // setup.go: overrides the climate from the site
+	g.applyClimate(uint64(max(s.Tick, 1) - 1))      // weather_ng1.go (TEMP-2): the climate event's offset as at the last tick
+	g.importLanding(s.Landing)                      // setup_mapgen.go: after importSetupState
+	g.importBios(s.Bios18, s.Skills18, s.WorkCarry) // skills.go: older saves get neutral bios
+	g.importSkillLive(s.SkillLive18)
 	setMap(&g.troughs, s.Troughs)
 	for id, e := range s.Exposure {
 		g.exposure[id] = bodytemp.Sev{Hypo: int32(e[0]), Heat: int32(e[1])}
@@ -727,7 +730,7 @@ func Load(r io.Reader) (*Game, SaveInfo, error) {
 	if s.Recreation != nil { // AX-6: after the social state it hangs off
 		g.socState().rec = recreate.Load(recHost{newRestHost(g)}, s.Recreation)
 	}
-	g.importPeople(s.People)
+	g.importPeople(s.People18)
 	g.importWorld(s.World)
 	shipOf(g).Import(s.AX8) // game/ship (AX-8)
 	g.importBodies(s.Bodies)
@@ -1195,4 +1198,20 @@ func (g *Game) migrateLegacyStone() {
 		fix(&o.cmd)
 		g.postponed.orders[id] = o
 	}
+}
+
+// migrateSkillArrays upgrades v1-v17 skill arrays before Game.migrateSave.
+func (s *saveState) migrateSkillArrays() error {
+	if err := savelegacy.Upgrade(
+		&s.Bios18, s.Bios,
+		&s.Skills18, s.Skills,
+		&s.SkillLive18, s.SkillLive,
+		&s.NG118, s.NG1,
+		&s.People18, s.People,
+	); err != nil {
+		return err
+	}
+	s.Bios, s.Skills, s.SkillLive = nil, nil, nil
+	s.NG1, s.People = nil, nil
+	return nil
 }

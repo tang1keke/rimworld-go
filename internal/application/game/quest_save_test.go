@@ -18,7 +18,7 @@ func TestSaveV14GetsQuestDifficulty(t *testing.T) {
 		}))
 		stepUntilLanded(t, g)
 		old := loadAsVersionWith(t, g, 14, func(s *saveState) {
-			d := &s.NG1.Setup.Difficulty
+			d := &s.NG118.Setup.Difficulty
 			d.QuestRewardPct, d.QuestThreats = 0, false // a v14 save has neither
 		})
 		got, want := old.ng.setup.Difficulty, difficulty.Of(p)

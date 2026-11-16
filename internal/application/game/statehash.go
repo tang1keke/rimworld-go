@@ -52,6 +52,14 @@ func normalisedFields(info SaveInfo, s *saveState) map[string]any {
 			f[t.Field(i).Name] = v.Field(i).Interface()
 		}
 	}
+	// V18 renamed the skill-bearing wire fields to avoid gob's strict
+	// fixed-array widths. Preserve their historical logical hash names.
+	f["Bios"], f["Skills"] = s.Bios18, s.Skills18
+	f["NG1"], f["People"] = s.NG118, s.People18
+	delete(f, "Bios18")
+	delete(f, "Skills18")
+	delete(f, "NG118")
+	delete(f, "People18")
 	research := ints(f["ResearchAll"])
 	if research == nil {
 		research = ints(f["Research"])
@@ -66,7 +74,7 @@ func normalisedFields(info SaveInfo, s *saveState) map[string]any {
 	// Bookkeeping first saved in v2 (it existed before, unsaved): hashed
 	// through its effects on the state above, so the pins taken before v2
 	// still hold. TestSaveV2RoundTripSetup checks it survives a save.
-	for _, k := range [...]string{"SkillLive", "StainDrip", "PostSweep"} {
+	for _, k := range [...]string{"SkillLive", "SkillLive18", "StainDrip", "PostSweep"} {
 		delete(f, k)
 	}
 	// DoorsOriented (PLAY-011) only marks the save format: door facings
