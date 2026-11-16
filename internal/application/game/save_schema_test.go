@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -27,8 +26,8 @@ import (
 // The save format's safety net (MASTER_SPEC §45). Gob matches struct fields
 // by name, so renaming or removing a saved field silently drops its data,
 // and changing a field's kind makes Load fail. TestSaveSchema lists every
-// field gob writes. V18 intentionally changes the skill array width;
-// historical fixture headers remain readable and their bodies are rejected.
+// field gob writes. V18 adds versioned, read-only legacy skill fields:
+// old fixture bodies must load through the v18 schema migration.
 
 const (
 	saveSchemaGolden = "testdata/save_schema.txt"
@@ -234,7 +233,7 @@ New:
 // this pin to get a test to pass. Only a migration step that really changes a
 // v12 save's state may move the hash: re-pin it then, saying in the commit
 // why that migration changes it.
-const saveV12Hash = uint64(0x3c352207ecddf6c2) // v17: the migration fills Faction.Enemies (EAI-015)
+const saveV12Hash = uint64(0x599fc03423f456d0) // v18: adding Artistic changes the canonical 12-skill state hash
 
 // v12Colony is the colony in the fixture: rich in state, so that as many
 // saved fields as practical are non-zero.
@@ -352,19 +351,35 @@ func writeSaveV12Fixture(t *testing.T) {
 	t.Logf("%s: %d bytes, state hash %#x", saveV12Fixture, buf.Len(), g.StateHash())
 }
 
-// TestSaveV12Fixture keeps the historical header inspectable while v18
-// explicitly declines the old array schema before decoding its body.
+// TestSaveV12Fixture loads the original v12 save through the v18 skill
+// array migration and verifies a deterministic save/load continuation.
 func TestSaveV12Fixture(t *testing.T) {
+	if os.Getenv(saveV12Env) != "" {
+		writeSaveV12Fixture(t)
+	}
 	t.Parallel()
 	data, err := os.ReadFile(saveV12Fixture)
 	if err != nil {
 		t.Fatal(err)
 	}
-	info, err := ReadSaveInfo(bytes.NewReader(data))
+	g, info, err := Load(bytes.NewReader(data))
 	if err != nil || info.Version != 12 {
-		t.Fatalf("header: %+v, %v", info, err)
+		t.Fatalf("load: %v (info %+v)", err, info)
 	}
-	if _, _, err := Load(bytes.NewReader(data)); !errors.Is(err, ErrSaveVersion) {
-		t.Fatalf("old v12 save must be rejected as incompatible: %v", err)
+	if !g.hasSetup() || info.MapSize != 60 || info.Colonists == 0 {
+		t.Fatalf("fixture header %+v, has setup %v", info, g.hasSetup())
+	}
+	hash := g.StateHash()
+	if hash != saveV12Hash {
+		t.Fatalf("the v12 fixture loads to state hash %#x, pinned %#x. A v12 save must keep loading to the same state: fix the change that moved it. Re-pin only for a migration that means to change a v12 save, and say why in the commit", hash, saveV12Hash)
+	}
+	h, _ := saveLoadInfo(t, g)
+	if got := h.StateHash(); got != hash {
+		t.Fatalf("saved again and loaded, state hash %#x, want %#x", got, hash)
+	}
+	g.Step(600)
+	h.Step(600)
+	if a, b := g.StateHash(), h.StateHash(); a != b {
+		t.Fatalf("the fixture does not continue identically after a re-save: %#x vs %#x", a, b)
 	}
 }

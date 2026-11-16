@@ -242,9 +242,42 @@ saveState.Bills{}[].Waiting bool
 saveState.Bills{}[].Worker rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.Bills{}[].Zone uint64
 saveState.Biome rimworld-go/internal/domain/world/biome.ID = uint8
-saveState.Bios map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/domain/pawn/pawngen.Pawn
+saveState.Bios map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game/savelegacy.Pawn
+saveState.Bios18 map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/domain/pawn/pawngen.Pawn
+saveState.Bios18{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.Bios18{} rimworld-go/internal/domain/pawn/pawngen.Pawn
+saveState.Bios18{}.Adulthood rimworld-go/internal/domain/pawn/backstory.ID = uint16
+saveState.Bios18{}.AgeDays int32
+saveState.Bios18{}.Childhood rimworld-go/internal/domain/pawn/backstory.ID = uint16
+saveState.Bios18{}.Conditions []rimworld-go/internal/domain/pawn/pawngen.Condition
+saveState.Bios18{}.Conditions[] rimworld-go/internal/domain/pawn/pawngen.Condition = uint8
+saveState.Bios18{}.First string
+saveState.Bios18{}.Last string
+saveState.Bios18{}.Look rimworld-go/internal/domain/pawn/look.Look
+saveState.Bios18{}.Look.Bare bool
+saveState.Bios18{}.Look.Beard uint8
+saveState.Bios18{}.Look.Build rimworld-go/internal/domain/pawn/look.Build = uint8
+saveState.Bios18{}.Look.Grey bool
+saveState.Bios18{}.Look.Hair uint8
+saveState.Bios18{}.Look.HairStyle uint8
+saveState.Bios18{}.Look.Pants uint8
+saveState.Bios18{}.Look.Sex rimworld-go/internal/domain/pawn/look.Sex = uint8
+saveState.Bios18{}.Look.Shirt uint8
+saveState.Bios18{}.Look.Skin uint8
+saveState.Bios18{}.Look.Vest bool
+saveState.Bios18{}.Look.VestCloth uint8
+saveState.Bios18{}.Nick string
+saveState.Bios18{}.Skills rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.Bios18{}.Skills[] rimworld-go/internal/domain/pawn/skill.Skill
+saveState.Bios18{}.Skills[].Carry int16
+saveState.Bios18{}.Skills[].Level uint8
+saveState.Bios18{}.Skills[].Passion rimworld-go/internal/domain/pawn/skill.Passion = uint8
+saveState.Bios18{}.Skills[].XP int32
+saveState.Bios18{}.Temperament rimworld-go/internal/domain/pawn/pawngen.Temperament = uint8
+saveState.Bios18{}.Traits []rimworld-go/internal/domain/pawn/trait.ID
+saveState.Bios18{}.Traits[] rimworld-go/internal/domain/pawn/trait.ID = uint8
 saveState.Bios{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
-saveState.Bios{} rimworld-go/internal/domain/pawn/pawngen.Pawn
+saveState.Bios{} rimworld-go/internal/application/game/savelegacy.Pawn
 saveState.Bios{}.Adulthood rimworld-go/internal/domain/pawn/backstory.ID = uint16
 saveState.Bios{}.AgeDays int32
 saveState.Bios{}.Childhood rimworld-go/internal/domain/pawn/backstory.ID = uint16
@@ -266,7 +299,7 @@ saveState.Bios{}.Look.Skin uint8
 saveState.Bios{}.Look.Vest bool
 saveState.Bios{}.Look.VestCloth uint8
 saveState.Bios{}.Nick string
-saveState.Bios{}.Skills rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.Bios{}.Skills rimworld-go/internal/application/game/savelegacy.SkillSet = [11]rimworld-go/internal/domain/pawn/skill.Skill
 saveState.Bios{}.Skills[] rimworld-go/internal/domain/pawn/skill.Skill
 saveState.Bios{}.Skills[].Carry int16
 saveState.Bios{}.Skills[].Level uint8
@@ -761,7 +794,7 @@ saveState.Motion[].V.RepathWait int
 saveState.Motion[].V.StaggerUntil uint64
 saveState.Motion[].V.StepTick uint64
 saveState.Motion[].V.StepTicks int
-saveState.NG1 rimworld-go/internal/application/game.SetupState
+saveState.NG1 rimworld-go/internal/application/game/savelegacy.SetupState
 saveState.NG1.Adapt rimworld-go/internal/domain/difficulty.Adapter
 saveState.NG1.Adapt.Days int16
 saveState.NG1.Adapt.Value int8
@@ -772,7 +805,7 @@ saveState.NG1.Climate.PeakDay int
 saveState.NG1.Climate.YearMean int
 saveState.NG1.Dead []rimworld-go/internal/domain/sim/entity.EntityID
 saveState.NG1.Dead[] rimworld-go/internal/domain/sim/entity.EntityID = uint64
-saveState.NG1.Extreme rimworld-go/internal/application/game.extremeEvent
+saveState.NG1.Extreme rimworld-go/internal/application/game/savelegacy.Extreme
 saveState.NG1.Extreme.Cool uint64
 saveState.NG1.Extreme.Delta int
 saveState.NG1.Extreme.Kind uint8
@@ -807,8 +840,8 @@ saveState.NG1.Plan.AtTick uint64
 saveState.NG1.Plan.Category rimworld-go/internal/domain/storyteller.Category = uint8
 saveState.NG1.Plan.PointsPct int
 saveState.NG1.Plan.Second rimworld-go/internal/domain/storyteller.Category = uint8
-saveState.NG1.Pods []rimworld-go/internal/application/game.podState
-saveState.NG1.Pods[] rimworld-go/internal/application/game.podState
+saveState.NG1.Pods []rimworld-go/internal/application/game/savelegacy.Pod
+saveState.NG1.Pods[] rimworld-go/internal/application/game/savelegacy.Pod
 saveState.NG1.Pods[].Animals []rimworld-go/internal/domain/animal.Species
 saveState.NG1.Pods[].Animals[] rimworld-go/internal/domain/animal.Species = uint8
 saveState.NG1.Pods[].Items []rimworld-go/internal/domain/scenario.Stack
@@ -823,9 +856,9 @@ saveState.NG1.Pods[].Pawns[] int
 saveState.NG1.Pods[].Tick uint64
 saveState.NG1.Pods[].X int
 saveState.NG1.Pods[].Y int
-saveState.NG1.Setup rimworld-go/internal/application/game.Setup
-saveState.NG1.Setup.Colonists []rimworld-go/internal/domain/pawn/pawngen.Pawn
-saveState.NG1.Setup.Colonists[] rimworld-go/internal/domain/pawn/pawngen.Pawn
+saveState.NG1.Setup rimworld-go/internal/application/game/savelegacy.Setup
+saveState.NG1.Setup.Colonists []rimworld-go/internal/application/game/savelegacy.Pawn
+saveState.NG1.Setup.Colonists[] rimworld-go/internal/application/game/savelegacy.Pawn
 saveState.NG1.Setup.Colonists[].Adulthood rimworld-go/internal/domain/pawn/backstory.ID = uint16
 saveState.NG1.Setup.Colonists[].AgeDays int32
 saveState.NG1.Setup.Colonists[].Childhood rimworld-go/internal/domain/pawn/backstory.ID = uint16
@@ -847,7 +880,7 @@ saveState.NG1.Setup.Colonists[].Look.Skin uint8
 saveState.NG1.Setup.Colonists[].Look.Vest bool
 saveState.NG1.Setup.Colonists[].Look.VestCloth uint8
 saveState.NG1.Setup.Colonists[].Nick string
-saveState.NG1.Setup.Colonists[].Skills rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.NG1.Setup.Colonists[].Skills rimworld-go/internal/application/game/savelegacy.SkillSet = [11]rimworld-go/internal/domain/pawn/skill.Skill
 saveState.NG1.Setup.Colonists[].Skills[] rimworld-go/internal/domain/pawn/skill.Skill
 saveState.NG1.Setup.Colonists[].Skills[].Carry int16
 saveState.NG1.Setup.Colonists[].Skills[].Level uint8
@@ -942,7 +975,7 @@ saveState.NG1.Setup.Scenario.People int
 saveState.NG1.Setup.Scenario.Seed uint64
 saveState.NG1.Setup.Scenario.Summary string
 saveState.NG1.Setup.Scenario.Tech rimworld-go/internal/domain/faction.Tech = uint8
-saveState.NG1.Setup.Season rimworld-go/internal/application/game.Season = uint8
+saveState.NG1.Setup.Season uint8
 saveState.NG1.Setup.Seed uint64
 saveState.NG1.Setup.Site rimworld-go/internal/domain/world/site.Site
 saveState.NG1.Setup.Site.Biome rimworld-go/internal/domain/world/biome.ID = uint8
@@ -992,6 +1025,237 @@ saveState.NG1.Story.LastThreatDay int
 saveState.NG1.Story.Pressure bool
 saveState.NG1.Story.QuietDays int
 saveState.NG1.Story.Started bool
+saveState.NG118 rimworld-go/internal/application/game.SetupState
+saveState.NG118.Adapt rimworld-go/internal/domain/difficulty.Adapter
+saveState.NG118.Adapt.Days int16
+saveState.NG118.Adapt.Value int8
+saveState.NG118.Climate rimworld-go/internal/domain/world/temperature.Climate
+saveState.NG118.Climate.Amplitude int
+saveState.NG118.Climate.DaySwing int
+saveState.NG118.Climate.PeakDay int
+saveState.NG118.Climate.YearMean int
+saveState.NG118.Dead []rimworld-go/internal/domain/sim/entity.EntityID
+saveState.NG118.Dead[] rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.NG118.Extreme rimworld-go/internal/application/game.extremeEvent
+saveState.NG118.Extreme.Cool uint64
+saveState.NG118.Extreme.Delta int
+saveState.NG118.Extreme.Kind uint8
+saveState.NG118.Extreme.Until uint64
+saveState.NG118.Factions []rimworld-go/internal/domain/faction.Faction
+saveState.NG118.Factions[] rimworld-go/internal/domain/faction.Faction
+saveState.NG118.Factions[].Besieged bool
+saveState.NG118.Factions[].Defeated bool
+saveState.NG118.Factions[].Enemies []int
+saveState.NG118.Factions[].Enemies[] int
+saveState.NG118.Factions[].Events []string
+saveState.NG118.Factions[].Events[] string
+saveState.NG118.Factions[].Goodwill int
+saveState.NG118.Factions[].History []int16
+saveState.NG118.Factions[].History[] int16
+saveState.NG118.Factions[].ID int
+saveState.NG118.Factions[].Leader rimworld-go/internal/domain/faction.Leader
+saveState.NG118.Factions[].Leader.Name string
+saveState.NG118.Factions[].Leader.Title string
+saveState.NG118.Factions[].Name string
+saveState.NG118.Factions[].Relation rimworld-go/internal/domain/faction.Relation = uint8
+saveState.NG118.Factions[].SettlementNames []string
+saveState.NG118.Factions[].SettlementNames[] string
+saveState.NG118.Factions[].Settlements []int
+saveState.NG118.Factions[].Settlements[] int
+saveState.NG118.Factions[].ThankedDay int
+saveState.NG118.Factions[].Type rimworld-go/internal/domain/faction.Type = uint8
+saveState.NG118.IntroDone bool
+saveState.NG118.Lost bool
+saveState.NG118.Plan rimworld-go/internal/domain/storyteller.Decision
+saveState.NG118.Plan.AtTick uint64
+saveState.NG118.Plan.Category rimworld-go/internal/domain/storyteller.Category = uint8
+saveState.NG118.Plan.PointsPct int
+saveState.NG118.Plan.Second rimworld-go/internal/domain/storyteller.Category = uint8
+saveState.NG118.Pods []rimworld-go/internal/application/game.podState
+saveState.NG118.Pods[] rimworld-go/internal/application/game.podState
+saveState.NG118.Pods[].Animals []rimworld-go/internal/domain/animal.Species
+saveState.NG118.Pods[].Animals[] rimworld-go/internal/domain/animal.Species = uint8
+saveState.NG118.Pods[].Items []rimworld-go/internal/domain/scenario.Stack
+saveState.NG118.Pods[].Items[] rimworld-go/internal/domain/scenario.Stack
+saveState.NG118.Pods[].Items[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.NG118.Pods[].Items[].Near bool
+saveState.NG118.Pods[].Items[].Piles int
+saveState.NG118.Pods[].Items[].Qty int
+saveState.NG118.Pods[].Landed bool
+saveState.NG118.Pods[].Pawns []int
+saveState.NG118.Pods[].Pawns[] int
+saveState.NG118.Pods[].Tick uint64
+saveState.NG118.Pods[].X int
+saveState.NG118.Pods[].Y int
+saveState.NG118.Setup rimworld-go/internal/application/game.Setup
+saveState.NG118.Setup.Colonists []rimworld-go/internal/domain/pawn/pawngen.Pawn
+saveState.NG118.Setup.Colonists[] rimworld-go/internal/domain/pawn/pawngen.Pawn
+saveState.NG118.Setup.Colonists[].Adulthood rimworld-go/internal/domain/pawn/backstory.ID = uint16
+saveState.NG118.Setup.Colonists[].AgeDays int32
+saveState.NG118.Setup.Colonists[].Childhood rimworld-go/internal/domain/pawn/backstory.ID = uint16
+saveState.NG118.Setup.Colonists[].Conditions []rimworld-go/internal/domain/pawn/pawngen.Condition
+saveState.NG118.Setup.Colonists[].Conditions[] rimworld-go/internal/domain/pawn/pawngen.Condition = uint8
+saveState.NG118.Setup.Colonists[].First string
+saveState.NG118.Setup.Colonists[].Last string
+saveState.NG118.Setup.Colonists[].Look rimworld-go/internal/domain/pawn/look.Look
+saveState.NG118.Setup.Colonists[].Look.Bare bool
+saveState.NG118.Setup.Colonists[].Look.Beard uint8
+saveState.NG118.Setup.Colonists[].Look.Build rimworld-go/internal/domain/pawn/look.Build = uint8
+saveState.NG118.Setup.Colonists[].Look.Grey bool
+saveState.NG118.Setup.Colonists[].Look.Hair uint8
+saveState.NG118.Setup.Colonists[].Look.HairStyle uint8
+saveState.NG118.Setup.Colonists[].Look.Pants uint8
+saveState.NG118.Setup.Colonists[].Look.Sex rimworld-go/internal/domain/pawn/look.Sex = uint8
+saveState.NG118.Setup.Colonists[].Look.Shirt uint8
+saveState.NG118.Setup.Colonists[].Look.Skin uint8
+saveState.NG118.Setup.Colonists[].Look.Vest bool
+saveState.NG118.Setup.Colonists[].Look.VestCloth uint8
+saveState.NG118.Setup.Colonists[].Nick string
+saveState.NG118.Setup.Colonists[].Skills rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.NG118.Setup.Colonists[].Skills[] rimworld-go/internal/domain/pawn/skill.Skill
+saveState.NG118.Setup.Colonists[].Skills[].Carry int16
+saveState.NG118.Setup.Colonists[].Skills[].Level uint8
+saveState.NG118.Setup.Colonists[].Skills[].Passion rimworld-go/internal/domain/pawn/skill.Passion = uint8
+saveState.NG118.Setup.Colonists[].Skills[].XP int32
+saveState.NG118.Setup.Colonists[].Temperament rimworld-go/internal/domain/pawn/pawngen.Temperament = uint8
+saveState.NG118.Setup.Colonists[].Traits []rimworld-go/internal/domain/pawn/trait.ID
+saveState.NG118.Setup.Colonists[].Traits[] rimworld-go/internal/domain/pawn/trait.ID = uint8
+saveState.NG118.Setup.Difficulty rimworld-go/internal/domain/difficulty.Settings
+saveState.NG118.Setup.Difficulty.AdaptStrength int
+saveState.NG118.Setup.Difficulty.Adaptation bool
+saveState.NG118.Setup.Difficulty.AnimalRevenge int
+saveState.NG118.Setup.Difficulty.BigThreats bool
+saveState.NG118.Setup.Difficulty.ButcherYield int
+saveState.NG118.Setup.Difficulty.CropYield int
+saveState.NG118.Setup.Difficulty.DiseaseFreq int
+saveState.NG118.Setup.Difficulty.EscPerYear int
+saveState.NG118.Setup.Difficulty.ExtremeWeather bool
+saveState.NG118.Setup.Difficulty.IgnoreWealth bool
+saveState.NG118.Setup.Difficulty.Infection int
+saveState.NG118.Setup.Difficulty.MineYield int
+saveState.NG118.Setup.Difficulty.MoodOffset int
+saveState.NG118.Setup.Difficulty.PainTolerance int
+saveState.NG118.Setup.Difficulty.PeacefulDays int
+saveState.NG118.Setup.Difficulty.PredatorsHuntColonists bool
+saveState.NG118.Setup.Difficulty.QuestRewardPct int
+saveState.NG118.Setup.Difficulty.QuestThreats bool
+saveState.NG118.Setup.Difficulty.ResearchSpeed int
+saveState.NG118.Setup.Difficulty.ThreatScale int
+saveState.NG118.Setup.Difficulty.TimeEscalation bool
+saveState.NG118.Setup.Factions []rimworld-go/internal/domain/faction.Faction
+saveState.NG118.Setup.Factions[] rimworld-go/internal/domain/faction.Faction
+saveState.NG118.Setup.Factions[].Besieged bool
+saveState.NG118.Setup.Factions[].Defeated bool
+saveState.NG118.Setup.Factions[].Enemies []int
+saveState.NG118.Setup.Factions[].Enemies[] int
+saveState.NG118.Setup.Factions[].Events []string
+saveState.NG118.Setup.Factions[].Events[] string
+saveState.NG118.Setup.Factions[].Goodwill int
+saveState.NG118.Setup.Factions[].History []int16
+saveState.NG118.Setup.Factions[].History[] int16
+saveState.NG118.Setup.Factions[].ID int
+saveState.NG118.Setup.Factions[].Leader rimworld-go/internal/domain/faction.Leader
+saveState.NG118.Setup.Factions[].Leader.Name string
+saveState.NG118.Setup.Factions[].Leader.Title string
+saveState.NG118.Setup.Factions[].Name string
+saveState.NG118.Setup.Factions[].Relation rimworld-go/internal/domain/faction.Relation = uint8
+saveState.NG118.Setup.Factions[].SettlementNames []string
+saveState.NG118.Setup.Factions[].SettlementNames[] string
+saveState.NG118.Setup.Factions[].Settlements []int
+saveState.NG118.Setup.Factions[].Settlements[] int
+saveState.NG118.Setup.Factions[].ThankedDay int
+saveState.NG118.Setup.Factions[].Type rimworld-go/internal/domain/faction.Type = uint8
+saveState.NG118.Setup.GenVersion uint16
+saveState.NG118.Setup.GoneAt uint64
+saveState.NG118.Setup.MapSize int
+saveState.NG118.Setup.Preset rimworld-go/internal/domain/difficulty.Preset = uint8
+saveState.NG118.Setup.SaveMode rimworld-go/internal/domain/difficulty.SaveMode = uint8
+saveState.NG118.Setup.Scenario rimworld-go/internal/domain/scenario.Def
+saveState.NG118.Setup.Scenario.Arrival rimworld-go/internal/domain/scenario.Arrival = uint8
+saveState.NG118.Setup.Scenario.Builtin bool
+saveState.NG118.Setup.Scenario.ChooseFrom int
+saveState.NG118.Setup.Scenario.Desc string
+saveState.NG118.Setup.Scenario.Faction rimworld-go/internal/domain/faction.Type = uint8
+saveState.NG118.Setup.Scenario.Hardness uint8
+saveState.NG118.Setup.Scenario.Key string
+saveState.NG118.Setup.Scenario.Name string
+saveState.NG118.Setup.Scenario.Parts []rimworld-go/internal/domain/scenario.Part
+saveState.NG118.Setup.Scenario.Parts[] rimworld-go/internal/domain/scenario.Part
+saveState.NG118.Setup.Scenario.Parts[].Building rimworld-go/internal/domain/building/construction.Kind = uint8
+saveState.NG118.Setup.Scenario.Parts[].Chance uint8
+saveState.NG118.Setup.Scenario.Parts[].Cond rimworld-go/internal/domain/scenario.Condition = uint8
+saveState.NG118.Setup.Scenario.Parts[].EveryDays uint16
+saveState.NG118.Setup.Scenario.Parts[].FirstDay uint16
+saveState.NG118.Setup.Scenario.Parts[].Incident string
+saveState.NG118.Setup.Scenario.Parts[].Item rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.NG118.Setup.Scenario.Parts[].Kind rimworld-go/internal/domain/scenario.PartKind = uint8
+saveState.NG118.Setup.Scenario.Parts[].MaxAge uint8
+saveState.NG118.Setup.Scenario.Parts[].MinAge uint8
+saveState.NG118.Setup.Scenario.Parts[].N uint8
+saveState.NG118.Setup.Scenario.Parts[].Near bool
+saveState.NG118.Setup.Scenario.Parts[].PawnCond rimworld-go/internal/domain/pawn/pawngen.Condition = uint8
+saveState.NG118.Setup.Scenario.Parts[].Percent uint16
+saveState.NG118.Setup.Scenario.Parts[].Project rimworld-go/internal/domain/research.Project = uint8
+saveState.NG118.Setup.Scenario.Parts[].Qty int32
+saveState.NG118.Setup.Scenario.Parts[].Random bool
+saveState.NG118.Setup.Scenario.Parts[].Species rimworld-go/internal/domain/animal.Species = uint8
+saveState.NG118.Setup.Scenario.Parts[].Text string
+saveState.NG118.Setup.Scenario.Parts[].Trait rimworld-go/internal/domain/pawn/trait.ID = uint8
+saveState.NG118.Setup.Scenario.Parts[].Who rimworld-go/internal/domain/scenario.Who = uint8
+saveState.NG118.Setup.Scenario.People int
+saveState.NG118.Setup.Scenario.Seed uint64
+saveState.NG118.Setup.Scenario.Summary string
+saveState.NG118.Setup.Scenario.Tech rimworld-go/internal/domain/faction.Tech = uint8
+saveState.NG118.Setup.Season rimworld-go/internal/application/game.Season = uint8
+saveState.NG118.Setup.Seed uint64
+saveState.NG118.Setup.Site rimworld-go/internal/domain/world/site.Site
+saveState.NG118.Setup.Site.Biome rimworld-go/internal/domain/world/biome.ID = uint8
+saveState.NG118.Setup.Site.Caves bool
+saveState.NG118.Setup.Site.Climate rimworld-go/internal/domain/world/temperature.Climate
+saveState.NG118.Setup.Site.Climate.Amplitude int
+saveState.NG118.Setup.Site.Climate.DaySwing int
+saveState.NG118.Setup.Site.Climate.PeakDay int
+saveState.NG118.Setup.Site.Climate.YearMean int
+saveState.NG118.Setup.Site.Coast rimworld-go/internal/domain/world/site.Dir8Set = uint8
+saveState.NG118.Setup.Site.CoastNear uint8
+saveState.NG118.Setup.Site.HasUphill bool
+saveState.NG118.Setup.Site.Hills rimworld-go/internal/domain/world/site.Hills = uint8
+saveState.NG118.Setup.Site.Lakes uint8
+saveState.NG118.Setup.Site.Latitude int16
+saveState.NG118.Setup.Site.Rain int16
+saveState.NG118.Setup.Site.River rimworld-go/internal/domain/world/site.RiverPath
+saveState.NG118.Setup.Site.River.In rimworld-go/internal/domain/world/site.Dir8 = uint8
+saveState.NG118.Setup.Site.River.Out rimworld-go/internal/domain/world/site.Dir8 = uint8
+saveState.NG118.Setup.Site.River.Size rimworld-go/internal/domain/world/site.RiverSize = uint8
+saveState.NG118.Setup.Site.Road rimworld-go/internal/domain/world/site.Dir8Set = uint8
+saveState.NG118.Setup.Site.Settled bool
+saveState.NG118.Setup.Site.Stones []rimworld-go/internal/domain/world/geology.Stone
+saveState.NG118.Setup.Site.Stones[] rimworld-go/internal/domain/world/geology.Stone = uint8
+saveState.NG118.Setup.Site.Uphill rimworld-go/internal/domain/world/site.Dir8 = uint8
+saveState.NG118.Setup.Storyteller string
+saveState.NG118.Setup.Tile int
+saveState.NG118.Setup.WandererGroups int
+saveState.NG118.Setup.World rimworld-go/internal/domain/world/planet.Params
+saveState.NG118.Setup.World.Coverage int
+saveState.NG118.Setup.World.Factions []rimworld-go/internal/domain/faction.Slot
+saveState.NG118.Setup.World.Factions[] rimworld-go/internal/domain/faction.Slot
+saveState.NG118.Setup.World.Factions[].Count int
+saveState.NG118.Setup.World.Factions[].Type rimworld-go/internal/domain/faction.Type = uint8
+saveState.NG118.Setup.World.Pop int
+saveState.NG118.Setup.World.Rain int
+saveState.NG118.Setup.World.SeedText string
+saveState.NG118.Setup.World.Temp int
+saveState.NG118.Setup.World.Version uint16
+saveState.NG118.StartDay int
+saveState.NG118.Story rimworld-go/internal/domain/storyteller.State
+saveState.NG118.Story.CycleDay int
+saveState.NG118.Story.Cycles int
+saveState.NG118.Story.Eased bool
+saveState.NG118.Story.LastLossDay int
+saveState.NG118.Story.LastThreatDay int
+saveState.NG118.Story.Pressure bool
+saveState.NG118.Story.QuietDays int
+saveState.NG118.Story.Started bool
 saveState.Names []rimworld-go/internal/application/game.entry[string]
 saveState.Names[] rimworld-go/internal/application/game.entry[string]
 saveState.Names[].ID rimworld-go/internal/domain/sim/entity.EntityID = uint64
@@ -1143,10 +1407,10 @@ saveState.Pens[].X1 int
 saveState.Pens[].X2 int
 saveState.Pens[].Y1 int
 saveState.Pens[].Y2 int
-saveState.People rimworld-go/internal/application/game.peopleSave
-saveState.People.Persons []rimworld-go/internal/application/game.personSave
-saveState.People.Persons[] rimworld-go/internal/application/game.personSave
-saveState.People.Persons[].Bio rimworld-go/internal/domain/pawn/pawngen.Pawn
+saveState.People rimworld-go/internal/application/game/savelegacy.People
+saveState.People.Persons []rimworld-go/internal/application/game/savelegacy.Person
+saveState.People.Persons[] rimworld-go/internal/application/game/savelegacy.Person
+saveState.People.Persons[].Bio rimworld-go/internal/application/game/savelegacy.Pawn
 saveState.People.Persons[].Bio.Adulthood rimworld-go/internal/domain/pawn/backstory.ID = uint16
 saveState.People.Persons[].Bio.AgeDays int32
 saveState.People.Persons[].Bio.Childhood rimworld-go/internal/domain/pawn/backstory.ID = uint16
@@ -1168,7 +1432,7 @@ saveState.People.Persons[].Bio.Look.Skin uint8
 saveState.People.Persons[].Bio.Look.Vest bool
 saveState.People.Persons[].Bio.Look.VestCloth uint8
 saveState.People.Persons[].Bio.Nick string
-saveState.People.Persons[].Bio.Skills rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.People.Persons[].Bio.Skills rimworld-go/internal/application/game/savelegacy.SkillSet = [11]rimworld-go/internal/domain/pawn/skill.Skill
 saveState.People.Persons[].Bio.Skills[] rimworld-go/internal/domain/pawn/skill.Skill
 saveState.People.Persons[].Bio.Skills[].Carry int16
 saveState.People.Persons[].Bio.Skills[].Level uint8
@@ -1186,6 +1450,49 @@ saveState.People.Persons[].Parents[] rimworld-go/internal/domain/sim/entity.Enti
 saveState.People.Persons[].Where uint8
 saveState.People.Seeded bool
 saveState.People.Version uint8
+saveState.People18 rimworld-go/internal/application/game.peopleSave
+saveState.People18.Persons []rimworld-go/internal/application/game.personSave
+saveState.People18.Persons[] rimworld-go/internal/application/game.personSave
+saveState.People18.Persons[].Bio rimworld-go/internal/domain/pawn/pawngen.Pawn
+saveState.People18.Persons[].Bio.Adulthood rimworld-go/internal/domain/pawn/backstory.ID = uint16
+saveState.People18.Persons[].Bio.AgeDays int32
+saveState.People18.Persons[].Bio.Childhood rimworld-go/internal/domain/pawn/backstory.ID = uint16
+saveState.People18.Persons[].Bio.Conditions []rimworld-go/internal/domain/pawn/pawngen.Condition
+saveState.People18.Persons[].Bio.Conditions[] rimworld-go/internal/domain/pawn/pawngen.Condition = uint8
+saveState.People18.Persons[].Bio.First string
+saveState.People18.Persons[].Bio.Last string
+saveState.People18.Persons[].Bio.Look rimworld-go/internal/domain/pawn/look.Look
+saveState.People18.Persons[].Bio.Look.Bare bool
+saveState.People18.Persons[].Bio.Look.Beard uint8
+saveState.People18.Persons[].Bio.Look.Build rimworld-go/internal/domain/pawn/look.Build = uint8
+saveState.People18.Persons[].Bio.Look.Grey bool
+saveState.People18.Persons[].Bio.Look.Hair uint8
+saveState.People18.Persons[].Bio.Look.HairStyle uint8
+saveState.People18.Persons[].Bio.Look.Pants uint8
+saveState.People18.Persons[].Bio.Look.Sex rimworld-go/internal/domain/pawn/look.Sex = uint8
+saveState.People18.Persons[].Bio.Look.Shirt uint8
+saveState.People18.Persons[].Bio.Look.Skin uint8
+saveState.People18.Persons[].Bio.Look.Vest bool
+saveState.People18.Persons[].Bio.Look.VestCloth uint8
+saveState.People18.Persons[].Bio.Nick string
+saveState.People18.Persons[].Bio.Skills rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.People18.Persons[].Bio.Skills[] rimworld-go/internal/domain/pawn/skill.Skill
+saveState.People18.Persons[].Bio.Skills[].Carry int16
+saveState.People18.Persons[].Bio.Skills[].Level uint8
+saveState.People18.Persons[].Bio.Skills[].Passion rimworld-go/internal/domain/pawn/skill.Passion = uint8
+saveState.People18.Persons[].Bio.Skills[].XP int32
+saveState.People18.Persons[].Bio.Temperament rimworld-go/internal/domain/pawn/pawngen.Temperament = uint8
+saveState.People18.Persons[].Bio.Traits []rimworld-go/internal/domain/pawn/trait.ID
+saveState.People18.Persons[].Bio.Traits[] rimworld-go/internal/domain/pawn/trait.ID = uint8
+saveState.People18.Persons[].DiedAt uint64
+saveState.People18.Persons[].Faction int
+saveState.People18.Persons[].ID rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.People18.Persons[].KilledBy rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.People18.Persons[].Parents [2]rimworld-go/internal/domain/sim/entity.EntityID
+saveState.People18.Persons[].Parents[] rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.People18.Persons[].Where uint8
+saveState.People18.Seeded bool
+saveState.People18.Version uint8
 saveState.PetNames []rimworld-go/internal/application/game.entry[string]
 saveState.PetNames[] rimworld-go/internal/application/game.entry[string]
 saveState.PetNames[].ID rimworld-go/internal/domain/sim/entity.EntityID = uint64
@@ -1570,33 +1877,65 @@ saveState.Shots[].Type rimworld-go/internal/domain/combat/damage.Type = uint8
 saveState.Shots[].Weapon rimworld-go/internal/domain/combat/weapon.Kind = uint8
 saveState.Shots[].X int
 saveState.Shots[].Y int
-saveState.SkillLive rimworld-go/internal/application/game.savedSkillLive
-saveState.SkillLive.Learned map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game.savedLearn
+saveState.SkillLive rimworld-go/internal/application/game/savelegacy.SkillLive
+saveState.SkillLive.Learned map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game/savelegacy.Learn
 saveState.SkillLive.Learned{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
-saveState.SkillLive.Learned{} rimworld-go/internal/application/game.savedLearn
-saveState.SkillLive.Learned{}.Carry [12]int16
+saveState.SkillLive.Learned{} rimworld-go/internal/application/game/savelegacy.Learn
+saveState.SkillLive.Learned{}.Carry [11]int16
 saveState.SkillLive.Learned{}.Carry[] int16
 saveState.SkillLive.Learned{}.Day int32
-saveState.SkillLive.Learned{}.Today [12]int32
+saveState.SkillLive.Learned{}.Today [11]int32
 saveState.SkillLive.Learned{}.Today[] int32
-saveState.SkillLive.Learned{}.Week [7][12]int32
-saveState.SkillLive.Learned{}.Week[] [12]int32
+saveState.SkillLive.Learned{}.Week [7][11]int32
+saveState.SkillLive.Learned{}.Week[] [11]int32
 saveState.SkillLive.Learned{}.Week[][] int32
-saveState.SkillLive.NeedCarry map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game.savedNeedCarry
+saveState.SkillLive.NeedCarry map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game/savelegacy.NeedCarry
 saveState.SkillLive.NeedCarry{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
-saveState.SkillLive.NeedCarry{} rimworld-go/internal/application/game.savedNeedCarry
+saveState.SkillLive.NeedCarry{} rimworld-go/internal/application/game/savelegacy.NeedCarry
 saveState.SkillLive.NeedCarry{}.Hunger int32
 saveState.SkillLive.NeedCarry{}.Joy int32
 saveState.SkillLive.NeedCarry{}.Rest int32
 saveState.SkillLive.Research int
-saveState.SkillLive.Working map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game.savedWorking
+saveState.SkillLive.Working map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game/savelegacy.Working
 saveState.SkillLive.Working{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
-saveState.SkillLive.Working{} rimworld-go/internal/application/game.savedWorking
+saveState.SkillLive.Working{} rimworld-go/internal/application/game/savelegacy.Working
 saveState.SkillLive.Working{}.Skill rimworld-go/internal/domain/pawn/skill.ID = uint8
 saveState.SkillLive.Working{}.Tick uint64
-saveState.Skills map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/domain/pawn/skill.Set
+saveState.SkillLive18 rimworld-go/internal/application/game.savedSkillLive
+saveState.SkillLive18.Learned map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game.savedLearn
+saveState.SkillLive18.Learned{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.SkillLive18.Learned{} rimworld-go/internal/application/game.savedLearn
+saveState.SkillLive18.Learned{}.Carry [12]int16
+saveState.SkillLive18.Learned{}.Carry[] int16
+saveState.SkillLive18.Learned{}.Day int32
+saveState.SkillLive18.Learned{}.Today [12]int32
+saveState.SkillLive18.Learned{}.Today[] int32
+saveState.SkillLive18.Learned{}.Week [7][12]int32
+saveState.SkillLive18.Learned{}.Week[] [12]int32
+saveState.SkillLive18.Learned{}.Week[][] int32
+saveState.SkillLive18.NeedCarry map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game.savedNeedCarry
+saveState.SkillLive18.NeedCarry{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.SkillLive18.NeedCarry{} rimworld-go/internal/application/game.savedNeedCarry
+saveState.SkillLive18.NeedCarry{}.Hunger int32
+saveState.SkillLive18.NeedCarry{}.Joy int32
+saveState.SkillLive18.NeedCarry{}.Rest int32
+saveState.SkillLive18.Research int
+saveState.SkillLive18.Working map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game.savedWorking
+saveState.SkillLive18.Working{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.SkillLive18.Working{} rimworld-go/internal/application/game.savedWorking
+saveState.SkillLive18.Working{}.Skill rimworld-go/internal/domain/pawn/skill.ID = uint8
+saveState.SkillLive18.Working{}.Tick uint64
+saveState.Skills map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game/savelegacy.SkillSet
+saveState.Skills18 map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/domain/pawn/skill.Set
+saveState.Skills18{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.Skills18{} rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.Skills18{}[] rimworld-go/internal/domain/pawn/skill.Skill
+saveState.Skills18{}[].Carry int16
+saveState.Skills18{}[].Level uint8
+saveState.Skills18{}[].Passion rimworld-go/internal/domain/pawn/skill.Passion = uint8
+saveState.Skills18{}[].XP int32
 saveState.Skills{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
-saveState.Skills{} rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.Skills{} rimworld-go/internal/application/game/savelegacy.SkillSet = [11]rimworld-go/internal/domain/pawn/skill.Skill
 saveState.Skills{}[] rimworld-go/internal/domain/pawn/skill.Skill
 saveState.Skills{}[].Carry int16
 saveState.Skills{}[].Level uint8

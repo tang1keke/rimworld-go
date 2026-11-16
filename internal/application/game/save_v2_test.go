@@ -2,7 +2,6 @@ package game
 
 import (
 	"bytes"
-	"errors"
 	"os"
 	"reflect"
 	"slices"
@@ -209,26 +208,48 @@ func TestSaveInfoFields(t *testing.T) {
 
 func TestSupportedSaveVersions(t *testing.T) {
 	t.Parallel()
-	for v, ok := range map[int]bool{0: false, 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false, 9: false, 10: false, 11: false, 12: false, 13: false, 14: false, 15: false, 16: false, 17: false, 18: true, 19: false} { // v18: canonical 12-skill model; v1-v17 require an offline converter
+	for v, ok := range map[int]bool{0: false, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true, 10: true, 11: true, 12: true, 13: true, 14: true, 15: true, 16: true, 17: true, 18: true, 19: false} { // v5: PLAY-021, v6: MED-02, v7: FOOD-1, v8: TEMP-*, v9: RSCH-1, v10: STK-BN, v11: AX-0, v12: MAP-0, v13: NST, CSE, v14: GEAR-3, v15: QST-1, v16: SAV-003, v17: EAI-0
 		if SupportedSaveVersion(v) != ok {
 			t.Errorf("version %d supported = %v", v, !ok)
 		}
 	}
 }
 
-// TestNG1V2Fixture confirms the v2 header stays inspectable while the
-// incompatible v2 body is rejected before gob tries to decode skill arrays.
+// TestNG1V2Fixture loads the checked-in v2 save of a Setup colony, so a
+// future change that cannot read today's saves fails here. Regenerate it
+// only for an intended format break, with RIMWORLD_UPDATE_SAVE_FIXTURE=1.
 func TestNG1V2Fixture(t *testing.T) {
+	if os.Getenv("RIMWORLD_UPDATE_SAVE_FIXTURE") != "" {
+		var buf bytes.Buffer
+		if err := commitSetup(t).Save(&buf, "ng1-v2"); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(ng1V2Fixture, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	t.Parallel()
 	data, err := os.ReadFile(ng1V2Fixture)
 	if err != nil {
 		t.Fatal(err)
 	}
-	info, err := ReadSaveInfo(bytes.NewReader(data))
+	g, info, err := Load(bytes.NewReader(data))
 	if err != nil || info.Version != 2 {
-		t.Fatalf("header: %+v, %v", info, err)
+		t.Fatalf("load: %v (info %+v)", err, info)
 	}
-	if _, _, err := Load(bytes.NewReader(data)); !errors.Is(err, ErrSaveVersion) {
-		t.Fatalf("old v2 save must be rejected as incompatible: %v", err)
+	if !info.Commitment || info.MapSize != 60 || info.Storyteller == "" || info.Colonists != 3 {
+		t.Fatalf("fixture header %+v", info)
+	}
+	if !g.hasSetup() || g.ng.setup.Scenario.Name == "" || len(g.ng.factions) == 0 || !g.Story().Commitment {
+		t.Fatal("fixture lost its setup")
+	}
+	if len(g.sk.bios) != 3 {
+		t.Fatalf("fixture bios %d", len(g.sk.bios))
+	}
+	h, _ := saveLoadInfo(t, g)
+	g.Step(600)
+	h.Step(600)
+	if g.StateHash() != h.StateHash() {
+		t.Fatal("the fixture does not continue identically after a re-save")
 	}
 }
