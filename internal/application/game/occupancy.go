@@ -71,6 +71,7 @@ type occupancy struct {
 	cells   []entity.EntityID              // standing blocker (wild animal, raider) per cell, 0 = none
 	near    []uint8                        // per cell: blocker cells in its 3×3 (crowdCost's fast path)
 	marked  []int                          // cells written since the last rebuild
+	batch   spatial.OccupancyBatch         // net neighbour changes across a rebuild
 	stacked []stackedRec                   // blockers sharing a cell with a lower ID
 	carried spatial.IDSet[entity.EntityID] // patients being carried, as of the last rebuild
 	// partner layer (PLAY-010): colonists and tame animals, several per
@@ -86,12 +87,8 @@ type occupancy struct {
 	// two or more partners, creatures to move off, one cell's partners
 	mixed, shared []int
 	moveOff, here []entity.EntityID
-	// repath cache: the path enter() planned with a stepRepath verdict,
-	// handed out by pathAround in the same tick.
-	rpID   entity.EntityID
-	rpAt   uint64
-	rpPath []pathing.Point
-	rpMiss entity.EntityID // repathEvery's inline search for it failed (a pawn's: tests count searches)
+	// Path planned by enter(), handed to pathAround in the same tick.
+	repath repathCache
 	// dirty: the movement phase started and the index is not rebuilt yet
 	// (it is rebuilt on first use, or by the periodic stack sweep); builds
 	// counts the rebuilds (at most one a map a tick: occupancy_builds_test.go).
@@ -103,6 +100,12 @@ type occupancy struct {
 	hostile    pathing.Query
 	hostileOK  bool
 	hostileGen uint64 // bumped whenever hostile is rebuilt
+}
+
+type repathCache struct {
+	id, miss entity.EntityID
+	at       uint64
+	path     []pathing.Point
 }
 
 type stackedRec struct {
@@ -125,7 +128,7 @@ const (
 // yieldRetry ticks it is rebuilt anyway, to sweep for stacks.
 func (g *Game) buildOccupancy() {
 	o := &g.occ
-	o.dirty, o.rpID, o.hostileOK = true, 0, false
+	o.dirty, o.repath.id, o.hostileOK = true, 0, false
 	if uint64(g.clock.Now())%yieldRetry == 0 {
 		g.rebuildOccupancy()
 	}
@@ -148,12 +151,12 @@ func (g *Game) rebuildOccupancy() {
 		o.pfirst = make([]entity.EntityID, w*h)
 		o.pcount = make([]uint16, w*h)
 		o.pnear = make([]uint8, w*h)
+		o.batch.Resize(w * h)
 		o.marked = o.marked[:0]
 	}
+	o.batch.Begin(o.marked, o.cells, o.pfirst)
 	for _, i := range o.marked {
-		o.put(i, 0)
-		o.pput(i, 0)
-		o.pcount[i] = 0
+		o.cells[i], o.pfirst[i], o.pcount[i] = 0, 0, 0
 	}
 	o.marked = o.marked[:0]
 	o.stacked = o.stacked[:0]
@@ -197,6 +200,7 @@ func (g *Game) rebuildOccupancy() {
 			}
 		}
 	}
+	o.batch.End(o.marked, o.cells, o.pfirst, o.near, o.pnear, o.w, o.h)
 	slices.SortFunc(o.stacked, func(a, b stackedRec) int { return cmp.Compare(a.id, b.id) })
 	g.unstack()
 }
@@ -326,8 +330,8 @@ func (o *occupancy) dropPartner(id entity.EntityID, fi int, inMap bool) bool {
 func (o *occupancy) pput(i int, id entity.EntityID) {
 	was := o.pfirst[i] != 0
 	o.pfirst[i] = id
-	if was != (id != 0) {
-		bump(o.pnear, o.w, o.h, i, was)
+	if !o.batch.Active() && was != (id != 0) {
+		spatial.BumpNear(o.pnear, o.w, o.h, i, was)
 	}
 }
 
@@ -343,22 +347,8 @@ func (o *occupancy) index(x, y int) (int, bool) {
 func (o *occupancy) put(i int, id entity.EntityID) {
 	was := o.cells[i] != 0
 	o.cells[i] = id
-	if was != (id != 0) {
-		bump(o.near, o.w, o.h, i, was)
-	}
-}
-
-// bump adds one (or, with down, removes one) to near across cell i's 3×3.
-func bump(near []uint8, w, h, i int, down bool) {
-	var d uint8 = 1
-	if down {
-		d = 255 // -1
-	}
-	x, y := i%w, i/w
-	for ny := max(y-1, 0); ny <= min(y+1, h-1); ny++ {
-		for nx := max(x-1, 0); nx <= min(x+1, w-1); nx++ {
-			near[ny*w+nx] += d
-		}
+	if !o.batch.Active() && was != (id != 0) {
+		spatial.BumpNear(o.near, o.w, o.h, i, was)
 	}
 }
 
@@ -619,7 +609,7 @@ func (g *Game) repathEvery(id entity.EntityID, from, to Position, m motionRec, b
 	if g.planAround(id, from, to) {
 		return stepRepath, from
 	}
-	g.occ.rpMiss = id
+	g.occ.repath.miss = id
 	return stepWait, from
 }
 
@@ -640,7 +630,7 @@ func (g *Game) planAround(id entity.EntityID, from, to Position) bool {
 	if first.X == to.X && first.Y == to.Y || g.holderFor(id, g.partner(id), Position{X: first.X, Y: first.Y}) != 0 {
 		return false
 	}
-	o.rpID, o.rpAt, o.rpPath = id, uint64(g.clock.Now()), path
+	o.repath.id, o.repath.at, o.repath.path = id, uint64(g.clock.Now()), path
 	return true
 }
 
@@ -1170,9 +1160,9 @@ func (g *Game) costedQuery(id entity.EntityID) pathing.Query {
 // else to the cheapest free-standing neighbour.
 func (g *Game) pathAround(id entity.EntityID, tx, ty int) ([]pathing.Point, bool) {
 	o := &g.occ
-	if o.rpID == id && o.rpAt == uint64(g.clock.Now()) {
-		p := o.rpPath
-		o.rpID, o.rpPath = 0, nil
+	if o.repath.id == id && o.repath.at == uint64(g.clock.Now()) {
+		p := o.repath.path
+		o.repath.id, o.repath.path = 0, nil
 		return p, true
 	}
 	pos, _ := g.positions.Get(id)
