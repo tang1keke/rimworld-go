@@ -210,6 +210,12 @@ saveState.BedRest.Since []rimworld-go/internal/application/game/care.Entry[uint6
 saveState.BedRest.Since[] rimworld-go/internal/application/game/care.Entry[uint64]
 saveState.BedRest.Since[].ID rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.BedRest.Since[].V uint64
+saveState.BehaviorStates []rimworld-go/internal/application/game/behavior.StoredState
+saveState.BehaviorStates[] rimworld-go/internal/application/game/behavior.StoredState
+saveState.BehaviorStates[].Data []uint8
+saveState.BehaviorStates[].Data[] uint8
+saveState.BehaviorStates[].ID string
+saveState.BehaviorStates[].Version uint32
 saveState.Bills map[rimworld-go/internal/domain/sim/entity.EntityID][]rimworld-go/internal/domain/economy/recipe.Bill
 saveState.Bills{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.Bills{} []rimworld-go/internal/domain/economy/recipe.Bill

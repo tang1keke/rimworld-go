@@ -1337,6 +1337,9 @@ func (g *Game) Step(n int) {
 		g.mapState = g.maps[0]
 		mapsFlush(g) // world_state.go: game/maps opens, enters and closes maps (MAP-01..04)
 		g.mapState = g.view
+		if g.worldSt != nil && g.worldSt.behavior != nil {
+			g.worldSt.behavior.Step(uint64(g.clock.Now())) // complete map pass; commands run next tick
+		}
 		g.clock.Advance(1)
 	}
 }

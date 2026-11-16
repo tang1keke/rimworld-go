@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 
+	"rimworld-go/internal/application/game/saveutil"
 	"rimworld-go/internal/domain/sim/statehash"
 	"rimworld-go/internal/domain/world/temperature"
 )
@@ -78,7 +79,7 @@ func normalisedFields(info SaveInfo, s *saveState) map[string]any {
 	// is configuration: the streams themselves are hashed once used.
 	if l := s.PrioList; l != nil {
 		delete(f, "PrioList")
-		f["Prios"] = importPrios(l)
+		f["Prios"] = saveutil.ImportPrios(l)
 	}
 	if st := maps.Clone(s.RNGStreams); st != nil {
 		delete(st, streamSeedKey)
