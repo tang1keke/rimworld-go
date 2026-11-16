@@ -1,6 +1,7 @@
 package game
 
 import (
+	"rimworld-go/internal/domain/pawn/skill"
 	"testing"
 
 	"rimworld-go/internal/domain/ai/job"
@@ -100,7 +101,7 @@ func TestMoodFromEatingAndSleeping(t *testing.T) {
 	}
 }
 
-func TestUnhappyPawnsWorkSlower(t *testing.T) {
+func TestLowMoodDoesNotReduceDirectWorkSpeed(t *testing.T) {
 	t.Parallel()
 	g := New(Config{Seed: 1, Width: 6, Height: 4})
 	id, _ := g.SpawnNamedPawn(1, 1, "Bo")
@@ -109,17 +110,13 @@ func TestUnhappyPawnsWorkSlower(t *testing.T) {
 	}
 	g.SetNeeds(id, needs.CriticalHunger-1, needs.CriticalRest-1)
 	if g.moodOf(id) >= mood.LowMood {
-		t.Fatalf("mood %d should be low", g.moodOf(id))
+		t.Fatalf("fixture mood %d should be low", g.moodOf(id))
 	}
-	slow := 0
 	for i := 0; i < 400; i++ {
-		if !g.workTick(id) {
-			slow++
+		if got := g.workProgress(id, skill.Mining, false); got != 1 {
+			t.Fatalf("low mood changed direct work progress at tick %d: %d", i, got)
 		}
 		g.clock.Advance(1)
-	}
-	if slow != 100 {
-		t.Fatalf("unhappy pawn lost %d of 400 work ticks, want 100", slow)
 	}
 }
 

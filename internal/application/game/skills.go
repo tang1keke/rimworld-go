@@ -353,10 +353,9 @@ func (g *Game) IncapableReason(id entity.EntityID, t work.Type) string {
 // --- work progress and learning ------------------------------------
 
 // workProgress is how much work pawn id does this tick on work trained
-// by skill sk (hasSkill false: work speed only). rate = mood gate ×
-// WorkSpeed × skill speed × trait/condition skill factor, carried in
-// permille, so a neutral pawn does exactly 1 unit a tick — and 0 on the
-// low-mood ticks workTick has always skipped. Skilled work also trains sk.
+// by skill sk (hasSkill false: work speed only). Rate combines WorkSpeed,
+// skill speed and trait/condition factors, carried in permille. Mood
+// changes mental break risk rather than reducing direct work progress.
 func (g *Game) workProgress(id entity.EntityID, sk skill.ID, hasSkill bool) int {
 	return g.workProgressPct(id, sk, hasSkill, 100)
 }
@@ -367,9 +366,6 @@ func (g *Game) workProgressPct(id entity.EntityID, sk skill.ID, hasSkill bool, p
 	if hasSkill {
 		g.sk.ensure()
 		g.sk.working[id] = workingRec{sk: sk, tick: uint64(g.clock.Now())}
-	}
-	if !g.workTick(id) {
-		return 0
 	}
 	rate := int64(1000)
 	if fx := g.sk.stats[id]; fx != nil && !fx.neutral || hasSkill && roster.LevelSpeed(sk, g.skillOf(id, sk).Level) != 1000 || pct != 100 || g.mind.Inspire.Has(id, mind.WorkFrenzy) {

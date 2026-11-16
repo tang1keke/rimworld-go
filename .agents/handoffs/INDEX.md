@@ -442,4 +442,5 @@ One row per handoff section. Open the ledger at `#<lowercased ID>`. A new task a
 | WG-1-planet-v1-and-relief | Planet v1 domain and the globe relief | 2026-11-02 | [WORLD.md](WORLD.md#wg-1-planet-v1-and-relief) |
 | WG-2-globe-lines-and-landing-ui | Roads, rivers and labels on the globe; landing UI; units | 2026-11-02 | [WORLD.md](WORLD.md#wg-2-globe-lines-and-landing-ui) |
 | WRK-001-work-order | Work order and harvesting | 2026-11-04 | [BASE.md](BASE.md#wrk-001-work-order) |
+| WRK-002-low-mood-work-speed | Remove direct low-mood work penalty | 2026-11-16 | [BASE.md](BASE.md#wrk-002-low-mood-work-speed) |
 | ZONE-001-per-tile-zones | Per-tile zones | 2026-10-21 | [STORAGE.md](STORAGE.md#zone-001-per-tile-zones) |

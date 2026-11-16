@@ -255,15 +255,6 @@ func (g *Game) afterEat(id entity.EntityID, st item.Stack, fed bool) {
 	g.rollFoodPoison(id, st)
 }
 
-// workTick reports whether a work job progresses this tick: unhappy
-// pawns lose one tick in four (deterministic on the clock).
-func (g *Game) workTick(id entity.EntityID) bool {
-	if uint64(g.clock.Now())%4 != 0 {
-		return true
-	}
-	return g.moodOf(id) >= mood.LowMood
-}
-
 func thoughtViews(ts []mood.Thought) []ThoughtView {
 	out := make([]ThoughtView, len(ts))
 	for i, t := range ts {

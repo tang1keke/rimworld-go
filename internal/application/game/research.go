@@ -63,9 +63,8 @@ func (h researchHost) Start(worker, bench entity.EntityID, sx, sy, ticks int) bo
 		h.g.reserve.TryTile(worker, sx, sy) // RES-1: the work spot is the researcher's
 }
 func (h researchHost) Work(id entity.EntityID) bool {
-	ok := h.g.workTick(id)
 	h.g.workProgress(id, skIntellectual, true) // skills.go: trains Intellectual
-	return ok
+	return true
 }
 func (h researchHost) Speed(id entity.EntityID) rlab.Pawn {
 	g, manip, sight, trait := h.g, int32(1000), int32(1000), 100
