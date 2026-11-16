@@ -11,10 +11,8 @@ import (
 	"rimworld-go/internal/domain/sim/entity"
 )
 
-// Death and loss (ENG-003, M7). Grief follows ties, not proximity: the
-// dead pawn's social edges and its family graph, so a relative across the
-// map, in a caravan or held prisoner grieves and a stranger standing by
-// does not. The dead stay in the registry (and the Social tab).
+// Grief follows social ties even off-map. Dead people remain in the
+// registry for relationship and Social tab views.
 
 // tiesOf lists the people tied to id (social edges and family), ascending.
 func (g *Game) tiesOf(id entity.EntityID) []entity.EntityID {
@@ -70,14 +68,7 @@ func (g *Game) canGrieve(c entity.EntityID) bool {
 // addGrief gives c a grief thought about subject lasting days, shown as
 // label ("": the def's).
 func (g *Game) addGrief(c, subject entity.EntityID, d social.GriefDef, label string, now uint64) {
-	m := g.memories[c].AddLabeled(mood.Grief, uint64(subject), d.Mood, label, now)
-	// mood.Grief has no duration of its own: the relation's sets it.
-	for i := range m {
-		if m[i].Kind == mood.Grief && m[i].Subject == uint64(subject) && m[i].Expires == now {
-			m[i].Expires = now + uint64(d.Days)*clock.TicksPerDay
-		}
-	}
-	g.memories[c] = m
+	g.memories[c] = g.memories[c].AddLabeledUntil(mood.Grief, uint64(subject), d.Mood, label, now, now+uint64(d.Days)*clock.TicksPerDay)
 }
 
 // grieve gives every tie of id its grief (lost: missing, not dead) and,
@@ -156,8 +147,7 @@ func (g *Game) socialOnLostAs(id entity.EntityID, kind, text string) {
 	g.addHistory(kind, text, id)
 }
 
-// socialOnReturned: missing colonist id is back, so the grief over it
-// ends early.
+// socialOnReturned stops grieving over someone who came back.
 func (g *Game) socialOnReturned(id entity.EntityID) {
 	for _, c := range g.tiesOf(id) {
 		m := g.memories[c]
@@ -170,7 +160,12 @@ func (g *Game) socialOnReturned(id entity.EntityID) {
 				out = append(out, x)
 			}
 		}
-		g.memories[c] = out
+		clear(m[len(out):])
+		if len(out) == 0 {
+			delete(g.memories, c)
+		} else {
+			g.memories[c] = out
+		}
 	}
 	g.addHistory("returned", g.personName(id)+" came back.", id)
 }

@@ -795,7 +795,7 @@ func Load(r io.Reader) (*Game, SaveInfo, error) {
 		importMapFields(g, &e.State)
 		g.climate = e.Climate
 	}
-	eachMap(g, func() { g.warmIndexes(true) }) // jobindex.go: indexes, rooms and regions now, not on the first tick
+	eachMap(g, func() { g.warmIndexes(true) }) // restore indexes; gameplay primes the new mood-wealth cache
 	if v := mapByID(g, s.View); v != nil {
 		g.view = v
 	}

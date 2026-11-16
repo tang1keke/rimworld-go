@@ -664,14 +664,17 @@ func joyOffHash(seed uint64, ticks int) (uint64, *Game) {
 //
 // Re-pinned (EAI-014): the wealth tracker sweeps a slice every 25 ticks and
 // its cursor, hour and partial sum are saved state.
-// MED-14: the corrected artificial-part and tongue hit coverage changes
-// combat outcomes in the seed-2 baseline; no habits were enabled.
+// Re-pinned (mood): sleep freezes mood and pauses breaks; vanilla expectations
+// contribute to each colonist's mood from colony wealth.
+// Re-pinned (core-gameplay integration): MED-14 body coverage changes
+// combat outcomes; SIM mood expectations and sleep-aware mood lifecycle
+// change the colony state even with habits disabled. Two runs agree.
 func TestHabitsOffKeepTheHash(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
 		seed uint64
 		want uint64
-	}{{1, 0xe086929139a977ff}, {2, 0x7dd749609086aea2}} {
+	}{{1, 0x7f7fb4aac91ed351}, {2, 0xa8c25c62bb23f5ad}} {
 		h, g := joyOffHash(c.seed, 30000)
 		if h != c.want {
 			t.Errorf("seed %d: hash %#x, want %#x", c.seed, h, c.want)

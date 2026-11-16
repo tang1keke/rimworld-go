@@ -2045,6 +2045,8 @@ saveState.Wealth.History[] rimworld-go/internal/application/game/wealth.Sample
 saveState.Wealth.History[].Tick uint64
 saveState.Wealth.History[].Value int
 saveState.Wealth.Hour uint64
+saveState.Wealth.InitialCounted bool
+saveState.Wealth.InitialValue int
 saveState.Wealth.Next uint64
 saveState.Wealth.Partial int
 saveState.Wealth.Value int
