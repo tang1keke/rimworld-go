@@ -242,3 +242,16 @@ func TestSettleGiftNoSilver(t *testing.T) {
 		t.Fatal("worthless gift")
 	}
 }
+
+func TestInspiredTradePriceImprovement(t *testing.T) {
+	t.Parallel()
+	normal := Terms{Social: 8}
+	inspired := Terms{Social: 8, Inspired: true}
+	for _, k := range []TraderKind{BulkHauler, Quartermaster, CurioMerchant} {
+		buy0, buy1 := Price(item.Parka, k, Buy, normal), Price(item.Parka, k, Buy, inspired)
+		sell0, sell1 := Price(item.Parka, k, Sell, normal), Price(item.Parka, k, Sell, inspired)
+		if buy1 >= buy0 || sell1 <= sell0 || sell1 > buy1*SellCapPct/100 {
+			t.Fatalf("trader %d: buy %d->%d sell %d->%d", k, buy0, buy1, sell0, sell1)
+		}
+	}
+}

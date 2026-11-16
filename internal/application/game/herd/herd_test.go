@@ -17,22 +17,23 @@ import (
 // fakeHost is a tiny world: one handler (id 1) at (0, 0), animals and
 // stacks by id, every tile reachable, claims by target.
 type fakeHost struct {
-	now     uint64
-	roll    int // Roll's answer
-	skill   int
-	animals map[entity.EntityID]animal.State
-	pos     map[entity.EntityID][2]int
-	stacks  map[entity.EntityID]item.Stack
-	jobs    map[entity.EntityID]job.Record
-	claims  map[entity.EntityID]entity.EntityID
-	next    entity.EntityID
-	banned  item.Kind // Policy forbids it (FOOD-4)
-	msgs    []string
-	killed  []entity.EntityID
-	tamed   []entity.EntityID
-	failed  []entity.EntityID
-	fed     []entity.EntityID
-	hauled  []entity.EntityID
+	now          uint64
+	roll         int // Roll's answer
+	inspiredTame bool
+	skill        int
+	animals      map[entity.EntityID]animal.State
+	pos          map[entity.EntityID][2]int
+	stacks       map[entity.EntityID]item.Stack
+	jobs         map[entity.EntityID]job.Record
+	claims       map[entity.EntityID]entity.EntityID
+	next         entity.EntityID
+	banned       item.Kind // Policy forbids it (FOOD-4)
+	msgs         []string
+	killed       []entity.EntityID
+	tamed        []entity.EntityID
+	failed       []entity.EntityID
+	fed          []entity.EntityID
+	hauled       []entity.EntityID
 }
 
 const handler entity.EntityID = 1
@@ -49,6 +50,13 @@ func (f *fakeHost) add(id entity.EntityID, a animal.State, x, y int) {
 
 func (f *fakeHost) Now() uint64    { return f.now }
 func (f *fakeHost) Roll(n int) int { return min(f.roll, n-1) }
+func (f *fakeHost) UseTameInspiration(entity.EntityID) bool {
+	if !f.inspiredTame {
+		return false
+	}
+	f.inspiredTame = false
+	return true
+}
 func (f *fakeHost) Message(x, y int, format string, args ...any) {
 	f.msgs = append(f.msgs, fmt.Sprintf(format, args...))
 }
@@ -371,5 +379,24 @@ func TestHunterCarriesItsKill(t *testing.T) {
 	hd.Killed(handler, 10, 60)
 	if !hd.CarryKill(handler) || len(f.hauled) != 1 || hd.CarryKill(handler) {
 		t.Fatalf("carried once: %v", f.hauled)
+	}
+}
+
+func TestInspiredTamingConsumesOnValidAttempt(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	hd := New(f, &Settings{})
+	f.add(10, animal.State{Species: animal.Goat, TameMark: true, Food: 1000, HasSex: true}, 9, 0)
+	f.stacks[51] = item.Stack{Kind: item.Potatoes, Qty: 50, X: 3, Y: 3}
+	f.roll = 999
+	f.inspiredTame = true
+	if !hd.Taming.Assign(handler) {
+		t.Fatal("missing tame job")
+	}
+	if j := run(f, hd, handler, 50); j.State != job.Complete {
+		t.Fatalf("inspired tame job incomplete: %+v", j)
+	}
+	if len(f.tamed) != 1 || len(f.failed) != 0 || f.inspiredTame {
+		t.Fatalf("inspired tame did not guarantee one success: tamed=%v failed=%v", f.tamed, f.failed)
 	}
 }

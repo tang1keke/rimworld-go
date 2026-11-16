@@ -2,6 +2,7 @@ package game
 
 import (
 	"rimworld-go/internal/application/game/letters"
+	"rimworld-go/internal/application/game/mind"
 	"rimworld-go/internal/application/game/prison"
 	"rimworld-go/internal/application/game/raid"
 	"rimworld-go/internal/domain/ai/job"
@@ -135,6 +136,9 @@ func (h prisonTalk) Opinion(from, to entity.EntityID) int32 { return h.g.opinion
 func (h prisonTalk) Mood(id entity.EntityID) int            { return h.g.prisonerMood(id) }
 func (h prisonTalk) Negotiation(id entity.EntityID) int32   { return h.g.negotiation(id) }
 func (h prisonTalk) SocialLevel(id entity.EntityID) int     { return int(h.g.skillOf(id, skSocial).Level) }
+func (h prisonTalk) UseRecruitInspiration(id entity.EntityID) bool {
+	return h.g.mind.Inspire.Use(id, mind.Recruitment)
+}
 func (h prisonTalk) Chat(a, b entity.EntityID, now uint64) {
 	h.g.applyInteraction(a, b, social.Chitchat, now) // social.go: memories, log
 }

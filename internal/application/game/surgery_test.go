@@ -1,6 +1,7 @@
 package game
 
 import (
+	"rimworld-go/internal/application/game/mind"
 	"testing"
 
 	"rimworld-go/internal/domain/building/construction"
@@ -193,5 +194,24 @@ func TestCoreWoodProsthesesHaveNoCraftingBills(t *testing.T) {
 		if len(bills) != 0 {
 			t.Fatalf("legacy Core body parts were queued as crafting bills: %+v", bills)
 		}
+	}
+}
+
+func TestInspiredSurgeryDoublesChanceAndSpendsOnOperation(t *testing.T) {
+	t.Parallel()
+	g, patient, doc := legless(t, 9)
+	before, _ := g.surgeryChanceOf(doc, patient, body.InstallImplant, item.HerbalMedicine)
+	g.mind.Inspire.Start(doc, mind.Surgery)
+	after, detail := g.surgeryChanceOf(doc, patient, body.InstallImplant, item.HerbalMedicine)
+	if after != min(before*2, body.MaxSurgeryChance) || len(detail) == 0 {
+		t.Fatalf("inspired surgery chance %d vs %d", after, before)
+	}
+	addPegLeg(g, patient)
+	if !g.mind.Inspire.Has(doc, mind.Surgery) {
+		t.Fatal("queuing does not use the inspiration")
+	}
+	operateUntil(t, g, patient, doc)
+	if g.mind.Inspire.Has(doc, mind.Surgery) {
+		t.Fatal("completed surgery did not spend inspiration")
 	}
 }

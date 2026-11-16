@@ -7,6 +7,7 @@ import (
 
 	"rimworld-go/internal/application/game/care"
 	"rimworld-go/internal/application/game/evlog"
+	"rimworld-go/internal/application/game/mind"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/ai/work"
@@ -168,10 +169,8 @@ func (g *Game) cmdRemoveOperation(patient entity.EntityID, i int) {
 	g.dropOperation(patient, i)
 }
 
-// cmdReorderOperation moves patient's queued operation in slot by one
-// place: up (by -1) or down (by +1), swapping it with its neighbour (MED-00).
-// Any other step, or a slot or neighbour out of range, is a no-op. A
-// running operation finds its own again by opCode, so moving it is safe.
+// cmdReorderOperation moves one valid queue slot by one position,
+// preserving running operations through body.OpCode.
 func (g *Game) cmdReorderOperation(patient entity.EntityID, slot, by int) {
 	q := g.operationsOf(patient)
 	to := slot + by
@@ -262,7 +261,8 @@ const (
 )
 
 // opBlocked checks surgery preconditions, preferring raw stock but
-// accepting legacy prefabricated parts from older saves.
+// accepting legacy prefabricated parts from older saves. Loose mode also
+// accepts temporarily reserved supplies while a patient waits.
 func (g *Game) opBlocked(patient, doctor entity.EntityID, b *body.Body, op body.Operation, loose bool) (string, opFetch) {
 	if !b.CanOperate(op) {
 		return waitBody, opFetch{}
@@ -743,7 +743,12 @@ func (g *Game) surgeryCleanliness(x, y int) (int32, bool) {
 // surgeryChanceOf is surgeon's permille chance of op on patient where it
 // lies with medicine med, with its breakdown.
 func (g *Game) surgeryChanceOf(surgeon, patient entity.EntityID, op body.OpKind, med item.Kind) (int32, []body.Factor) {
-	return body.SurgeryChance(g.surgeryInput(surgeon, patient, op, med))
+	chance, factors := body.SurgeryChance(g.surgeryInput(surgeon, patient, op, med))
+	if g.mind.Inspire.Has(surgeon, mind.Surgery) {
+		chance = min(chance*2, body.MaxSurgeryChance)
+		factors = append(factors, body.Factor{Label: "Focused surgeon", Pct: 200})
+	}
+	return chance, factors
 }
 
 // bestSurgeon selects highest Medical skill, lowest ID on a tie.
@@ -810,6 +815,7 @@ func (g *Game) operate(surgeon, patient entity.EntityID, slot int, j *job.Record
 	}
 	rng := g.stream(streamBody)
 	chance, _ := g.surgeryChanceOf(surgeon, patient, op.Kind, med)
+	g.mind.Inspire.Use(surgeon, mind.Surgery)
 	lvl := int(g.skillOf(surgeon, skill.Medicine).Level)
 	outcome := body.RollOutcome(chance, lvl, rng.IntN)
 	drops := body.SurgeryYields(b, op)

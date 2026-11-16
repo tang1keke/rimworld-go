@@ -5,6 +5,7 @@ import (
 	"rimworld-go/internal/application/game/craft"
 	"rimworld-go/internal/application/game/diet"
 	"rimworld-go/internal/application/game/gearfacts"
+	"rimworld-go/internal/application/game/mind"
 	"rimworld-go/internal/application/game/recreate"
 	"rimworld-go/internal/domain/animal"
 	"slices"
@@ -29,13 +30,8 @@ import (
 	"rimworld-go/internal/domain/sim/entity"
 )
 
-// Skills, stats and traits in play (NG-1 §5.4). Every colonist (and any
-// raider SETUP gives a bio) has a generated identity (pawngen.Pawn), a
-// live skill set, and a derived stat sheet. A neutral pawn — what
-// SpawnNamedPawn and old saves make: all skills 7, no traits, no
-// incapabilities — progresses work exactly one unit per tick, hits as
-// often, eats, sleeps and walks as before, so legacy timings are
-// unchanged. Owned by PAWN-G.
+// PAWN-G: biographies, trained skills, traits and stat-sheet layers.
+// Legacy neutral pawns retain their identity work and movement rates.
 
 // Learning and work constants (NG-1 §5.4).
 const (
@@ -283,10 +279,16 @@ func (g *Game) difficultyMods() []stat.Mod {
 
 // statOf is one stat of id (the neutral value for pawns without a bio).
 func (g *Game) statOf(id entity.EntityID, s stat.ID) int32 {
+	v := stat.Base()[s]
 	if fx := g.sk.stats[id]; fx != nil {
-		return fx.sheet[s]
+		v = fx.sheet[s]
 	}
-	return stat.Base()[s]
+	if g.mind != nil {
+		if in, ok := g.mind.Inspire.Of(id); ok {
+			v = mind.AdjustStat(s, v, in.Kind)
+		}
+	}
+	return v
 }
 
 // skillOf is id's skill sk (neutral for pawns without a bio).
@@ -366,7 +368,7 @@ func (g *Game) workProgressPct(id entity.EntityID, sk skill.ID, hasSkill bool, p
 		return 0
 	}
 	rate := int64(1000)
-	if fx := g.sk.stats[id]; fx != nil && !fx.neutral || hasSkill && roster.LevelSpeed(sk, g.skillOf(id, sk).Level) != 1000 || pct != 100 {
+	if fx := g.sk.stats[id]; fx != nil && !fx.neutral || hasSkill && roster.LevelSpeed(sk, g.skillOf(id, sk).Level) != 1000 || pct != 100 || g.mind.Inspire.Has(id, mind.WorkFrenzy) {
 		rate = int64(g.statOf(id, stat.WorkSpeed)) * int64(pct) / 100
 		if hasSkill {
 			rate = rate * int64(roster.LevelSpeed(sk, g.skillOf(id, sk).Level)) / 1000
