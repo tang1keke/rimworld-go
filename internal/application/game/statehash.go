@@ -1,13 +1,12 @@
 package game
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"maps"
 	"reflect"
 	"slices"
 
+	"rimworld-go/internal/application/game/savefmt"
 	"rimworld-go/internal/domain/sim/statehash"
 	"rimworld-go/internal/domain/world/temperature"
 )
@@ -21,20 +20,11 @@ import (
 // zero value) or a re-encoding does not move a golden pin; a change of
 // behaviour does. It reads the state only.
 func (g *Game) StateHash() uint64 {
-	var buf bytes.Buffer
-	if err := EncodeSave(g, &buf, "statehash"); err != nil { // raw gob: no compression to undo
+	info, s, err := g.snapshotForSave(savefmt.Stamp{Name: "statehash"})
+	if err != nil {
 		panic(fmt.Errorf("state hash: %w", err))
 	}
-	dec := gob.NewDecoder(&buf)
-	var info SaveInfo
-	var s saveState
-	if err := dec.Decode(&info); err != nil {
-		panic(fmt.Errorf("state hash: %w", err))
-	}
-	if err := dec.Decode(&s); err != nil {
-		panic(fmt.Errorf("state hash: %w", err))
-	}
-	return statehash.OfFields(normalisedFields(info, &s))
+	return statehash.OfFields(normalisedFields(info, s))
 }
 
 // normalisedFields is the save as named fields, with research folded into

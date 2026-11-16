@@ -501,15 +501,32 @@ func EncodeSave(g *Game, w io.Writer, name string) error {
 // EncodeSaveAs is EncodeSave with the client's stamp in the header: the
 // slot, the colony and the build (SAV-003).
 func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
+	info, s, err := g.snapshotForSave(stamp)
+	if err != nil {
+		return err
+	}
+	enc := gob.NewEncoder(w)
+	if err := enc.Encode(info); err != nil {
+		return fmt.Errorf("save header: %w", err)
+	}
+	if err := enc.Encode(s); err != nil {
+		return fmt.Errorf("save state: %w", err)
+	}
+	return nil
+}
+
+// snapshotForSave gathers the same authoritative snapshot for saving and hashing.
+// Hashing reads these fields directly, avoiding the gob encode/decode round trip.
+func (g *Game) snapshotForSave(stamp savefmt.Stamp) (SaveInfo, *saveState, error) {
 	cur := g.mapState
 	defer func() { g.mapState = cur }()
 	g.mapState = g.maps[0]
 	rng, err := g.rng.MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("save rng: %w", err)
+		return SaveInfo{}, nil, fmt.Errorf("save rng: %w", err)
 	}
 	letterList, letterNext := g.letters.Export()
-	s := saveState{
+	s := &saveState{
 		Tick: g.clock.Now(), NextEntity: g.entities.Peek(),
 		RNG: rng, Sched: g.sched, Messages: g.messages,
 		Letters: letterList, NextLetter: letterNext,
@@ -525,7 +542,7 @@ func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
 		Research: g.lab.Prog.V1(), ResearchAll: g.lab.Prog.Slice(), NG1: g.exportSetupState(), ResearchCur: g.lab.Cur, ResearchSet: g.lab.Set,
 		ResearchCold: g.lab.ColdList(), Strikes: g.lastStrike, Hits: g.lastHit, Graves: g.graves,
 	}
-	exportMapFields(g, &s)
+	exportMapFields(g, s)
 	eachMap(g, func() { // a sculpture stands on one map, its record is colony-wide
 		for id, a := range g.craft.Art.Export() {
 			s.Art[id] = a
@@ -568,7 +585,7 @@ func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
 	s.ColonistOrder = g.sk.bar.Export() // game/roster (CTL-011): nil until the player moves someone
 	s.History = slices.Clone(g.history)
 	if s.RNGStreams, err = g.exportStreams(); err != nil {
-		return fmt.Errorf("save rng streams: %w", err)
+		return SaveInfo{}, nil, fmt.Errorf("save rng streams: %w", err)
 	}
 	for _, m := range g.maps[1:] { // MAP-0: the other open maps, in id order
 		g.mapState = m
@@ -582,14 +599,7 @@ func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
 	}
 	info := g.Info(stamp.Name)
 	stamp.Apply(&info)
-	enc := gob.NewEncoder(w)
-	if err := enc.Encode(info); err != nil {
-		return fmt.Errorf("save header: %w", err)
-	}
-	if err := enc.Encode(&s); err != nil {
-		return fmt.Errorf("save state: %w", err)
-	}
-	return nil
+	return info, s, nil
 }
 
 // exportMapFields writes the current map's fields of s (MAP-0): the first
@@ -603,8 +613,15 @@ func exportMapFields(g *Game, s *saveState) {
 	s.Postponed, s.PostSweep, s.PostOrders = g.exportPostponed(), g.postponed.SweepAt, g.exportOrders()
 	s.RaiderIDs, s.Raiders, s.RaidGroups = g.raiderIDs, g.raiders, g.raidGroups
 	s.RoomGrid, s.RoomTemps, s.Thermo = g.roomGrid, g.thermo.Temps, g.thermo.Export()
+	if len(s.Thermo.Fine) == 0 {
+		s.Thermo.Fine = nil // gob decodes an empty slice as nil
+	}
 	s.Claims = g.reserve.Export()
 	s.AnimalIDs, s.Animals, s.Traces, s.Wild, s.Wildlife = g.animalIDs, exportStore(g.animals), g.traces, g.wild, g.wl
+	// The live wildlife index and AI components are derived; gob drops them.
+	// Clear them in the snapshot so hashing the in-memory export is equivalent.
+	s.Wildlife.herd, s.Wildlife.rage = nil, nil
+	s.Wildlife.idx, s.Wildlife.food, s.Wildlife.ids = creatureIndex{}, foodIndex{}, nil
 	s.RockDamage, s.Residual = g.raid.Rock.Export(), g.thermo.Residual
 	s.Motion, s.Weather, s.Roofs = g.exportMotion(), g.weather, g.exportRoofs()
 	s.DoorsOriented = true // PLAY-011: door facings are stored
