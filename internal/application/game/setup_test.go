@@ -17,6 +17,7 @@ import (
 	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/incident"
+	"rimworld-go/internal/domain/pawn/body"
 	"rimworld-go/internal/domain/pawn/health"
 	"rimworld-go/internal/domain/pawn/mood"
 	"rimworld-go/internal/domain/research"
@@ -829,8 +830,8 @@ func TestThreatPointsUsesDifficulty(t *testing.T) {
 		t.Fatalf("seasoned %d, want %d", seasoned, want)
 	}
 	_, merciless := pts(difficulty.Merciless)
-	if merciless < seasoned*19/10 || merciless > seasoned*21/10 {
-		t.Fatalf("merciless %d vs seasoned %d: want twice", merciless, seasoned)
+	if merciless < seasoned*215/100 || merciless > seasoned*225/100 {
+		t.Fatalf("merciless %d vs seasoned %d: want about 220%%", merciless, seasoned)
 	}
 	// adaptation raises them
 	g.ng.adapt.Value = 20
@@ -856,9 +857,9 @@ func TestDifficultyHooks(t *testing.T) {
 		infection50, revenge50, infection90 int
 		huntColonists                       bool
 	}{
-		{difficulty.Wanderer, 13, 13, 12, 12, 12, 200, 25, 360, false}, // RSCH-1: research x1.2 (wiki)
+		{difficulty.Wanderer, 12, 12, 10, 12, 10, 150, 12, 270, false}, // RSCH-1: research x1.2 (wiki)
 		{difficulty.Seasoned, 10, 10, 10, 10, 0, 500, 50, 900, true},
-		{difficulty.Merciless, 8, 8, 8, 9, -8, 650, 65, 1000, true},
+		{difficulty.Merciless, 8, 8, 8, 9, -10, 550, 50, 990, true},
 	}
 	for _, c := range cases {
 		g := bareSetupGame(c.preset)
@@ -1015,9 +1016,92 @@ func TestLossesEaseAndAdapt(t *testing.T) {
 	if g.nextThreat != next+6*clock.TicksPerDay || !g.ng.lost || len(g.ng.dead) != 1 {
 		t.Fatalf("loss ease: next %d (was %d), lost %v", g.nextThreat, next, g.ng.lost)
 	}
+	if g.ng.setback.Deaths != 1 {
+		t.Fatalf("one counted death: %+v", g.ng.setback)
+	}
 	g.ng.adapt = difficulty.Adapter{Days: 40}
 	g.dayRollover(now)
-	if g.ng.adapt.Days != 15 || g.ng.lost {
+	if g.ng.adapt.Days != 15 || g.ng.lost || g.ng.setback != (difficulty.Setback{}) {
 		t.Fatalf("adaptation after a loss: %+v", g.ng.adapt)
+	}
+}
+
+func TestAdaptationTracksWoundsDowningAndMultipleDeaths(t *testing.T) {
+	t.Parallel()
+	g := buildSetup(t, setupFor(t, "ember_clan", func(s *Setup) { s.Storyteller = "hearth" }))
+	id := g.pawnIDs[0]
+	g.hurt(id, 9, 0)
+	if g.ng.setback.Wounds <= 0 || g.ng.setback.Deaths != 0 {
+		t.Fatalf("real wound was not recorded: %+v", g.ng.setback)
+	}
+	g.down(id, health.CauseInjury)
+	if g.ng.setback.Downed != 1 {
+		t.Fatalf("downing: %+v", g.ng.setback)
+	}
+	state := g.exportSetupState()
+	g2 := New(Config{Width: g.Width(), Height: g.Height()})
+	g2.importSetupState(state)
+	if g2.ng.setback != g.ng.setback {
+		t.Fatalf("partial day lost on save/load: %+v vs %+v", g.ng.setback, g2.ng.setback)
+	}
+	g.ng.adapt = difficulty.Adapter{Days: 100}
+	g.dayRollover(uint64(g.clock.Now()))
+	if g.ng.adapt.Days >= 100 || g.ng.setback != (difficulty.Setback{}) {
+		t.Fatalf("setback did not reduce adaptation once: %+v %+v", g.ng.adapt, g.ng.setback)
+	}
+	// The next quiet day resumes growth from the reduced score.
+	before := g.ng.adapt.Days
+	g.dayRollover(uint64(g.clock.Now()) + clock.TicksPerDay)
+	if g.ng.adapt.Days != before+1 {
+		t.Fatalf("quiet day did not grow adaptation: %+v", g.ng.adapt)
+	}
+}
+
+func TestAdaptationCountsEachColonistDeath(t *testing.T) {
+	t.Parallel()
+	g := buildSetup(t, setupFor(t, "ember_clan", func(s *Setup) { s.Storyteller = "hearth" }))
+	for _, id := range g.pawnIDs[:2] {
+		g.die(id, health.CauseInjury)
+	}
+	now := uint64(g.clock.Now())
+	g.checkLosses(now)
+	g.checkLosses(now)
+	if g.ng.setback.Deaths != 2 || len(g.ng.dead) != 2 {
+		t.Fatalf("two deaths must be counted once each: %+v dead=%d", g.ng.setback, len(g.ng.dead))
+	}
+	g.ng.adapt = difficulty.Adapter{Days: 80}
+	g.dayRollover(now)
+	if g.ng.adapt.Days != 30 {
+		t.Fatalf("two deaths gave days=%d want 30", g.ng.adapt.Days)
+	}
+}
+
+// Wounds created by medical operations and exposure bypass combat.harm.
+// Those routes converge at bodyChanged and must affect the day's setback.
+func TestAdaptationRecordsNonCombatBodyWoundsOnce(t *testing.T) {
+	t.Parallel()
+	g := buildSetup(t, setupFor(t, "ember_clan", nil))
+	id := g.pawnIDs[0]
+	v := g.VitalOf(id)
+	b := g.ensureBody(id, &v)
+	if b == nil {
+		t.Fatal("no human body")
+	}
+	initial := b.Damage()
+	b.Wounds = append(b.Wounds, body.Wound{Part: body.ArmL, Dmg: 8, Kind: body.Surgical})
+	g.bodyChanged(id, b, &v)
+	delta := b.Damage() - initial
+	if delta <= 0 || g.ng.setback.Wounds != delta {
+		t.Fatalf("bodyChanged skipped the non-combat wound: delta=%d setback=%+v", delta, g.ng.setback)
+	}
+	g.bodyChanged(id, b, &v)
+	if g.ng.setback.Wounds != delta {
+		t.Fatalf("duplicate bodyChanged double-counted a wound: %+v", g.ng.setback)
+	}
+	old := g.VitalOf(id).Injury
+	g.hurt(id, 6, 0)
+	next := g.VitalOf(id).Injury - old
+	if next > 0 && g.ng.setback.Wounds != delta+next {
+		t.Fatalf("combat wound double-counted: delta=%d setback=%+v", next, g.ng.setback)
 	}
 }

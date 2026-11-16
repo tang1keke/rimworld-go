@@ -1,6 +1,5 @@
-// Package difficulty is how hard the colony's world is: six original
-// presets plus custom settings, threat points with adaptation, the save
-// mode, and the scaling of yields and chances (NG-1 §3.3, §4.5).
+// Package difficulty defines colony presets, custom settings, threat
+// adaptation, save mode, and the scaling of yields and chances.
 package difficulty
 
 import (
@@ -10,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 )
+
+//go:generate python3 ../../../scripts/gen_difficulty_presets.py
 
 // Preset is a named difficulty.
 type Preset uint8
@@ -65,7 +66,10 @@ type Settings struct {
 	BigThreats             bool
 	PeacefulDays           int
 	Adaptation             bool
-	AdaptStrength          int
+	AdaptStrength          int   // adaptation impact (legacy field; saved name stays stable)
+	AdaptGrowth            int   // wiki: AI Storytellers, 0..100%
+	FoodPoisonChance       int   // wiki: AI Storytellers, 0..500%
+	BalanceVersion         uint8 `json:"-"` // 0 is an older saved Settings
 	TimeEscalation         bool
 	EscPerYear             int
 	IgnoreWealth           bool
@@ -89,8 +93,23 @@ type Settings struct {
 
 // Adapter is the adaptation state (saved).
 type Adapter struct {
-	Days  int16
-	Value int8
+	Days        int16
+	Value       int8
+	GrowthCarry uint8 // fractional days, persisted for deterministic replay
+}
+
+// Setback collects observed colony damage between adaptation updates.
+// Wiki: AI Storytellers describes damage reducing adaptation. The conversion
+// to progression days is original deterministic tuning.
+type Setback struct {
+	Wounds int
+	Downed int
+	Deaths int
+}
+
+func (s Setback) days() int {
+	wounds := (min(max(s.Wounds, 0), 200) + 7) / 8
+	return wounds + min(max(s.Downed, 0), 8)*8 + min(max(s.Deaths, 0), 12)*adaptDeathHit
 }
 
 // Named is a preset with its display text.
@@ -102,53 +121,22 @@ type Named struct {
 	Settings Settings
 }
 
-// presets is the §3.3 table. ResearchSpeed is the wiki's research
-// difficulty factor (RSCH-1, wiki: Research): Peaceful and Community
-// Builder (Wanderer, Gentle) 1.2, Adventure Story and Strive to Survive
-// (Settled, Seasoned) 1.0, Blood and Dust (Grim) 0.95, Losing is Fun
-// (Merciless) 0.9. AdaptStrength is kept at 100 where adaptation
-// is off so that switching it on in the custom editor starts sensibly;
-// EscPerYear likewise holds the editor's default.
-var presets = [Custom]Named{
-	Wanderer: {Desc: "Build in peace — no raids or packs.", Settings: Settings{
-		ThreatScale: 5, BigThreats: false, PeacefulDays: 0, Adaptation: false, AdaptStrength: 100, EscPerYear: 25,
-		CropYield: 130, MineYield: 130, ButcherYield: 120, ResearchSpeed: 120, MoodOffset: 12,
-		Infection: 40, DiseaseFreq: 0, AnimalRevenge: 50, PredatorsHuntColonists: false, ExtremeWeather: false, PainTolerance: 10,
-		QuestRewardPct: 100, QuestThreats: false}},
-	Gentle: {Desc: "Rare, small threats; room to learn.", Settings: Settings{
-		ThreatScale: 35, BigThreats: true, PeacefulDays: 12, Adaptation: true, AdaptStrength: 60, EscPerYear: 25,
-		CropYield: 115, MineYield: 115, ButcherYield: 110, ResearchSpeed: 120, MoodOffset: 8,
-		Infection: 60, DiseaseFreq: 50, AnimalRevenge: 70, PredatorsHuntColonists: false, ExtremeWeather: true, PainTolerance: 5,
-		QuestRewardPct: 100, QuestThreats: true}},
-	Settled: {Desc: "Fair challenge with time to recover.", Settings: Settings{
-		ThreatScale: 65, BigThreats: true, PeacefulDays: 8, Adaptation: true, AdaptStrength: 80, EscPerYear: 25,
-		CropYield: 105, MineYield: 105, ButcherYield: 100, ResearchSpeed: 100, MoodOffset: 4,
-		Infection: 80, DiseaseFreq: 75, AnimalRevenge: 85, PredatorsHuntColonists: true, ExtremeWeather: true, PainTolerance: 0,
-		QuestRewardPct: 100, QuestThreats: true}},
-	Seasoned: {Desc: "The intended challenge.", Settings: Settings{
-		ThreatScale: 100, BigThreats: true, PeacefulDays: 6, Adaptation: true, AdaptStrength: 100, EscPerYear: 25,
-		CropYield: 100, MineYield: 100, ButcherYield: 100, ResearchSpeed: 100, MoodOffset: 0,
-		Infection: 100, DiseaseFreq: 100, AnimalRevenge: 100, PredatorsHuntColonists: true, ExtremeWeather: true, PainTolerance: 0,
-		QuestRewardPct: 100, QuestThreats: true}},
-	Grim: {Desc: "Harsh threats, thin margins.", Settings: Settings{
-		ThreatScale: 145, BigThreats: true, PeacefulDays: 4, Adaptation: true, AdaptStrength: 100, EscPerYear: 25,
-		CropYield: 90, MineYield: 90, ButcherYield: 90, ResearchSpeed: 95, MoodOffset: -4,
-		Infection: 115, DiseaseFreq: 120, AnimalRevenge: 115, PredatorsHuntColonists: true, ExtremeWeather: true, PainTolerance: 0,
-		QuestRewardPct: 100, QuestThreats: true}},
-	Merciless: {Desc: "Built to break you. Mostly.", Settings: Settings{
-		ThreatScale: 200, BigThreats: true, PeacefulDays: 3, Adaptation: true, AdaptStrength: 100, EscPerYear: 25,
-		CropYield: 80, MineYield: 80, ButcherYield: 80, ResearchSpeed: 90, MoodOffset: -8,
-		Infection: 130, DiseaseFreq: 150, AnimalRevenge: 130, PredatorsHuntColonists: true, ExtremeWeather: true, PainTolerance: -5,
-		QuestRewardPct: 100, QuestThreats: true}},
+// upgraded applies neutral defaults to saves written before the two new
+// difficulty multipliers existed. Version 1 stores explicit zero values.
+func (s Settings) upgraded() Settings {
+	if s.BalanceVersion == 0 {
+		s.AdaptGrowth = 100
+		s.FoodPoisonChance = 100
+		s.BalanceVersion = 1
+	}
+	return s
 }
 
-func init() {
-	for i := range presets {
-		presets[i].Preset = Preset(i)
-		presets[i].Key = presetKeys[i]
-		presets[i].Label = Preset(i).String()
-	}
-}
+// FoodPoisonPercent is the eater's risk multiplier (wiki: AI Storytellers).
+func (s Settings) FoodPoisonPercent() int { return s.upgraded().FoodPoisonChance }
+
+// AdaptGrowthPercent is the accumulated adaptation-day rate (wiki: AI Storytellers).
+func (s Settings) AdaptGrowthPercent() int { return s.upgraded().AdaptGrowth }
 
 // Presets lists the six presets (not Custom); Of returns one's settings.
 func Presets() []Named { return append([]Named(nil), presets[:]...) }
@@ -175,6 +163,7 @@ func Parse(key string) (Preset, bool) {
 
 // Match is the preset whose settings equal s, or Custom.
 func Match(s Settings) Preset {
+	s = s.upgraded()
 	for _, n := range presets {
 		if n.Settings == s {
 			return n.Preset
@@ -189,7 +178,7 @@ type Limits struct{ Min, Max int }
 // Limit returns the range of an Encode key ("ts", "cy", ...); ok is false
 // for keys without a numeric range.
 func Limit(key string) (Limits, bool) {
-	f, ok := fieldByKey[key]
+	f, ok := findField(key)
 	if !ok || f.bool {
 		return Limits{}, false
 	}
@@ -206,23 +195,26 @@ type field struct {
 	bptr     func(*Settings) *bool
 }
 
+// Supported percentage sliders use the wiki's 500%% ceiling (AI Storytellers).
 var fields = []field{
-	{key: "ts", min: 0, max: 400, ptr: func(s *Settings) *int { return &s.ThreatScale }},
+	{key: "ts", min: 0, max: 500, ptr: func(s *Settings) *int { return &s.ThreatScale }},
 	{key: "bt", bool: true, bptr: func(s *Settings) *bool { return &s.BigThreats }},
 	{key: "pd", min: 0, max: 30, ptr: func(s *Settings) *int { return &s.PeacefulDays }},
 	{key: "ad", bool: true, bptr: func(s *Settings) *bool { return &s.Adaptation }},
-	{key: "as", min: 0, max: 200, ptr: func(s *Settings) *int { return &s.AdaptStrength }},
+	{key: "as", min: 0, max: 100, ptr: func(s *Settings) *int { return &s.AdaptStrength }},
+	{key: "ag", min: 0, max: 100, ptr: func(s *Settings) *int { return &s.AdaptGrowth }},
+	{key: "fp", min: 0, max: 500, ptr: func(s *Settings) *int { return &s.FoodPoisonChance }},
 	{key: "te", bool: true, bptr: func(s *Settings) *bool { return &s.TimeEscalation }},
 	{key: "ep", min: 0, max: 200, ptr: func(s *Settings) *int { return &s.EscPerYear }},
 	{key: "iw", bool: true, bptr: func(s *Settings) *bool { return &s.IgnoreWealth }},
-	{key: "cy", min: 20, max: 300, ptr: func(s *Settings) *int { return &s.CropYield }},
-	{key: "my", min: 20, max: 300, ptr: func(s *Settings) *int { return &s.MineYield }},
-	{key: "by", min: 20, max: 300, ptr: func(s *Settings) *int { return &s.ButcherYield }},
-	{key: "rs", min: 25, max: 300, ptr: func(s *Settings) *int { return &s.ResearchSpeed }},
+	{key: "cy", min: 20, max: 500, ptr: func(s *Settings) *int { return &s.CropYield }},
+	{key: "my", min: 20, max: 500, ptr: func(s *Settings) *int { return &s.MineYield }},
+	{key: "by", min: 20, max: 500, ptr: func(s *Settings) *int { return &s.ButcherYield }},
+	{key: "rs", min: 25, max: 500, ptr: func(s *Settings) *int { return &s.ResearchSpeed }},
 	{key: "mo", min: -20, max: 20, ptr: func(s *Settings) *int { return &s.MoodOffset }},
-	{key: "if", min: 0, max: 300, ptr: func(s *Settings) *int { return &s.Infection }},
-	{key: "df", min: 0, max: 300, ptr: func(s *Settings) *int { return &s.DiseaseFreq }},
-	{key: "ar", min: 0, max: 300, ptr: func(s *Settings) *int { return &s.AnimalRevenge }},
+	{key: "if", min: 0, max: 500, ptr: func(s *Settings) *int { return &s.Infection }},
+	{key: "df", min: 0, max: 500, ptr: func(s *Settings) *int { return &s.DiseaseFreq }},
+	{key: "ar", min: 0, max: 500, ptr: func(s *Settings) *int { return &s.AnimalRevenge }},
 	{key: "ph", bool: true, bptr: func(s *Settings) *bool { return &s.PredatorsHuntColonists }},
 	{key: "ew", bool: true, bptr: func(s *Settings) *bool { return &s.ExtremeWeather }},
 	{key: "pt", min: -20, max: 20, ptr: func(s *Settings) *int { return &s.PainTolerance }},
@@ -230,16 +222,18 @@ var fields = []field{
 	{key: "qt", bool: true, bptr: func(s *Settings) *bool { return &s.QuestThreats }},
 }
 
-var fieldByKey = func() map[string]field {
-	m := make(map[string]field, len(fields))
+func findField(key string) (field, bool) {
 	for _, f := range fields {
-		m[f.key] = f
+		if f.key == key {
+			return f, true
+		}
 	}
-	return m
-}()
+	return field{}, false
+}
 
 // Clamp forces every numeric member of s into its custom range.
 func Clamp(s Settings) Settings {
+	s = s.upgraded()
 	for _, f := range fields {
 		if f.bool {
 			continue
@@ -252,6 +246,7 @@ func Clamp(s Settings) Settings {
 
 // Valid lists the members of s outside their custom range (empty: valid).
 func Valid(s Settings) []string {
+	s = s.upgraded()
 	var bad []string
 	for _, f := range fields {
 		if f.bool {
@@ -345,15 +340,16 @@ func Scale(pct, base int) int {
 	return (base*pct + 50) / 100
 }
 
-// Day advances adaptation one day; lost reports a colonist death that day.
-// Value drifts toward a target set by the quiet-day count, by at most two
-// points a day and only once it is three or more away: the dead band and
-// the rate limit keep it from flapping (AGENTS.md hysteresis rule).
-func (a *Adapter) Day(s Settings, lost bool) {
-	if lost {
-		a.Days = int16(max(int(a.Days)-adaptDeathHit, adaptDayFloor))
+// Day advances adaptation from the damage accumulated during the day.
+// The growth rate and impact follow AI Storytellers; the damage conversion,
+// bounded target and hysteresis remain original project tuning.
+func (a *Adapter) Day(s Settings, setback Setback) {
+	if loss := setback.days(); loss > 0 {
+		a.Days = int16(max(int(a.Days)-loss, adaptDayFloor))
 	} else {
-		a.Days = int16(min(int(a.Days)+1, adaptDayCap))
+		total := int(a.GrowthCarry) + s.AdaptGrowthPercent()
+		a.Days = int16(min(int(a.Days)+total/100, adaptDayCap))
+		a.GrowthCarry = uint8(total % 100)
 	}
 	if !s.Adaptation {
 		return
@@ -371,6 +367,7 @@ func (a *Adapter) Day(s Settings, lost bool) {
 // Encode and Decode carry custom settings in a command string: sorted-free
 // "key=value,..." in the stable order of fields, booleans as 0/1.
 func Encode(s Settings) string {
+	s = s.upgraded()
 	var b strings.Builder
 	for i, f := range fields {
 		if i > 0 {
@@ -405,7 +402,7 @@ func Decode(v string) (Settings, error) {
 		if !ok {
 			return Settings{}, fmt.Errorf("difficulty: malformed pair %q", pair)
 		}
-		f, known := fieldByKey[k]
+		f, known := findField(k)
 		if !known {
 			unknown = append(unknown, k)
 			continue

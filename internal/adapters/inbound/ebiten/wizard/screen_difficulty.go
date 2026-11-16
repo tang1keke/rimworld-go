@@ -38,7 +38,7 @@ func (w storyPage) openCustomDifficulty() {
 	from := ng.Preset
 	if from == difficulty.Custom {
 		from = difficulty.Seasoned
-		ng.Cd = CustomDiff{S: ng.Custom, From: from}
+		ng.Cd = CustomDiff{S: difficulty.Clamp(ng.Custom), From: from}
 	} else {
 		ng.Cd = CustomDiff{S: difficulty.Of(ng.Preset), From: from}
 	}
@@ -101,7 +101,8 @@ func (w storyPage) customDifficultyBody(body gfx.Rect) {
 	if !s.Adaptation {
 		adaptOff = w.sh.T("Only used with adaptation")
 	}
-	w.diffSlider(left, "as", w.sh.T("Adaptation strength"), &s.AdaptStrength, "as", PctText, adaptOff, w.sh.T("Adaptation strength\nHow far adaptation can move the threat size."))
+	w.diffSlider(left, "as", w.sh.T("Adaptation impact"), &s.AdaptStrength, "as", PctText, adaptOff, w.sh.T("Adaptation impact\nHow far adaptation can move the threat size."))
+	w.diffSlider(left, "ag", w.sh.T("Adaptation growth"), &s.AdaptGrowth, "ag", PctText, adaptOff, w.sh.T("Adaptation growth\nHow quickly adaptation increases."))
 	left.Check(w.sh, "te", w.sh.T("Time-based escalation"), &s.TimeEscalation, "", w.sh.T("Time-based escalation\nThreats also grow with the years that pass."))
 	if !s.TimeEscalation {
 		s.IgnoreWealth = false
@@ -125,6 +126,7 @@ func (w storyPage) customDifficultyBody(body gfx.Rect) {
 	// Health and mind.
 	right.SectionTitle(w.sh, w.sh.T("Health and mind"))
 	w.diffSlider(right, "mo", w.sh.T("Mood offset"), &s.MoodOffset, "mo", SignedText, "", w.sh.T("Mood offset\nAdded to every colonist's mood."))
+	w.diffSlider(right, "fp", w.sh.T("Food poison chance"), &s.FoodPoisonChance, "fp", PctText, "", w.sh.T("Food poisoning\nRisk after eating potentially poisoned food."))
 	w.diffSlider(right, "if", w.sh.T("Infection chance"), &s.Infection, "if", PctText, "", "")
 	w.diffSlider(right, "df", w.sh.T("Disease frequency"), &s.DiseaseFreq, "df", PctText, "", w.sh.T("Disease frequency\nHow often flu, plague, malaria, sleeping sickness, gut worms and muscle parasites strike, from day 15 (malaria in warm lands, sleeping sickness in the tropics). 100% is the normal rate; 0% turns diseases off."))
 	if row, ok := right.Row(18); ok {

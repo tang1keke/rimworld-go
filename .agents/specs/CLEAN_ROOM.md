@@ -24,6 +24,7 @@ Numbers from the published RimWorld wiki are tuning data where the table allows 
 | Scope | ID families | Gap file | Decided | May use | Stays original |
 |---|---|---|---|---|---|
 | Social and host systems (ENG-003, the base exception) | ENG-003 | `.agents/specs/SOCIAL_SYSTEM_CONTRACT.md` | 2026-10-23 | Published RimWorld wiki numbers | Names and prose |
+| New-game difficulty presets, adaptation and food-poison scaling | NG-1, NG-2 | `.agents/handoffs/NG.md` | 2026-11-16 | Publicly published RimWorld wiki percentages for difficulty and adaptation | Game algorithms, data and source code, names, prose, proprietary game definitions and unpublished tuning |
 | Medical system | MED-* | `.agents/gaps/MEDICAL_GAP_ANALYSIS.md` | 2026-10-26 | Wiki numbers | Names and prose |
 | Pawn-to-pawn care and mental breaks | SIM-061…066 | `.agents/gaps/PAWN_INTERACTION_GAP_ANALYSIS.md` | 2026-10-29 | Wiki numbers | Names and prose |
 | Beds, production and defence | BED-*, PRD-*, DEF-* | `.agents/gaps/BEDS_GAP_ANALYSIS.md`, `.agents/gaps/PRODUCTION_GAP_ANALYSIS.md`, `.agents/gaps/DEFENCE_GAP_ANALYSIS.md` (`.agents/gaps/COMBAT_GAP_ANALYSIS.md` applies the defence extension) | 2026-10-29 | Wiki numbers | Names and prose |

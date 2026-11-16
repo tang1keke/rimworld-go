@@ -109,7 +109,11 @@ func bodyMods(k bodyKey) []stat.Mod {
 // stat sheet is rebuilt only when a capacity it uses moved, and a pawn
 // with no consciousness left goes down.
 func (g *Game) bodyChanged(id entity.EntityID, b *body.Body, v *health.Record) {
-	v.Injury = b.Damage()
+	damage := b.Damage()
+	if g.hasSetup() && g.isPawn(id) && damage > v.Injury {
+		g.ng.setback.Wounds += damage - v.Injury
+	}
+	v.Injury = damage
 	g.vital.Set(id, *v)
 	cur := healthyKey
 	if fx := g.sk.stats[id]; fx != nil {
