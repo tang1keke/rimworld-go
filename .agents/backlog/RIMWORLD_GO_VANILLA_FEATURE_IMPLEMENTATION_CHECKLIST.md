@@ -1074,9 +1074,9 @@ treatment, and surgery are major colony-management systems.
     -   harvested organ becomes item.
     -   missing vital organs can kill.
     -   transplant restores/replaces functionality.
--   [x] **Prosthetics/bionics** (SIM-039/SIM-049: peg leg, prosthetic leg/arm/foot, wooden hand, denture, hearing trumpet, glass eye, wooden nose; MED-05: servo arm/leg, optic and cochlear implants, pump heart and synth stomach at 125 %, spinal brace, valve heart 80 %, wiki efficiencies for the prosthetic arm (50 %) and wooden hand (60 %), Servo replacements research; archotech tier deferred)
-    -   Replace missing/damaged body parts with artificial parts of
-        varying efficiency.
+-   [x] **Prosthetics/bionics** (MED-14: original peg leg/wooden hand/wooden foot, prosthetic limb/heart, bionic arm/leg/eye/ear/jaw/tongue/spine/heart/stomach, cochlear implant, archotech arm/leg/eye, power claw; fixed efficiency, medical skill, live damage/healing, fabrication and trading).
+    -   Each artificial replacement retains an HP state, fills its own and underlying hit area, and can be removed, replaced or repaired through natural recovery.
+-   [x] **Core additive implants and vanilla surgery** (MED-14: Joywire/Painstopper on intact brain, Death acidifier on torso; surgery bills, separate Replacements and Implants, removal refunds, trait responses, v18 save migration, Health-tab UI, real melee attacks; legacy non-Core parts hidden from new surgery choices).
 
 ## 11.10 Corpses
 

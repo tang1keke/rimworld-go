@@ -392,6 +392,12 @@ func AnimalHealthRows(an game.AnimalView) []string {
 		}
 		rows = append(rows, s)
 	}
+	for _, a := range an.Asthma {
+		rows = append(rows, fmt.Sprintf("Asthma (%s) %d%%", a.Lung, a.SeverityPct))
+	}
+	if len(an.Asthma) > 0 {
+		rows = append(rows, fmt.Sprintf("Breathing %d%%", an.BreathingPct))
+	}
 	if an.NeedsTend {
 		rows = append(rows, "Needs tending")
 	}
@@ -436,7 +442,9 @@ func AnimalPartRows(an game.AnimalView) []string {
 
 // animalHealthAlarm reports a bleeding or infected animal (the Animals
 // table marks its Health cell).
-func animalHealthAlarm(an game.AnimalView) bool { return an.BleedPerDay > 0 || an.InfectionPct > 0 }
+func animalHealthAlarm(an game.AnimalView) bool {
+	return an.BleedPerDay > 0 || an.InfectionPct > 0 || len(an.Asthma) > 0
+}
 
 // animalHealthCell is the Animals table's Health cell: "62%", with a "!"
 // while the animal bleeds or fights an infection.

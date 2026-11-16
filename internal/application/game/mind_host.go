@@ -262,7 +262,7 @@ func (h mindBrawls) PathTo(id entity.EntityID, x, y int) ([]pathing.Point, bool)
 }
 func (h mindBrawls) Fighter(id entity.EntityID) bool { return h.g.standingPawn(id) }
 func (h mindBrawls) Punch(id, foe entity.EntityID) {
-	h.g.combat.Strikes.StrikeRoll(id, foe, weapon.Fists, h.g.stream(streamSocial).IntN) // combat/strike.go
+	h.g.combat.Strikes.StrikeBrawl(id, foe, h.g.stream(streamSocial).IntN) // combat/strike.go
 }
 func (h mindBrawls) PunchTicks(id entity.EntityID) int {
 	return h.g.aimTicksFor(id, weapon.DefOf(weapon.Fists).Cooldown)

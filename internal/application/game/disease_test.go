@@ -253,7 +253,7 @@ func TestSynthStomachBlocksGutWorms(t *testing.T) {
 	g := New(Config{Seed: 1, Width: 12, Height: 8})
 	id, _ := g.SpawnNamedPawn(5, 4, "Ada")
 	v, _ := g.vital.Get(id)
-	g.ensureBody(id, &v).SetImplant(body.Stomach, item.SynthStomach)
+	g.ensureBody(id, &v).SetReplacement(body.Stomach, item.SynthStomach)
 	if len(g.diseaseCandidates(body.CondGutWorms)) != 0 || g.FireIncident("gut_worms") || g.GiveDisease(id, uint8(body.CondGutWorms)) {
 		t.Fatal("a synth stomach keeps gut worms out")
 	}

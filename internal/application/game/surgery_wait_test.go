@@ -110,7 +110,7 @@ func TestSurgeryWaitLoneColonist(t *testing.T) {
 	t.Parallel()
 	g := New(Config{Seed: 4, Width: 20, Height: 12})
 	patient, _ := g.SpawnNamedPawn(10, 6, "Solo")
-	g.SpawnStack(item.PegLeg, 1, 2, 9)
+	g.SpawnStack(item.Wood, 1, 2, 9)
 	v := g.VitalOf(patient)
 	b := g.ensureBody(patient, &v)
 	b.Missing |= 1<<body.LegL | 1<<body.FootL
@@ -139,14 +139,14 @@ func TestSurgeryWaitUnreachableImplantNeverLiesDown(t *testing.T) {
 	patient, _ := g.SpawnNamedPawn(10, 6, "Patient")
 	doc, _ := g.SpawnNamedPawn(4, 6, "Doc")
 	placeBuilt(t, g, construction.Bed, construction.South, 12, 2)
-	g.SpawnStack(item.PegLeg, 1, 2, 9)
+	g.SpawnStack(item.Wood, 1, 2, 9)
 	walledIn(t, g, 2, 9, 2, 9)
 	v := g.VitalOf(patient)
 	b := g.ensureBody(patient, &v)
 	b.Missing |= 1<<body.LegL | 1<<body.FootL
 	g.bodyChanged(patient, b, &v)
 	addPegLeg(g, patient)
-	if why, ok := waitOf(t, g, patient); ok || why != "the peg leg can't be reached" {
+	if why, ok := waitOf(t, g, patient); ok || why != "the wood can't be reached" {
 		t.Fatalf("walled-in implant: %q %v", why, ok)
 	}
 	// A day of play: the patient never lies down for it, the doctor never
@@ -198,7 +198,7 @@ func TestSurgeryWaitLyingDoesNotFlap(t *testing.T) {
 	t.Parallel()
 	g, patient, doc := legless(t, 10)
 	addPegLeg(g, patient)
-	sid := firstStack(g, item.PegLeg)
+	sid := firstStack(g, item.Wood)
 	hold := func(on bool) {
 		st, _ := g.stacks.Get(sid)
 		st.Carrier = 0
@@ -266,8 +266,8 @@ func TestHealthyLegReplacedWithProsthetic(t *testing.T) {
 	}
 	operateUntil(t, g, patient, doc)
 	b := g.bodies[patient]
-	if b.Implant(body.LegL) != item.ProstheticLeg || b.Missing&(1<<body.LegL) == 0 || b.Missing&(1<<body.FootL) == 0 {
-		t.Fatalf("the leg (and foot) are replaced: missing %b implants %v", b.Missing, b.Fitted)
+	if b.ReplacementAt(body.LegL) != item.ProstheticLeg || b.Missing&(1<<body.LegL) == 0 || b.Missing&(1<<body.FootL) == 0 {
+		t.Fatalf("the leg (and foot) are replaced: missing %b implants %v", b.Missing, b.Replacements)
 	}
 	if m := b.Capacity(body.Moving); m == 1000 {
 		t.Fatal("a prosthetic leg is not as good as a healthy one")
@@ -356,9 +356,8 @@ func TestHealthOptions(t *testing.T) {
 		"Install prosthetic leg (left leg)":       "needs research: Prosthetics",
 		"Replace right leg with peg leg":          "",
 		"Replace right leg with prosthetic leg":   "needs research: Prosthetics",
-		"Replace left eye with glass eye":         "needs research: Prosthetics",
-		"Replace nose with wooden nose":           "no wooden nose in stock",
-		"Replace right foot with prosthetic foot": "no prosthetic foot in stock",
+		"Replace left eye with optic implant":     "needs research: Servo replacements",
+		"Replace right foot with prosthetic foot": "",
 		"Amputate right leg":                      "",
 		"Amputate left eye":                       "",
 	} {
@@ -370,7 +369,8 @@ func TestHealthOptions(t *testing.T) {
 			t.Fatalf("%q: disabled %v reason %q, want %q", label, o.Disabled, o.Reason, want)
 		}
 	}
-	for _, label := range []string{"Install prosthetic foot (left foot)", "Amputate heart", "Amputate left leg", "Remove implant (left leg)"} {
+	for _, label := range []string{"Install prosthetic foot (left foot)", "Amputate heart", "Amputate left leg", "Remove implant (left leg)",
+		"Replace nose with wooden nose", "Replace left eye with glass eye", "Replace left ear with hearing trumpet"} {
 		if _, ok := opt(label); ok {
 			t.Fatalf("%q is not possible on this body", label)
 		}
@@ -401,7 +401,7 @@ func TestGlassEyeCoversTheMissingPartThought(t *testing.T) {
 	g, patient, _ := legless(t, 10)
 	b := g.bodies[patient]
 	b.Missing = 1 << body.EyeL
-	b.SetImplant(body.EyeL, item.GlassEye)
+	b.SetReplacement(body.EyeL, item.GlassEye)
 	if missingPart(b) || len(g.bodyThoughts(patient)) != 0 {
 		t.Fatal("a glass eye covers the empty socket")
 	}

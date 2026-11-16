@@ -60,9 +60,11 @@ func benchWithMostRecipes() (string, int) {
 	count := map[string]int{}
 	best := ""
 	for _, r := range game.Recipes() {
-		count[r.Bench]++
-		if count[r.Bench] > count[best] {
-			best = r.Bench
+		for _, bench := range r.Benches {
+			count[bench]++
+			if count[bench] > count[best] {
+				best = bench
+			}
 		}
 	}
 	return best, count[best]

@@ -13,42 +13,19 @@ import (
 	"rimworld-go/internal/domain/sim/entity"
 )
 
-// Animal medicine (MED-09). A wounded animal gets a body
-// (animal.State.Body). Since MED-13 it has its species' anatomy
-// (animal.AnatomyOf: quadruped, bird, snake, lizard or insect parts,
-// their hit points scaled by the species' size, animal.HealthScale): a hit
-// lands on a part picked by coverage, may take off a leg, a wing or an
-// eye, and a lost leg slows the animal (body.Capacity(Moving),
-// animal.State.Step). It is made on the first wound and dropped once
-// nothing is left to treat and no part is lost, so an unhurt animal
-// carries none and saves stay as they were. A body saved before MED-13
-// (every wound on one virtual part) migrates on load
-// (migrateAnimalBodies).
+// Animal medicine (MED-09/13): a species-specific Body is created on
+// the first wound or chronic condition. Healthy animals need no Body.
+// Quadruped, bird, snake, lizard and insect plans share the body domain;
+// older one-part saves migrate to the species' root (migrateAnimalBodies).
 //
-// The body reuses the humanlike rules: open cuts, bites and scratches
-// bleed (body.BleedRate) until tended, blood loss kills at 1000; each
-// wound that can fester rolls an infection 6–18 hours later
-// (infection.WoundChance), which races immunity (infection.StepRace) and
-// kills at full severity; wounds heal at the wiki rates (body.HealHour,
-// faster tended and asleep). Bleeding is scaled by the species' size:
-// RimWorld divides blood loss by body size; ours have none, so hit points
-// against a human's (health.MaxHP) stand in.
-//
-// Injury stays the hit point scalar everything else reads (death at
-// MaxHP, fleeing, the Health bar). The wounds are the treatable part of
-// it and never add up to more (reconcileAnimalBody): a wound adds to
-// both, healing a wound takes it off Injury, and Injury healed another way
-// (a tame animal's natural heal) trims the smallest open wounds. A vet's
-// tend works on the wounds (tendAnimalBody). Blood loss and infections
-// kill; a bad enough injury or blood loss downs the animal first
-// (animal.State.DownsNow, below).
-//
-// Once an hour the medical phase (phaseMedical, bleed.go) walks the
-// animal patients (sorted ids of animals with a body; derived, rebuilt
-// on first use after a load), never every animal. Rolls use the medical
-// stream (the part a hit lands on, the infection delay). Scars are left
-// out, so healing draws no random numbers.
-
+// Open wounds bleed until treated, can infect and heal at the shared
+// body rates. Injury remains the animal's HP scalar: reconcileAnimalBody
+// keeps wound damage within it; lost limbs remain in the anatomy.
+// A veterinarian treats wounds and due conditions through TendAll.
+// The hourly medical phase walks only indexed animal patients, in ID
+// order; stable medical RNG drives wound and infection rolls. Asthma
+// onset uses the animal's own daily decision cycle (animal_life.go),
+// while StepAging advances the shared condition on indexed patients.
 // woundAnimal gives animal id (state a, Injury already raised by dmg)
 // dmg of kind on parts picked by
 // coverage (body.Spread: a part whose loss would kill is never taken
@@ -118,7 +95,11 @@ func animalPatient(a *animal.State) bool { return a.Body != nil && needsCare(a.B
 func (g *Game) migrateAnimalBodies() {
 	for _, id := range g.animalIDs {
 		a := g.animals.Ref(id)
-		if a == nil || a.Body == nil || a.Body.Scale != 0 || a.Body.Anatomy != body.Humanlike {
+		if a == nil || a.Body == nil {
+			continue
+		}
+		body.MigrateReplacements(a.Body)
+		if a.Body.Scale != 0 || a.Body.Anatomy != body.Humanlike {
 			continue
 		}
 		migrateAnimalBody(a)
@@ -199,6 +180,9 @@ func (g *Game) stepAnimalBody(id entity.EntityID, a *animal.State, now uint64) b
 	g.rollAnimalInfections(id, a, b, now)
 	if g.stepAnimalConds(id, a, b, now) {
 		return true
+	}
+	if b.HasAging() {
+		b.StepAging(now, g.agingSalt(id), g.stream(streamMedical).IntN)
 	}
 	lying := int32(0)
 	if lyingDown(*a) {
@@ -347,7 +331,7 @@ func (g *Game) stepAnimalConds(id entity.EntityID, a *animal.State, b *body.Body
 	beaten := false
 	for i := range b.Conds {
 		c := &b.Conds[i]
-		if body.IsDisease(c.Kind) {
+		if body.IsDisease(c.Kind) || body.IsAging(c.Kind) {
 			continue
 		}
 		d := body.DefOfCond(c.Kind)
@@ -468,6 +452,11 @@ func (g *Game) fillAnimalHealth(av *AnimalView, id entity.EntityID, a animal.Sta
 			av.ImmunityPct = int(c.Immunity) / 10
 			av.InfectionLosing = infection.Losing(c, body.DefOfCond(c.Kind), now < c.TendUntil, 1000)
 		}
+
+	}
+	av.Asthma = animalview.AsthmaOf(b)
+	if len(av.Asthma) > 0 {
+		av.BreathingPct = int(b.Capacity(body.Breathing)) / 10
 	}
 	if av.BleedPerDay > 0 {
 		av.HealthState = fmt.Sprintf("Bleeding %d%%/day · death in %dh", av.BleedPerDay/10, av.BleedDeathHours)

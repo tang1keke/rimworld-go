@@ -7,6 +7,7 @@ import (
 
 	"rimworld-go/internal/domain/animal"
 	"rimworld-go/internal/domain/economy/item"
+	"rimworld-go/internal/domain/pawn/body"
 	"rimworld-go/internal/domain/sim/entity"
 )
 
@@ -282,6 +283,25 @@ func Import(v *Save) *State {
 			s.fuses = map[entity.EntityID]uint64{}
 		}
 		s.fuses[f.Casket] = f.At
+	}
+	for _, h := range s.holds {
+		for i := range h.Animals {
+			body.MigrateReplacements(h.Animals[i].State.Body)
+		}
+	}
+	for _, h := range s.cargo {
+		for i := range h.Animals {
+			body.MigrateReplacements(h.Animals[i].State.Body)
+		}
+	}
+	for i := range s.flights {
+		for j := range s.flights[i].Load.Animals {
+			body.MigrateReplacements(s.flights[i].Load.Animals[j].State.Body)
+		}
+	}
+	for id, b := range s.roped {
+		body.MigrateReplacements(b.State.Body)
+		s.roped[id] = b
 	}
 	return s
 }

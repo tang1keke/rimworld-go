@@ -76,3 +76,33 @@ func BleedDeathHours(b *body.Body, s Species) int {
 func NewBody(s Species) *body.Body {
 	return &body.Body{Anatomy: AnatomyOf(s), Scale: HealthScale(s)}
 }
+
+// RollAsthmaBirthday checks one incidence per birthday, then affects
+// every eligible lung together. Born == 0 means unknown legacy age.
+func RollAsthmaBirthday(a *State, now uint64, roll func(int) int) bool {
+	if a == nil || a.Born == 0 || IsMech(a.Species) {
+		return false
+	}
+	ageDays := AgeDays(a.Born, now, a.Species)
+	if !body.AsthmaBirthday(ageDays, LifeOf(a.Species).LifeDays, roll) {
+		return false
+	}
+	return DevelopAsthma(a, now)
+}
+
+// DevelopAsthma places one incident on every eligible lung of this animal.
+// Common Body conditions own the treatment and progression rules.
+func DevelopAsthma(a *State, now uint64) bool {
+	if a == nil || IsMech(a.Species) {
+		return false
+	}
+	if a.Body == nil {
+		next := NewBody(a.Species)
+		if !body.DevelopAsthma(next, now) {
+			return false
+		}
+		a.Body = next
+		return true
+	}
+	return body.DevelopAsthma(a.Body, now)
+}

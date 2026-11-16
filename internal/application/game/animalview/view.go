@@ -127,6 +127,8 @@ type View struct {
 	InfectionLosing bool
 	NeedsTend       bool
 	CareLevel       uint8
+	Asthma          []Asthma
+	BreathingPct    int
 	// MED-13 (game/animal_health.go): Parts are the hurt and lost parts of its
 	// anatomy, in part order (a lost part's children are not listed
 	// apart); MovingPct its moving capacity in percent (100 without a
@@ -138,6 +140,12 @@ type View struct {
 	// Grief, it mourns a lost herd mate, young or master; Defending, it
 	// fights for its herd or its master.
 	Bashing, Grief, Defending bool
+}
+
+// Asthma is one affected lung in the animal's read-only health model.
+type Asthma struct {
+	Lung        string
+	SeverityPct int
 }
 
 // Training is one training skill of a tame animal: Allowed if

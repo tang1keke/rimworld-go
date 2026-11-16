@@ -72,7 +72,7 @@ func pegLegged(t *testing.T) (*Game, entity.EntityID) {
 	v := g.VitalOf(id)
 	b := g.ensureBody(id, &v)
 	b.Missing |= 1<<body.LegL | 1<<body.FootL
-	if !b.Install(body.LegL, item.PegLeg) {
+	if !b.InstallReplacement(body.LegL, item.PegLeg) {
 		t.Fatal("install")
 	}
 	g.bodyChanged(id, b, &v)
@@ -91,7 +91,7 @@ func TestLegacyBodySaveKeepsImplants(t *testing.T) {
 	check := func(name string, h *Game) {
 		t.Helper()
 		b := h.bodies[id]
-		if b == nil || b.Implant(body.LegL) != item.PegLeg || b.Capacity(body.Moving) != moving {
+		if b == nil || b.ReplacementAt(body.LegL) != item.PegLeg || b.Capacity(body.Moving) != moving {
 			t.Fatalf("%s: body %+v", name, b)
 		}
 		s := h.drugs[id]
@@ -106,8 +106,12 @@ func TestLegacyBodySaveKeepsImplants(t *testing.T) {
 	legacy := loadLegacy(t, g, 5, func(s *saveState) {
 		for i := range s.Bodies {
 			b := &s.Bodies[i].V
-			copy(b.Implants[:], b.Fitted)
-			b.Fitted = nil
+			for p, r := range b.Replacements {
+				if p < len(b.Implants) {
+					b.Implants[p] = r.Kind
+				}
+			}
+			b.Replacements = nil
 		}
 		for i := range s.Drugs {
 			d := &s.Drugs[i].V
@@ -129,7 +133,7 @@ func TestSavedBodyRoundTrip(t *testing.T) {
 	b.Wounds = append(b.Wounds, body.Wound{Part: body.ArmL, Dmg: 3, Kind: body.Cut, TendQ: 400, TendAt: 9, InfectAt: 30, Bleed: 80})
 	h := loadAsVersion(t, g, SaveVersion)
 	got := h.bodies[id]
-	if got.BloodLoss != 120 || !slices.Equal(got.Conds, b.Conds) || !slices.Equal(got.Wounds, b.Wounds) || !slices.Equal(got.Fitted, b.Fitted) {
+	if got.BloodLoss != 120 || !slices.Equal(got.Conds, b.Conds) || !slices.Equal(got.Wounds, b.Wounds) || !slices.Equal(got.Replacements, b.Replacements) {
 		t.Fatalf("%+v", got)
 	}
 }

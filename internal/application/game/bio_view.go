@@ -91,7 +91,7 @@ func fillPawnCard(g *Game, c *dossierview.Card, id entity.EntityID, now uint64) 
 		day := int32(now / clock.TicksPerDay)
 		c.Saturated, c.LearnedWeek = lg.saturated(day), lg.lastWeek(day)
 	}
-	c.EatSpeedPct = int(body.FoodPoisonEatSpeed(g.bodies[id])) / 10
+	c.EatSpeedPct = int(body.EatingSpeed(g.bodies[id])) / 10
 	if j, _ := g.jobs.Get(id); j.Active() {
 		c.WorkType = workTypeOfJob(g, j)
 		if j.Target != 0 && (j.Kind == job.Attack || j.Kind == job.Hunt || j.Kind == job.Brawl) {

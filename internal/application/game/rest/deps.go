@@ -105,6 +105,8 @@ type Routine interface {
 
 // Patients is what sleep asks the care package about a sleeper.
 type Patients interface {
+	// wiki: Rest Rate Multiplier; the body's factor while sleeping.
+	RestFactor(id entity.EntityID) int32
 	// OnBedRest: id is on bed rest (care/rest.go).
 	OnBedRest(id entity.EntityID) bool
 	// MayUseMedicalBed: id may lie in a medical bed (a patient).

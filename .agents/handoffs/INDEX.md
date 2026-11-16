@@ -194,6 +194,9 @@ One row per handoff section. Open the ledger at `#<lowercased ID>`. A new task a
 | MED-11-food-poisoning-caravans | Food poisoning, disease on caravans | 2026-10-26 | [MED.md](MED.md#med-11-food-poisoning-caravans) |
 | MED-12-downed-animals | Downed animals | 2026-10-26 | [MED.md](MED.md#med-12-downed-animals) |
 | MED-13-animal-anatomy | Per-archetype animal anatomy | 2026-10-26 | [MED.md](MED.md#med-13-animal-anatomy) |
+| MED-14-additive-implants | Damageable replacements and attached implants | 2026-11-16 | [MED.md](MED.md#med-14-additive-implants) |
+| MED-15-animal-asthma | Core asthma shares animal and humanlike medical rules | 2026-11-16 | [MED.md](MED.md#med-15-animal-asthma) |
+| MED-16-core-medical-final-parity | Medical Core audit | 2026-11-16 | [MED.md](MED.md#med-16-core-medical-final-parity) |
 | MOD-000-mods-programme | RimHUD, Neat Storage and Common Sense programme | 2026-11-03 | [MOD.md](MOD.md#mod-000-mods-programme) |
 | MOD-W0-P-budget | Room in package `game` | 2026-11-03 | [MOD.md](MOD.md#mod-w0-p-budget) |
 | NG1_NEW_GAME_PLAN | NG-1: complete new-game flow, big maps at 60 fps, generated colonists, factions, water | 2026-10-22 | [NG.md](NG.md#ng1_new_game_plan) |

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"rimworld-go/internal/application/game/evlog"
+	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/building/construction"
 	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/faction"
@@ -77,8 +78,8 @@ func TestHarvestYieldsOrgan(t *testing.T) {
 	if v := g.VitalOf(patient); v.Status == health.Dead || b.ImmunityGain() != 750 {
 		t.Fatalf("one kidney is enough to live: %+v", v)
 	}
-	if g.countItem(item.IndustrialMedicine) != 8 {
-		t.Fatalf("a harvest uses 2 medicine: %d left", g.countItem(item.IndustrialMedicine))
+	if g.countItem(item.IndustrialMedicine) != 9 {
+		t.Fatalf("a harvest uses 1 medicine: %d left", g.countItem(item.IndustrialMedicine))
 	}
 }
 
@@ -138,6 +139,10 @@ func TestAnestheticWearsOffInGame(t *testing.T) {
 	queueOp(g, patient, body.Anesthetize, body.Torso, 0)
 	operateAll(t, g, patient, doc)
 	since := g.bodies[patient].Conds[0].Since
+	duration := uint64(g.bodies[patient].Conds[0].Rate)
+	if duration < 45000 || duration > 75000 {
+		t.Fatalf("anesthetic duration = %d", duration)
+	}
 	if v := g.VitalOf(patient); v.Status != health.Downed || v.Cause != health.CauseAnesthetic || !g.UnderAnaesthetic(patient) {
 		t.Fatalf("sedated: %+v", v)
 	}
@@ -159,9 +164,9 @@ func TestAnestheticWearsOffInGame(t *testing.T) {
 	if g.VitalOf(patient).Status != health.Alive || !g.UnderAnaesthetic(patient) || g.bodies[patient].Sedated() {
 		t.Fatalf("woozy and up at 7 hours: %+v", g.VitalOf(patient))
 	}
-	step(since + 21*clock.TicksPerHour + 1)
+	step(since + duration + clock.TicksPerHour + 1)
 	if g.UnderAnaesthetic(patient) {
-		t.Fatal("gone after 20 hours")
+		t.Fatalf("anesthetic remains after %d ticks", duration)
 	}
 	hv, _ := g.Health(patient)
 	if len(hv.Options) == 0 {
@@ -406,7 +411,7 @@ func TestOldSurgerySaveLoads(t *testing.T) {
 	}
 	h.cmdRemoveOperation(patient, 1)
 	operateUntil(t, h, patient, doc)
-	if h.bodies[patient].Implant(body.LegL) != item.PegLeg {
+	if h.bodies[patient].ReplacementAt(body.LegL) != item.PegLeg {
 		t.Fatal("the old queue still runs")
 	}
 }
@@ -438,5 +443,27 @@ func TestSurgeryChanceView(t *testing.T) {
 		if !found {
 			t.Fatalf("picker lacks %q", label)
 		}
+	}
+}
+
+// Installing a synthetic heart in a healthy free guest salvages the
+// natural organ and imposes the Core unnecessary-surgery faction penalty.
+func TestGuestHealthyHeartUpgradeCostsGoodwill(t *testing.T) {
+	g, _, surgeon := surgeryColony(t, 4)
+	guest := spawnGuest(t, g, 14, 8)
+	g.ng.factions = []faction.Faction{{Type: faction.Settlers, Name: "Valley"}}
+	g.personOf(guest).Faction = 1
+	g.surg = &surgeryState{}
+	g.surg.ensure()
+	g.surg.ops[guest] = []body.Operation{{Kind: body.InstallImplant, Part: body.Heart, Item: item.ValveHeart}}
+	g.operate(surgeon, guest, 0, &job.Record{}, item.IndustrialMedicine)
+	if got := g.bodies[guest].ReplacementAt(body.Heart); got != item.ValveHeart {
+		t.Fatalf("prosthetic heart operation result = %s; %s", got, surgeryLine(g, guest))
+	}
+	if got := g.factionOf(1).Goodwill; got != -70 {
+		t.Fatalf("foreign faction goodwill = %d, want -70", got)
+	}
+	if got := g.stockOf(item.Heart); got != 1 {
+		t.Fatalf("removed healthy heart recovered = %d, want 1", got)
 	}
 }

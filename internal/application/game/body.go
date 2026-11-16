@@ -18,6 +18,7 @@ import (
 	"rimworld-go/internal/domain/pawn/infection"
 	"rimworld-go/internal/domain/pawn/mood"
 	"rimworld-go/internal/domain/pawn/stat"
+	"rimworld-go/internal/domain/pawn/trait"
 	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/entity"
 )
@@ -119,7 +120,10 @@ func (g *Game) bodyChanged(id entity.EntityID, b *body.Body, v *health.Record) {
 		g.sk.ensure()
 		g.rebuildStats(id) // skills.go: the body layer
 	}
-	g.syncPatient(id, b) // patients.go (MED-00)
+	g.syncPatient(id, b)
+	if g.soc != nil {
+		g.refreshSig(id)
+	}
 }
 
 // consciousEnough: id is awake enough to be spoken to (no body, or
@@ -148,17 +152,17 @@ func hasOpenWound(b *body.Body) bool {
 // MED-00 held (body.NumParts may grow; this never does).
 const legacyParts = 20
 
-// savedBody is a body in the save (MED-00). Implants is the fixed array
-// saves up to version 5 wrote, read only: a body saved with Fitted
-// (always written now, nil when nothing is fitted) ignores it. gob
-// matches fields by name, so an older save's body.Body decodes into it.
+// savedBody reads pre-v18 Fitted and the older fixed Implants array.
+// New saves write Replacements and Added only.
 type savedBody struct {
-	Wounds    []body.Wound
-	Missing   uint32
-	Implants  [legacyParts]item.Kind // legacy read only
-	Fitted    []item.Kind
-	BloodLoss int32
-	Conds     []body.Condition
+	Wounds       []body.Wound
+	Missing      uint32
+	Implants     [legacyParts]item.Kind // pre-v6, read only
+	Fitted       []item.Kind            // v6-v17, read only
+	Replacements []body.Replacement
+	Added        []body.Implant
+	BloodLoss    int32
+	Conds        []body.Condition
 	// BloodStage is the blood loss stage's hysteresis memory and Fresh
 	// the untended stumps (MED-01).
 	BloodStage uint8
@@ -174,26 +178,28 @@ func (g *Game) exportBodies() []entry[savedBody] {
 	out := make([]entry[savedBody], len(es))
 	for i, e := range es {
 		b := e.V
-		out[i] = entry[savedBody]{e.ID, savedBody{Wounds: b.Wounds, Missing: b.Missing, Fitted: b.Fitted, BloodLoss: b.BloodLoss, Conds: b.Conds,
+		out[i] = entry[savedBody]{e.ID, savedBody{Wounds: b.Wounds, Missing: b.Missing, Replacements: b.Replacements, Added: b.Implants, BloodLoss: b.BloodLoss, Conds: b.Conds,
 			BloodStage: b.BloodStage, Fresh: b.Fresh}}
 	}
 	return out
 }
 
-// importBodies restores exportBodies' state (an older save's implant
-// array becomes Fitted), rebuilds the stat sheets the bodies change and
-// the patients index (both derived, not saved). The vital records must be
-// loaded first.
+// importBodies converts old prosthetics at the save boundary and rebuilds
+// derived stats and patient indexes after vital records load.
 func (g *Game) importBodies(es []entry[savedBody]) {
 	bs := make([]entry[body.Body], len(es))
 	for i, e := range es {
 		sb := e.V
-		fitted := sb.Fitted
-		if fitted == nil {
-			fitted = body.FittedFrom(sb.Implants[:])
+		replacements := sb.Replacements
+		if replacements == nil {
+			legacy := sb.Fitted
+			if legacy == nil {
+				legacy = sb.Implants[:]
+			}
+			replacements = body.ReplacementsFrom(legacy)
 		}
-		bs[i] = entry[body.Body]{e.ID, body.Body{Wounds: sb.Wounds, Missing: sb.Missing, Fitted: fitted, BloodLoss: sb.BloodLoss, Conds: sb.Conds,
-			BloodStage: sb.BloodStage, Fresh: sb.Fresh}}
+		bs[i] = entry[body.Body]{e.ID, body.Body{Wounds: sb.Wounds, Missing: sb.Missing, Replacements: replacements,
+			Implants: sb.Added, BloodLoss: sb.BloodLoss, Conds: sb.Conds, BloodStage: sb.BloodStage, Fresh: sb.Fresh}}
 	}
 	g.bodies = importMap(bs)
 	for _, e := range es {
@@ -263,17 +269,6 @@ func (g *Game) viewBody(id entity.EntityID) *body.Body {
 	return b
 }
 
-// implantKinds are the implant item kinds in kind order.
-var implantKinds = func() []item.Kind {
-	var out []item.Kind
-	for k := item.Kind(1); k != 0; k++ {
-		if k.IsImplant() {
-			out = append(out, k)
-		}
-	}
-	return out
-}()
-
 // healthView builds the Health tab: capacities, pain, every part in
 // body.Part order (Parts[i] is body.Part(i)), queued operations with what
 // each waits for, the operations the picker offers, and drug lines.
@@ -306,6 +301,11 @@ func (g *Game) healthView(id entity.EntityID) (HealthView, bool) {
 		if s.Fitted {
 			pv.Implant = s.Implant.String()
 		}
+		for _, imp := range b.Implants {
+			if imp.Part == s.Part {
+				pv.Implants = append(pv.Implants, imp.Kind.String())
+			}
+		}
 		hv.Parts = append(hv.Parts, pv)
 	}
 	for i, op := range g.operationsOf(id) {
@@ -326,39 +326,19 @@ func (g *Game) healthView(id entity.EntityID) (HealthView, bool) {
 // that can't be started yet (research, stock, reach, no other doctor:
 // opBlocked) is Disabled with its reason, and can still be queued.
 func (g *Game) operationOptions(id entity.EntityID, b *body.Body) []OperationOptionView {
-	q := g.operationsOf(id)
+	queued := g.operationsOf(id)
 	var out []OperationOptionView
-	add := func(op body.Operation) {
-		if !b.CanOperate(op) {
-			return
+	for _, op := range body.AvailableOperations(b) {
+		if slices.ContainsFunc(queued, func(q body.Operation) bool {
+			return body.OperationsConflict(q, op)
+		}) {
+			continue
 		}
-		for _, x := range q {
-			if x.Kind == op.Kind && x.Part == op.Part {
-				return
-			}
-		}
-		why, _ := g.opBlocked(id, 0, b, op, false) // surgery.go
-		out = append(out, OperationOptionView{Label: body.OperationLabel(b, op), Kind: uint8(op.Kind), Part: uint8(op.Part),
-			Item: uint8(op.Item), Disabled: why != "", Reason: why})
+		why, _ := g.opBlocked(id, 0, b, op, false)
+		out = append(out, OperationOptionView{Label: body.OperationLabel(b, op),
+			Kind: uint8(op.Kind), Part: uint8(op.Part), Item: uint8(op.Item),
+			Disabled: why != "", Reason: why})
 	}
-	for p := body.Part(0); p < body.NumParts; p++ {
-		for _, k := range implantKinds {
-			if body.Fits(k, p) {
-				add(body.Operation{Kind: body.InstallImplant, Part: p, Item: k})
-			}
-		}
-	}
-	for p := body.Part(0); p < body.NumParts; p++ {
-		if !body.DefOf(p).Vital { // taking out an artificial heart kills (organs.go)
-			add(body.Operation{Kind: body.RemoveImplant, Part: p})
-		}
-	}
-	for p := body.Part(0); p < body.NumParts; p++ {
-		if !body.Inner(p) { // organs are harvested (MED-06), not amputated
-			add(body.Operation{Kind: body.Amputate, Part: p})
-		}
-	}
-	g.moreOperationOptions(b, add) // surgery.go (MED-06): harvest, transplant, anaesthesia, euthanasia
 	return out
 }
 
@@ -372,6 +352,17 @@ func missingPart(b *body.Body) bool {
 // its place). Being disfigured has no thought of its own (others see it).
 func (g *Game) bodyThoughts(id entity.EntityID) []mood.Thought {
 	ts := g.apparel[id].AppendThoughts(nil) // craft/garment.go (PRD-2): ratty, tattered and tainted apparel
+	if b := g.bodies[id]; b != nil && body.HasImplant(b, body.Brain, item.BlissCircuit) {
+		d := mood.DefOf(mood.BlissCircuit)
+		ts = append(ts, mood.Thought{Kind: mood.BlissCircuit, Label: d.Label, Value: d.Value})
+	}
+	if bio, ok := g.bioFor(id); ok {
+		count := 0
+		if b := g.bodies[id]; b != nil {
+			count = b.ArtificialParts()
+		}
+		ts = trait.AppendImplantThoughts(ts, bio.Traits, count)
+	}
 	if !missingPart(g.bodies[id]) {
 		return ts
 	}

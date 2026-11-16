@@ -66,7 +66,8 @@ func (s *Sleep) InPlace(id entity.EntityID) {
 // gets up the job completes, its log notes where it slept and it wakes
 // with that night's thoughts.
 func (s *Sleep) Do(id entity.EntityID, j job.Record, now uint64) {
-	n := needs.SleepTickAt(s.h.Needs(id), now, s.Stats.RestEffect(j.Target))
+	rate := s.Stats.RestEffect(j.Target) * int(s.h.RestFactor(id)) / 1000
+	n := needs.SleepTickAt(s.h.Needs(id), now, rate)
 	s.h.SetNeeds(id, n)
 	s.Needs.Tick(id, now) // comfort in bed, outdoors (BED-3)
 	j.WorkLeft--

@@ -184,3 +184,24 @@ func TestMemoryLabelOverride(t *testing.T) {
 		t.Fatalf("refreshed grief %+v", ts)
 	}
 }
+
+// Conditional thought suppression is deterministic and leaves saved
+// memories unaffected. A full-probability test pins the classification.
+func TestNullifyConditionalKeepsMemories(t *testing.T) {
+	active := []Thought{
+		{Kind: Hungry, Value: -5},
+		{Kind: AteMeal, Value: 5},
+		{Kind: AnestheticWoozy, Value: 10},
+	}
+	got := NullifyConditional(active, 10000, 17, 3, 77)
+	if len(got) != 1 || got[0].Kind != AteMeal {
+		t.Fatalf("conditional thought suppression: %+v", got)
+	}
+	for i := uint64(1); i <= 25; i++ {
+		first := NullifyConditional([]Thought{{Kind: Hungry, Value: -5}}, 100, 17, i, 77)
+		again := NullifyConditional([]Thought{{Kind: Hungry, Value: -5}}, 100, 17, i, 77)
+		if len(first) != len(again) {
+			t.Fatalf("same pawn/time varied for %d", i)
+		}
+	}
+}

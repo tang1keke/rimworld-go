@@ -1249,8 +1249,8 @@ func (g *Game) doEat(id entity.EntityID, j job.Record) {
 		}
 		j.Count = 2 // no table in reach: eat right here
 	}
-	if s, now := uint64(body.FoodPoisonEatSpeed(g.bodies[id])), uint64(g.clock.Now()); (now+1)*s/1000 != now*s/1000 {
-		j.WorkLeft-- // food poisoning slows eating: work x1000/speed (wiki: Food poisoning)
+	if s, now := uint64(body.EatingSpeed(g.bodies[id])), uint64(g.clock.Now()); s > 0 {
+		j.WorkLeft -= int((now+1)*s/1000 - now*s/1000)
 	}
 	if j.WorkLeft > 0 {
 		g.jobs.Set(id, j)

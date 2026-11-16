@@ -93,3 +93,9 @@ func TestAshKind(t *testing.T) {
 		t.Fatal("kind names")
 	}
 }
+
+func TestCausticResidueKind(t *testing.T) {
+	if CausticResidue != Foam+1 || CausticResidue.String() != "caustic residue" {
+		t.Fatal("caustic stain enum must remain append-only")
+	}
+}

@@ -664,12 +664,14 @@ func joyOffHash(seed uint64, ticks int) (uint64, *Game) {
 //
 // Re-pinned (EAI-014): the wealth tracker sweeps a slice every 25 ticks and
 // its cursor, hour and partial sum are saved state.
+// MED-14: the corrected artificial-part and tongue hit coverage changes
+// combat outcomes in the seed-2 baseline; no habits were enabled.
 func TestHabitsOffKeepTheHash(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
 		seed uint64
 		want uint64
-	}{{1, 0xe086929139a977ff}, {2, 0xaf29a560ac26f664}} {
+	}{{1, 0xe086929139a977ff}, {2, 0x7dd749609086aea2}} {
 		h, g := joyOffHash(c.seed, 30000)
 		if h != c.want {
 			t.Errorf("seed %d: hash %#x, want %#x", c.seed, h, c.want)

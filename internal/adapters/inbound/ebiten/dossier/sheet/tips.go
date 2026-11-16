@@ -82,7 +82,7 @@ func TraitsTip(_ lang.Tr, b game.BioView) []TipLine {
 
 func permanent(pt game.PartView) bool {
 	s := strings.ToLower(pt.Status)
-	return pt.Implant != "" || strings.Contains(s, "missing") || strings.Contains(s, "scar") || strings.Contains(s, "artificial")
+	return pt.Implant != "" || len(pt.Implants) > 0 || strings.Contains(s, "missing") || strings.Contains(s, "scar") || strings.Contains(s, "artificial")
 }
 
 func partTone(pt game.PartView) Tone {
@@ -108,6 +108,9 @@ func HealthTip(tr lang.Tr, h game.HealthView) []TipLine {
 		text := pt.Label + ": " + pt.Status
 		if pt.Implant != "" {
 			text = lang.Tf(tr, "%s (%s)", text, pt.Implant)
+		}
+		if len(pt.Implants) > 0 {
+			text += " (" + strings.Join(pt.Implants, ", ") + ")"
 		}
 		tone := partTone(pt)
 		switch {

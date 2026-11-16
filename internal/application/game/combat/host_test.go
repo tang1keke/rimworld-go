@@ -81,14 +81,16 @@ type fakeHost struct {
 	// CBT-2: melee numbers (default a healthy skill-5 fighter: it never dodges), downed
 	// humanlikes, the sky and roofs, experience given, the hands and the
 	// released drafts.
-	melee     map[entity.EntityID]attack.Melee
-	lying     map[entity.EntityID]bool
-	sky       weather.Kind
-	roofed    map[[2]int]bool
-	xp        []int
-	wield     map[entity.EntityID]item.Kind
-	putDown   []string
-	undrafted []entity.EntityID
+	implantTools map[entity.EntityID][]weapon.Tool
+	fistCounts   map[entity.EntityID]int
+	melee        map[entity.EntityID]attack.Melee
+	lying        map[entity.EntityID]bool
+	sky          weather.Kind
+	roofed       map[[2]int]bool
+	xp           []int
+	wield        map[entity.EntityID]item.Kind
+	putDown      []string
+	undrafted    []entity.EntityID
 
 	worn map[entity.EntityID][]armor.Layer
 	aims map[entity.EntityID][2]int // per-tile ppm and offset; default a perfect shooter
@@ -223,6 +225,17 @@ func (f *fakeHost) PlaceFrame(k construction.Kind, _ item.Kind, _ construction.F
 func (f *fakeHost) DigRock(_, _, dmg int) { f.dug += dmg }
 
 // Skills
+func (f *fakeHost) ImplantTools(id entity.EntityID) (out [2]weapon.Tool, n int) {
+	n = copy(out[:], f.implantTools[id])
+	return
+}
+func (f *fakeHost) NaturalFists(id entity.EntityID) int {
+	if n, ok := f.fistCounts[id]; ok {
+		return n
+	}
+	return 2
+}
+
 func (f *fakeHost) Melee(id entity.EntityID) attack.Melee {
 	if m, ok := f.melee[id]; ok {
 		return m

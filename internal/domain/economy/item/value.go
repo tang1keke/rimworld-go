@@ -13,8 +13,8 @@ var value = [numKinds]int{
 	Components: 28, IndustrialMedicine: 24,
 	Beer: 12, AshleafTea: 10, SparkTablet: 18, Brewgrain: 1, AshleafLeaf: 2,
 	PegLeg: 15, ProstheticLeg: 120, ProstheticArm: 120, WoodenHand: 12, Denture: 10, HearingTrumpet: 20,
-	// MED-00: original tuning for these original items.
-	ProstheticFoot: 90, GlassEye: 40, WoodenNose: 5,
+	// original tuning: this project has a manufactured foot item, while Core wooden feet consume wood directly. GlassEye and WoodenNose are legacy fictional items.
+	ProstheticFoot: 15, GlassEye: 40, WoodenNose: 5,
 	// MED-05. wiki: Glitterworld medicine (50), Bionic arm/leg/eye/spine/
 	// heart (1030), Bionic ear/stomach (785), Prosthetic heart (230),
 	// Kidney (900), Lung (1000), Heart (1200), Liver (1200).
@@ -52,6 +52,11 @@ var value = [numKinds]int{
 	// Hay, Hops, Human meat, Insect meat, Agave all value about one silver).
 	Rice: 1, Strawberries: 1, Hay: 1, Hops: 1, HumanMeat: 1, InsectMeat: 1, AgaveFruit: 1,
 	Fish: 2, // FISH-*: as Meat
+	// wiki: Joywire, Painstopper, Death acidifier (market value).
+	BlissCircuit: 220, NerveDampener: 220, AcidFailsafe: 400,
+	// wiki: Archotech arm, Archotech leg, Archotech eye, Power claw,
+	// Bionic jaw, Bionic tongue, Cochlear implant (market value).
+	ApexArm: 2800, ApexLeg: 2800, ApexEye: 2800, ServoClaw: 385, ServoJaw: 1030, SynthTongue: 565, AcousticImplant: 220,
 	// TEMP-4, wiki market values at Normal quality in the default material
 	// (each garment's page): the parka and duster in plainleather 197 and
 	// 205; the tuque, whose wiki row is cloth (34), in leather: its work

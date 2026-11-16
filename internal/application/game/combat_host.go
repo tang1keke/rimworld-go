@@ -18,6 +18,7 @@ import (
 	"rimworld-go/internal/domain/combat/weapon"
 	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/economy/recipe"
+	"rimworld-go/internal/domain/pawn/body"
 	"rimworld-go/internal/domain/pawn/health"
 	"rimworld-go/internal/domain/pawn/skill"
 	"rimworld-go/internal/domain/pawn/stat"
@@ -130,6 +131,11 @@ func (h combatGround) DigRock(x, y, dmg int) { h.g.raid.Rock.Dig(x, y, dmg) } //
 type combatSkills struct{ g *Game }
 
 func (h combatSkills) Melee(id entity.EntityID) attack.Melee { return h.g.meleeOf(id) } // skills.go (CBT-2)
+
+func (h combatSkills) ImplantTools(id entity.EntityID) ([2]weapon.Tool, int) {
+	return body.MeleeTools(h.g.bodies[id])
+}
+func (h combatSkills) NaturalFists(id entity.EntityID) int { return body.NaturalFists(h.g.bodies[id]) }
 func (h combatSkills) ShotAim(id entity.EntityID) (int, int) {
 	if a, ok := h.g.animals.Get(id); ok && animal.IsMech(a.Species) {
 		return attack.ShooterPerTile(animal.MechShootingSkill), 0 // DEF-4: wiki: Lancer (96 %)

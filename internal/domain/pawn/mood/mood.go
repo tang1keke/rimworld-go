@@ -1,6 +1,9 @@
 package mood
 
-import "rimworld-go/internal/domain/sim/clock"
+import (
+	"rimworld-go/internal/domain/sim/clock"
+	"rimworld-go/pkg/randx"
+)
 
 // Kind is a thought type.
 type Kind uint8
@@ -148,6 +151,10 @@ const (
 	// RescuedByColony (QST-057, QST-068, append only, saved): the colony
 	// came for this pawn, down on a site or held in a cell, and took them in.
 	RescuedByColony
+	BlissCircuit
+	AugmentFan
+	NaturalPurist
+	AnestheticWoozy // append-only: Core anaesthetic recovery state
 	numKinds
 )
 
@@ -311,6 +318,10 @@ var defs = [numKinds]Def{
 	Naked:              {"naked", -6, 0, groupNone, 0, 0},
 	TurnedAwayWanderer: {"turned a wanderer away", -3, day, groupNone, 0, 0},
 	RescuedByColony:    {"rescued", 18, 30 * day, groupNone, 0, 0},
+	BlissCircuit:       {"bliss circuit", 30, 0, groupNone, 0, 0}, // wiki: Joywire
+	AugmentFan:         {"augmentation enthusiast", 0, 0, groupNone, 0, 0},
+	NaturalPurist:      {"augmentation skeptic", 0, 0, groupNone, 0, 0},
+	AnestheticWoozy:    {"recovering from anesthesia", 10, 0, groupNone, 0, 0}, // wiki: Anesthetic
 }
 
 // needHour is how long a need thought outlasts its last refresh (BED-3).
@@ -492,6 +503,27 @@ type Thought struct {
 	Kind  Kind
 	Label string
 	Value int
+}
+
+// NullifyConditional applies late-stage memory impairment to current
+// state thoughts only. Saved memories stay intact, and the decision is
+// stable for each pawn, thought and hour across replay and save/load.
+func NullifyConditional(thoughts []Thought, chance int, seed, pawn, hour uint64) []Thought {
+	if chance == 0 {
+		return thoughts
+	}
+	n := 0
+	for _, th := range thoughts {
+		if DefOf(th.Kind).Duration == 0 {
+			salt := randx.SplitMix64(seed ^ randx.SplitMix64(pawn) ^ uint64(th.Kind)<<32 ^ hour)
+			if int(salt%10000) < chance {
+				continue
+			}
+		}
+		thoughts[n] = th
+		n++
+	}
+	return thoughts[:n]
 }
 
 // Active lists memories plus current state thoughts.

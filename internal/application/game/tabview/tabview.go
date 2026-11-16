@@ -92,12 +92,13 @@ type Capacity struct {
 
 // Part is one hurt, missing, scarred or artificial body part.
 type Part struct {
-	Label   string
-	Status  string
-	HP      int
-	Part    int    // body.Part (SIM-049)
-	Implant string // fitted implant's name, "" if none
-	Bleed   int    // the part's bleeding, percent of blood per day (MED-01)
+	Label    string
+	Status   string
+	HP       int
+	Part     int      // body.Part (SIM-049)
+	Implant  string   // replacement part, if any
+	Implants []string // additive devices attached to the part
+	Bleed    int      // the part's bleeding, percent of blood per day (MED-01)
 	// TendTip lists the part's open wounds with their tend quality, one
 	// a line ("cut, 6 HP: tended 74%"; "" when none; MED-02).
 	TendTip string

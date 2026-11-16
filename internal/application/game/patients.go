@@ -43,7 +43,7 @@ func (g *Game) indexedPatient(id entity.EntityID) bool {
 // needsCare reports b has something to treat: an open wound, a condition
 // or blood loss.
 func needsCare(b *body.Body) bool {
-	return b != nil && (hasOpenWound(b) || len(b.Conds) > 0 || b.BloodLoss > 0)
+	return b != nil && (hasOpenWound(b) || len(b.Conds) > 0 || b.BloodLoss > 0 || body.HasDamagedReplacement(b))
 }
 
 // isPatient reports id, with body b, belongs in the index: it needs care

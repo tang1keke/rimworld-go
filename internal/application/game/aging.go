@@ -14,22 +14,7 @@ import (
 	"rimworld-go/pkg/msgfmt"
 )
 
-// Aging (MED-08). Once a day at 00:00 every living colonist rolls, on the
-// medical stream and in id order, for each chronic condition its age
-// allows (body.OnsetPerDay: none before the wiki onset age, then a chance
-// rising with age): bad back, cataract and hearing loss (per eye, per
-// ear), frailty, dementia, artery blockage and carcinoma (on a part picked
-// by coverage). The same roll brings on a heart attack from an artery
-// blockage (its stage's mean time between attacks) and sends a demented
-// colonist wandering off confused about once in five days.
-//
-// Each hour, in the medical phase after the diseases, the patients with
-// an aging condition step (body.StepAging): artery blockage and
-// carcinomas grow, a heart attack rises and falls and is eased by tends,
-// a replaced part takes its conditions along. Artery blockage and heart
-// attacks kill with health.CauseHeartAttack; a carcinoma destroys its
-// part, killing with health.CauseCarcinoma when the part is vital. A
-// carcinoma is excised by surgery (body.ExciseCarcinoma).
+// MED-08: deterministic daily onset and hourly condition progression.
 
 const (
 	// dementiaWanderDays is the mean days between a demented colonist's
@@ -39,8 +24,7 @@ const (
 	dementiaWanderTicks = 4 * clock.TicksPerHour
 )
 
-// stepAging is the medical phase's aging work at tick now (its hourly
-// slot): the hourly step, and in the day's first slot the daily rolls.
+// stepAging runs chronic disease progression and onset.
 func (g *Game) stepAging(now uint64) {
 	g.stepAgingConds(now)
 	if cadence.Due(now, clock.TicksPerDay, cadence.OffMedical, 0) {
@@ -48,14 +32,12 @@ func (g *Game) stepAging(now uint64) {
 	}
 }
 
-// agingSalt is pawn id's salt for its conditions' growth rates
-// (body.AgingRate): derived from the game seed, so nothing is saved.
+// agingSalt fixes per-pawn disease progression.
 func (g *Game) agingSalt(id entity.EntityID) uint64 {
 	return g.streams.seed ^ uint64(id)*0x9e3779b97f4a7c15
 }
 
-// stepAgingConds advances an hour of aging on every patient with an
-// aging condition, in id order.
+// stepAgingConds updates chronic patients.
 func (g *Game) stepAgingConds(now uint64) {
 	if len(g.med.patients) == 0 {
 		return
@@ -97,14 +79,26 @@ func (g *Game) stepAgingConds(now uint64) {
 			g.message(pos.X, pos.Y, "A carcinoma destroyed %s's %s.", g.name(id), p.Label())
 		}
 		if st.Changed {
-			g.bodyChanged(id, b, &v) // body.go: stats follow the capacities
+			g.bodyChanged(id, b, &v)
 			g.updateDowned(id, b, &v)
+		}
+		if c, ok := b.Cond(body.CondAlzheimers); ok {
+			// wiki: Alzheimer's; confusion and memory loss increase by stage.
+			r := g.stream(streamMedical)
+			wander := [...]int{12, 9, 7, 4}
+			forget := [...]int{7 * 24, 4 * 24, 2 * 24, 19}
+			stage := min(int(c.Stage), 3)
+			if r.IntN(wander[stage]*24) == 0 {
+				confusedWander(g, id, now, "alzheimers")
+			}
+			if r.IntN(forget[stage]) == 0 {
+				forgetThought(g, id, now, r.IntN)
+			}
 		}
 	}
 }
 
-// agingCandidate reports id one of the colony's living colonists (no
-// prisoner, raider or visitor) with an age.
+// agingCandidate finds eligible living colonists.
 func (g *Game) agingCandidate(id entity.EntityID) bool {
 	v, ok := g.vital.Get(id)
 	if !ok || v.Status == health.Dead || g.prison.Is(id) || g.isRaider(id) || g.visitor(id) {
@@ -114,7 +108,7 @@ func (g *Game) agingCandidate(id entity.EntityID) bool {
 	return aged
 }
 
-// rollAging is the daily aging roll over the colonists, in id order.
+// rollAging performs deterministic daily onset checks.
 func (g *Game) rollAging(now uint64) {
 	ids := slices.Clone(g.pawnIDs)
 	slices.Sort(ids)
@@ -125,6 +119,22 @@ func (g *Game) rollAging(now uint64) {
 		}
 		age := g.sk.bios[id].AgeYears()
 		for _, ch := range body.Chronics() {
+			if ch.Kind == body.CondAsthma {
+				// wiki: Hediffs/Core/Hediff_Giver_Sets/OrganicStandard.
+				// One birthday roll uses biological age / 80-year lifespan.
+				ageDays := int(g.sk.bios[id].AgeDays) + int(now/clock.TicksPerDay)
+				if body.AsthmaBirthday(ageDays, 80*clock.DaysPerYear, r.IntN) {
+					v, _ := g.vital.Get(id)
+					b := g.ensureBody(id, &v)
+					if b != nil && body.DevelopAsthma(b, now) {
+						g.bodyChanged(id, b, &v)
+						g.updateDowned(id, b, &v)
+						pos, _ := g.positions.Get(id)
+						g.message(pos.X, pos.Y, "%s has developed asthma.", g.name(id))
+					}
+				}
+				continue
+			}
 			chance := body.OnsetPerDay(ch.Kind, age)
 			if chance <= 0 {
 				continue
@@ -155,8 +165,7 @@ func (g *Game) rollAging(now uint64) {
 	}
 }
 
-// developAging starts aging kind k on id's part p (p < 0: a part picked
-// by coverage on the medical stream) and tells the player.
+// developAging records an ailment and reports its onset.
 func (g *Game) developAging(id entity.EntityID, k body.CondKind, p int, now uint64) {
 	v, _ := g.vital.Get(id)
 	b := g.ensureBody(id, &v)
@@ -172,6 +181,10 @@ func (g *Game) developAging(id entity.EntityID, k body.CondKind, p int, now uint
 	}
 	if !b.Develop(k, part, now) {
 		return
+	}
+	if k == body.CondCarcinoma && g.stream(streamMedical).IntN(100) < 30 {
+		c, _ := b.Cond(body.CondCarcinoma)
+		c.Rate = -1 // wiki: Carcinoma; 30% are painless, persisted in Rate
 	}
 	g.bodyChanged(id, b, &v)
 	g.updateDowned(id, b, &v)
@@ -190,10 +203,22 @@ func (g *Game) developAging(id entity.EntityID, k body.CondKind, p int, now uint
 	}
 }
 
-// dementiaWander sends demented colonist id wandering off confused (the
-// mental break's wander hook), unless it is down, drafted or already in
-// a break.
+// dementiaWander shares the confusion behavior.
+func forgetThought(g *Game, id entity.EntityID, now uint64, roll func(int) int) {
+	memories := g.memories[id].Prune(now)
+	if len(memories) == 0 {
+		return
+	}
+	i := roll(len(memories))
+	memories = append(memories[:i], memories[i+1:]...)
+	g.memories[id] = memories
+}
+
 func (g *Game) dementiaWander(id entity.EntityID, now uint64) {
+	confusedWander(g, id, now, "dementia")
+}
+
+func confusedWander(g *Game, id entity.EntityID, now uint64, reason string) {
 	if v, ok := g.vital.Get(id); !ok || v.Status != health.Alive {
 		return
 	}
@@ -204,7 +229,7 @@ func (g *Game) dementiaWander(id entity.EntityID, now uint64) {
 	delete(g.orderQueue, id)
 	g.breaks[id] = breakState{kind: mentalbreak.SadWander, until: now + dementiaWanderTicks}
 	pos, _ := g.positions.Get(id)
-	g.message(pos.X, pos.Y, "%s is wandering around, confused (dementia).", g.name(id))
+	g.message(pos.X, pos.Y, "%s is wandering around, confused (%s).", g.name(id), reason)
 }
 
 // --- Health tab -------------------------------------------------------

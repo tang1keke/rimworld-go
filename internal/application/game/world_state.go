@@ -308,6 +308,11 @@ func (g *Game) importWorld(s *worldSave) {
 		w.caravans = append(w.caravans, c.Clone())
 	}
 	w.stashed = slices.Clone(s.Stashed)
+	for i := range w.stashed {
+		if beast := w.stashed[i].Beast; beast != nil {
+			body.MigrateReplacements(beast.Body)
+		}
+	}
 	w.visitors = slices.Clone(s.Visitors)
 	for _, a := range s.AreaOf {
 		if w.areaOf == nil {

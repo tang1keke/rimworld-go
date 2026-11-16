@@ -197,7 +197,13 @@ var pools = [NumKinds][]entry{
 	},
 	CurioMerchant: {
 		{item.Gold, 20, 60, 100}, {item.NanomedKit, 2, 5, 90}, {item.ServoArm, 1, 1, 60},
-		{item.ServoLeg, 1, 1, 60}, {item.OpticImplant, 1, 1, 50}, {item.Beer, 4, 12, 80},
+		{item.ServoLeg, 1, 1, 60}, {item.OpticImplant, 1, 1, 50},
+		// original tuning: CurioMerchant stock quantities and selection weights.
+		// wiki: Trade (which Core body parts traders may carry).
+		{item.BlissCircuit, 1, 1, 30}, {item.NerveDampener, 1, 1, 30}, {item.AcidFailsafe, 1, 1, 15},
+		{item.AcousticImplant, 1, 1, 50}, {item.ServoClaw, 1, 1, 20}, {item.CochlearImplant, 1, 1, 40}, {item.ServoJaw, 1, 1, 40}, {item.SynthTongue, 1, 1, 40},
+		{item.ApexArm, 1, 1, 10}, {item.ApexLeg, 1, 1, 10}, {item.ApexEye, 1, 1, 10},
+		{item.Beer, 4, 12, 80},
 		{item.SparkTablet, 3, 8, 70}, {item.AshleafTea, 4, 10, 70}, {item.CarpetWool, 2, 6, 80},
 		{item.IndustrialMedicine, 2, 6, 60},
 		// AX-8: now and then a mind core, the ship computer core's heart

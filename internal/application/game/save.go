@@ -111,10 +111,13 @@ import (
 // (EAI-0) adds each map's wealth tracker (game/wealth) and the factions'
 // wars (Faction.Enemies): an older save's first map is counted once, and
 // no faction is at war with another yet.
+// v18 (MED-14): artificial body parts are represented by Replacements and
+// additive Implants. Old Fitted data is translated at the body-save
+// read boundary; nested animal bodies are migrated upon import.
 // migrateSave runs the steps a save's version is missing.
 
 // SaveVersion is the version new saves are written with.
-const SaveVersion = 17
+const SaveVersion = 18
 
 // minSaveVersion is the oldest version Load still reads.
 const minSaveVersion = 1
@@ -939,8 +942,10 @@ func (g *Game) migrateSave(v int) {
 		fallthrough
 	case v < 16: // SAV-003: the header names its colony; Load's savefmt.Info.Upgrade fills an older one, the state is unchanged
 		fallthrough
-	case v < 17: // EAI-015: an older world gets its factions' wars from the same seeded rule a new one does (the wealth tracker counts on its own)
+	case v < 17: // EAI-015: restore faction wars for older saves
 		faction.SetEnemies(g.ng.factions)
+		fallthrough
+	case v < 18: // Body Fitted moved to Replacements at the read boundary (game/body.go, animal_health.go)
 	}
 	g.med.legacyWounds = nil // read only: a v6 save never writes Wounds
 }

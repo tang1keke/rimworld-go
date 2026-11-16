@@ -375,3 +375,41 @@ func sortedSkills[V any](m map[skill.ID]V) []skill.ID {
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
+
+// ImplantMood is the instantaneous thought for a body-augmentation trait.
+// wiki: Body modder and Body purist (published mood stages).
+// Local trait names and descriptions remain original.
+func ImplantMood(t ID, count int) int {
+	switch t {
+	case AugmentFan:
+		if count == 0 {
+			return -4
+		}
+		stages := [...]int{4, 7, 9, 11, 12, 13}
+		return stages[min(count, len(stages))-1]
+	case NaturalPurist:
+		if count == 0 {
+			return 0
+		}
+		return -min(5*(count+1), 35) // wiki: Body purist (sixth and later at -35)
+	}
+	return 0
+}
+
+// AppendImplantThoughts adds state thoughts for implant-sensitive traits.
+func AppendImplantThoughts(dst []mood.Thought, traits []ID, implants int) []mood.Thought {
+	for _, id := range traits {
+		var kind mood.Kind
+		switch id {
+		case AugmentFan:
+			kind = mood.AugmentFan
+		case NaturalPurist:
+			kind = mood.NaturalPurist
+		default:
+			continue
+		}
+		d := mood.DefOf(kind)
+		dst = append(dst, mood.Thought{Kind: kind, Label: d.Label, Value: ImplantMood(id, implants)})
+	}
+	return dst
+}

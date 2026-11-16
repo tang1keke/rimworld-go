@@ -10,6 +10,7 @@ import (
 	"rimworld-go/internal/domain/building/zone"
 	"rimworld-go/internal/domain/combat/weapon"
 	"rimworld-go/internal/domain/economy/item"
+	"rimworld-go/internal/domain/pawn/body"
 	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/internal/domain/world/plant"
@@ -130,7 +131,9 @@ func (g *Game) tickNeeds(id entity.EntityID, a *animal.State, now uint64) bool {
 	food := animal.FoodPerDay * animal.AgeHunger(a.Species, animal.AgeDays(a.Born, now, a.Species)) / 1000
 	if lyingDown(*a) { // animal_health.go: asleep or downed
 		a.Food -= rateStep(now, food/2, clock.TicksPerDay)
-		a.Rest = min(animal.Full, a.Rest+rateStep(now, g.rest.Animals.SleepRate(id, a.Tame, animal.SleepPerHour), clock.TicksPerHour)) // BED-1: rest/animals.go
+		rate := g.rest.Animals.SleepRate(id, a.Tame, animal.SleepPerHour)
+		rate = rate * int(body.RestRateMultiplier(a.Body)) / 1000
+		a.Rest = min(animal.Full, a.Rest+rateStep(now, rate, clock.TicksPerHour))
 	} else {
 		a.Food -= rateStep(now, food, clock.TicksPerDay)
 		a.Rest = max(0, a.Rest-rateStep(now, animal.RestPerDay, clock.TicksPerDay))

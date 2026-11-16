@@ -62,7 +62,7 @@ func (b *Bills) Apply(c command.Command) {
 	switch c.Kind {
 	case command.AddBill:
 		d := recipe.DefOf(recipe.ID(c.Recipe))
-		if d.Name == "" || !d.At(bench.Kind) || b.h.RecipeLocked(d.ID) {
+		if d.Name == "" || d.Legacy || !d.At(bench.Kind) || b.h.RecipeLocked(d.ID) {
 			return
 		}
 		target := c.Count

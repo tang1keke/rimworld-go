@@ -26,20 +26,8 @@ import (
 	"rimworld-go/pkg/mathx"
 )
 
-// Surgery (ENG-003 M1; surgery v2, MED-06). The player queues operations
-// on a colonist, prisoner or guest from the Health tab
-// (command.AddOperation). A doctor (Doctor work, after tending) takes the
-// nearest patient lying down with an operation it can do now: it fetches
-// the implant or organ (if any) and the medicine the operation uses up
-// (body.MedicineNeed, capped by the patient's care level), and works
-// SurgeryWork ticks scaled by Medicine. The success chance follows the
-// wiki (body.SurgeryChance: skill, manipulation, sight, bed, cleanliness,
-// light, vitals monitor, medicine, operation); the body domain rolls the
-// outcome on the body stream: success installs, removes, amputates,
-// harvests or transplants; failure wounds the patient (and may kill on a
-// heart or carcinoma operation) and calls onSurgeryBotched. Every
-// operation but euthanasia leaves the patient under an anaesthetic
-// (body.CondAnesthetic), which wears off over 20 hours (stepAnesthetics).
+// MED-06: queued operations reserve materials and use the medical
+// surgery chance formula; the body domain resolves outcomes and sedation.
 
 const (
 	// SurgeryWork is the work an operation takes (Medicine scales speed).
@@ -62,11 +50,8 @@ const (
 	harvestGoodwillCap   = -100
 )
 
-// surgeryState is the queued operations per patient, an older save's
-// patients still under the hour-long anaesthetic (legacy, never added
-// to), who gave up waiting for a surgeon until when (ENG-003, M1), and
-// the hospital bed a patient claimed only to wait for surgery in, given
-// back once it is up again (SIM-049); nil until the first operation.
+// surgeryState stores operation queues, legacy sedation, cooldowns and
+// temporarily claimed surgery beds.
 type surgeryState struct {
 	ops   map[entity.EntityID][]body.Operation
 	under map[entity.EntityID]uint64
@@ -139,17 +124,8 @@ func (g *Game) operationsOf(id entity.EntityID) []body.Operation {
 	return g.surg.ops[id]
 }
 
-// opCode packs an operation into a job's Count, so a running job finds its
-// operation again even when the queue shifts under it.
-func opCode(op body.Operation) int {
-	return int(op.Kind)<<16 | int(op.Part)<<8 | int(op.Item)
-}
-
-// cmdAddOperation queues operation op on part for patient (a colonist,
-// prisoner or guest): only a valid operation on the body as it is now (an
-// implant or organ on a part it fits, a removal of an implant, an
-// amputation or harvest of a part still there, euthanasia or anaesthesia
-// on the whole body), once.
+// cmdAddOperation queues a body-valid procedure for a living patient,
+// avoiding duplicate or mutually exclusive requests.
 func (g *Game) cmdAddOperation(patient entity.EntityID, op int, part, kind uint8) {
 	if !g.isPawn(patient) || op < 0 || op >= int(body.NumOps) {
 		return
@@ -159,7 +135,7 @@ func (g *Game) cmdAddOperation(patient entity.EntityID, op int, part, kind uint8
 	}
 	o := body.Operation{Kind: body.OpKind(op), Part: body.Part(part)}
 	switch {
-	case o.Kind == body.InstallImplant || o.Kind == body.InstallOrgan:
+	case o.Kind == body.InstallImplant || o.Kind == body.InstallOrgan || o.Kind == body.RemoveImplant && item.Kind(kind).IsAddedImplant():
 		o.Item = item.Kind(kind)
 	case o.Kind.WholeBody():
 		o.Part = body.Torso
@@ -176,7 +152,7 @@ func (g *Game) cmdAddOperation(patient entity.EntityID, op int, part, kind uint8
 		return
 	}
 	for _, x := range q {
-		if x.Kind == o.Kind && x.Part == o.Part {
+		if body.OperationsConflict(x, o) {
 			return
 		}
 	}
@@ -216,23 +192,13 @@ func (g *Game) dropOperation(patient entity.EntityID, i int) {
 	g.surg.ops[patient] = q
 }
 
-// opNeedsItem is the implant or organ an operation fits (0: none).
-func opNeedsItem(op body.Operation) item.Kind {
-	if op.Kind == body.InstallImplant || op.Kind == body.InstallOrgan {
-		return op.Item
-	}
-	return 0
-}
-
 // opFetch is what a doctor fetches for an operation: the implant or
 // organ stack (0: none needed) and the medicine stack.
 type opFetch struct {
 	item, med entity.EntityID
 }
 
-// readyOp is the first operation in id's queue doctor could start now:
-// valid on the body, with its implant or organ and its medicine free and
-// within the doctor's reach (opBlocked).
+// readyOp chooses the first bill with feasible stock, doctor and body.
 func (g *Game) readyOp(doctor, id entity.EntityID) (int, opFetch, bool) {
 	q := g.operationsOf(id)
 	if len(q) == 0 {
@@ -247,12 +213,8 @@ func (g *Game) readyOp(doctor, id entity.EntityID) (int, opFetch, bool) {
 	return 0, opFetch{}, false
 }
 
-// awaitingSurgery: id has an operation a doctor could start now (the same
-// test surgeryWait reports on), someone else to do it, and has not just
-// given up waiting (patientRest, infection.go). A patient already lying
-// down keeps waiting while its implant is only briefly taken (a hauler
-// moving it): it lies down on a strict test and gets up on a looser one,
-// so a passing reservation does not flap it (SIM-049).
+// awaitingSurgery holds the patient in bed while a feasible operation
+// awaits a doctor; temporary reservations cannot make the patient flap.
 func (g *Game) awaitingSurgery(id entity.EntityID) bool {
 	if g.surg == nil || len(g.surg.ops[id]) == 0 {
 		return false
@@ -299,14 +261,8 @@ const (
 	waitMedsFm     = "needs %d %s or better"
 )
 
-// opBlocked is why doctor can't start op on patient (body b) now, ""
-// with what to fetch when it can. Doctor 0 asks about any other colonist
-// who doctors. The reasons come in order: the operation no longer fits
-// the body, the patient is already sedated (anaesthesia), the implant or
-// organ needs research or is not in stock or not in reach, no one else
-// to operate, no one skilled enough, no medicine the care level allows.
-// Loose counts a stack a hauler holds as in stock (a waiting patient
-// stays down; awaitingSurgery).
+// opBlocked checks surgery preconditions, preferring raw stock but
+// accepting legacy prefabricated parts from older saves.
 func (g *Game) opBlocked(patient, doctor entity.EntityID, b *body.Body, op body.Operation, loose bool) (string, opFetch) {
 	if !b.CanOperate(op) {
 		return waitBody, opFetch{}
@@ -315,16 +271,24 @@ func (g *Game) opBlocked(patient, doctor entity.EntityID, b *body.Body, op body.
 		return waitSedated, opFetch{}
 	}
 	var f opFetch
-	if k := opNeedsItem(op); k != 0 {
+	if k := body.OperationMaterial(op); k != 0 {
 		var why string
-		if f.item, why = g.implantFor(patient, doctor, k, loose); f.item == 0 {
-			return why, opFetch{}
+		f.item, why = g.implantFor(patient, doctor, k, loose)
+		if f.item == 0 {
+			if legacy := body.LegacyMaterial(op); legacy != 0 {
+				f.item, _ = g.implantFor(patient, doctor, legacy, loose)
+			}
+			if f.item == 0 {
+				return why, opFetch{}
+			}
 		}
+	} else if legacy := body.LegacyMaterial(op); legacy != 0 {
+		f.item, _ = g.implantFor(patient, doctor, legacy, loose)
 	}
 	if doctor == 0 && !g.care.Doctor.OtherDoctor(patient) {
 		return waitNoDoctor, opFetch{}
 	}
-	if lvl := body.MinSkill(op.Kind); lvl > 0 && !g.skilledSurgeon(patient, doctor, lvl) {
+	if lvl := body.OperationMinSkill(op); lvl > 0 && !g.skilledSurgeon(patient, doctor, lvl) {
 		return fmt.Sprintf(waitSkillFm, lvl), opFetch{}
 	}
 	var why string
@@ -355,10 +319,8 @@ var surgeryMedTiers = [3]item.Kind{item.HerbalMedicine, item.IndustrialMedicine,
 // medTier ranks a medicine kind (herbal 0, industrial 1, nanomed 2).
 func medTier(k item.Kind) int { return slices.Index(surgeryMedTiers[:], k) }
 
-// surgeryMedicine is the nearest free stack of medicine op uses up
-// (body.MedicineNeed: enough of one kind, at least the kind it needs)
-// that patient's care level allows and doctor (0: any other colonist who
-// doctors) can reach, cheapest kind first; or why there is none.
+// surgeryMedicine finds the nearest allowed, reachable and unreserved
+// medicine stack meeting MedicineNeed, preferring cheaper tiers.
 func (g *Game) surgeryMedicine(patient, doctor entity.EntityID, op body.Operation) (entity.EntityID, string) {
 	qty, least := body.MedicineNeed(op.Kind)
 	pol := g.care.Level(patient) // care package (MED-03)
@@ -390,11 +352,8 @@ func (g *Game) surgeryMedicine(patient, doctor entity.EntityID, op body.Operatio
 	return 0, fmt.Sprintf(waitMedsFm, qty, least)
 }
 
-// implantFor is the nearest free stack of implant (or organ) k that
-// doctor (0: any other colonist who doctors) can reach, or why there is
-// none: its recipe still needs research and there is none to be had, none
-// is in stock, or none can be reached (reachable: region labels, no
-// search). Loose also takes a stack carried or reserved by someone else.
+// implantFor locates reachable stock with stable ties and reports
+// stock, reach or research blockers.
 func (g *Game) implantFor(patient, doctor entity.EntityID, k item.Kind, loose bool) (entity.EntityID, string) {
 	from := doctor
 	if from == 0 {
@@ -439,9 +398,7 @@ func (g *Game) implantFor(patient, doctor entity.EntityID, k item.Kind, loose bo
 	return 0, fmt.Sprintf(waitNoStockFm, k)
 }
 
-// canFetch: doctor (0: any standing colonist besides patient who does
-// Doctor work; with none, the patient itself, so a lone colonist hears
-// that it needs a doctor rather than about reach) could walk to (x, y).
+// canFetch checks reachability for a designated or eligible doctor.
 func (g *Game) canFetch(patient, doctor entity.EntityID, x, y int) bool {
 	if doctor != 0 {
 		return g.reachable(doctor, x, y)
@@ -458,8 +415,7 @@ func (g *Game) canFetch(patient, doctor entity.EntityID, x, y int) bool {
 	return !found && g.reachable(patient, x, y)
 }
 
-// implantResearch names the project still locking every recipe that
-// makes implant k ("" when one is open, or none makes it).
+// implantResearch names the project locking every recipe for k.
 func (g *Game) implantResearch(k item.Kind) string {
 	locked := ""
 	for _, r := range recipe.All() {
@@ -477,11 +433,7 @@ func (g *Game) implantResearch(k item.Kind) string {
 	return locked
 }
 
-// lieInHospitalBed puts a patient waiting for surgery in a free hospital
-// bed (care.SafeBedFor ranks them first), claimed only for the stay: its own
-// bed stays its own, and leaveHospitalBed gives this one back once it is
-// up again. False when there is none free (or it can't be reached), and
-// nothing changes then.
+// lieInHospitalBed temporarily claims a reachable free hospital bed.
 func (g *Game) lieInHospitalBed(id entity.EntityID) bool {
 	pos, _ := g.positions.Get(id)
 	bid := g.care.SafeBedFor(id, pos.X, pos.Y, care.RescueBed)
@@ -538,9 +490,7 @@ func (g *Game) surgeryGaveUp(id entity.EntityID) {
 	g.surg.rest[id] = uint64(g.clock.Now()) + surgeryRestRetry
 }
 
-// surgeryPatients calls fn for every pawn that can be operated on, in a
-// fixed order: colonists, then prisoners, then guests (MED-06), each in
-// id order; fn returning false stops.
+// surgeryPatients visits operable colonists, prisoners and guests in order.
 func (g *Game) surgeryPatients(fn func(entity.EntityID) bool) {
 	for _, pid := range g.pawnIDs {
 		if !fn(pid) {
@@ -559,9 +509,7 @@ func (g *Game) surgeryPatients(fn func(entity.EntityID) bool) {
 	}
 }
 
-// assignSurgery sends doctor id to the nearest patient lying down (in bed,
-// downed or asleep) with an operation it can do now: colonists, then
-// prisoners, then guests, nearest first (ties keep that order).
+// assignSurgery chooses the nearest feasible patient for a doctor.
 func (g *Game) assignSurgery(id entity.EntityID) bool {
 	if g.surg == nil || len(g.surg.ops) == 0 {
 		return false
@@ -593,8 +541,12 @@ func (g *Game) assignSurgery(id entity.EntityID) bool {
 		if !ok {
 			return true
 		}
-		rec := job.Record{Kind: job.Surgery, Target: pid, TX: sx, TY: sy, WorkLeft: SurgeryWork,
-			Count: opCode(g.surg.ops[pid][slot]), Route: []entity.EntityID{f.med}}
+		work := body.OperationWork(g.surg.ops[pid][slot])
+		if work == 0 {
+			work = SurgeryWork
+		}
+		rec := job.Record{Kind: job.Surgery, Target: pid, TX: sx, TY: sy, WorkLeft: work,
+			Count: body.OpCode(g.surg.ops[pid][slot]), Route: []entity.EntityID{f.med}}
 		fetch := f.med // the medicine, carried, unless there is an implant to carry
 		if f.item != 0 {
 			fetch = f.item
@@ -621,16 +573,14 @@ func (g *Game) assignSurgery(id entity.EntityID) bool {
 // surgerySlot finds the queued operation a job is for.
 func (g *Game) surgerySlot(patient entity.EntityID, code int) (int, bool) {
 	for i, op := range g.operationsOf(patient) {
-		if opCode(op) == code {
+		if body.OpCode(op) == code {
 			return i, true
 		}
 	}
 	return 0, false
 }
 
-// jobMedicine is the stack a surgery job takes its medicine from: the
-// one it carries when it carries medicine, else the reserved stack in
-// Route (an implant or organ is carried instead).
+// jobMedicine resolves the carried or reserved medicine stack.
 func jobMedicine(j job.Record) entity.EntityID {
 	if len(j.Route) == 0 {
 		return 0
@@ -638,8 +588,7 @@ func jobMedicine(j job.Record) entity.EntityID {
 	return j.Route[0]
 }
 
-// doSurgery runs an operation: fetch, stand beside the patient, work, then
-// let the body domain decide.
+// doSurgery fetches supplies, approaches the patient and performs the bill.
 func (g *Game) doSurgery(id entity.EntityID, j job.Record) {
 	patient := j.Target
 	v, ok := g.vital.Get(patient)
@@ -650,15 +599,15 @@ func (g *Game) doSurgery(id entity.EntityID, j job.Record) {
 		return
 	}
 	op := g.surg.ops[patient][slot]
-	need := opNeedsItem(op)
+	requiresItem := g.surgeryHasMaterial(j, op)
 	if j.Dest != 0 && j.Carry == 0 {
 		accept := isMedicine
-		if need != 0 {
-			accept = func(k item.Kind) bool { return k == need }
+		if requiresItem {
+			accept = func(k item.Kind) bool { return body.AcceptsMaterial(op, k) }
 		}
 		src := j.Dest
 		walking := !g.pickUpItem(id, &j, accept) // infection.go
-		if need == 0 && j.Carry != 0 {
+		if !requiresItem && j.Carry != 0 {
 			qty, _ := body.MedicineNeed(op.Kind)
 			g.topUpCarry(src, j.Carry, qty-1) // the rest of the doses
 		}
@@ -666,7 +615,7 @@ func (g *Game) doSurgery(id entity.EntityID, j job.Record) {
 			return // walking to the patient (or the job ended)
 		}
 	}
-	if need != 0 && !g.carryingKind(id, j, need) {
+	if requiresItem && !g.carryingMaterial(id, j, op) {
 		j.State, j.Fail = job.Fail, job.TargetGone // the implant went missing
 		g.jobs.Set(id, j)
 		return
@@ -717,13 +666,11 @@ func (g *Game) topUpCarry(src, carry entity.EntityID, extra int) {
 	g.putStack(src, s)
 }
 
-// surgeryDoses is the medicine an operation about to happen uses: the
-// carried doses, or for an implant or organ operation the reserved stack
-// (still lying free with enough of a medicine); false when it went
-// missing.
+// surgeryDoses validates either carried medicine or the reserved
+// stack when the doctor carries a separate operation item.
 func (g *Game) surgeryDoses(id entity.EntityID, j job.Record, op body.Operation) (item.Stack, bool) {
 	qty, _ := body.MedicineNeed(op.Kind)
-	if opNeedsItem(op) == 0 {
+	if !g.surgeryHasMaterial(j, op) {
 		st, ok := g.stacks.Get(j.Carry)
 		return st, ok && j.Carry != 0 && st.Carrier == id && isMedicine(st.Kind) && st.Qty >= qty
 	}
@@ -732,10 +679,10 @@ func (g *Game) surgeryDoses(id entity.EntityID, j job.Record, op body.Operation)
 	return st, ok && sid != 0 && st.Carrier == 0 && !st.Forbidden && isMedicine(st.Kind) && st.Qty >= qty
 }
 
-// useDoses uses up op's medicine (surgeryDoses found it).
+// useDoses consumes the validated medicine for an operation.
 func (g *Game) useDoses(id entity.EntityID, j *job.Record, med item.Stack, op body.Operation) {
 	qty, _ := body.MedicineNeed(op.Kind)
-	if opNeedsItem(op) == 0 {
+	if !g.surgeryHasMaterial(*j, op) {
 		g.deleteItem(j.Carry)
 		j.Carry = 0
 		return
@@ -750,17 +697,24 @@ func (g *Game) useDoses(id entity.EntityID, j *job.Record, med item.Stack, op bo
 }
 
 // carryingKind reports the job carrying an item of kind k.
-func (g *Game) carryingKind(id entity.EntityID, j job.Record, k item.Kind) bool {
+// surgeryHasMaterial handles materials even after pickup clears Dest.
+func (g *Game) surgeryHasMaterial(j job.Record, op body.Operation) bool {
+	st, ok := g.stacks.Get(j.Carry)
+	return body.OperationMaterial(op) != 0 ||
+		ok && body.AcceptsMaterial(op, st.Kind) ||
+		j.Carry == 0 && j.Dest != 0 && j.Dest != jobMedicine(j)
+}
+
+// carryingMaterial checks a raw resource or legacy prefab held by the doctor.
+func (g *Game) carryingMaterial(id entity.EntityID, j job.Record, op body.Operation) bool {
 	if j.Carry == 0 {
 		return false
 	}
 	st, ok := g.stacks.Get(j.Carry)
-	return ok && st.Kind == k && st.Carrier == id
+	return ok && st.Carrier == id && body.AcceptsMaterial(op, st.Kind)
 }
 
-// surgeryInput is the success chance input of surgeon operating op on
-// patient where it lies now with medicine med (surgeon 0: no surgeon
-// yet, at Medicine 0 with whole hands and eyes).
+// surgeryInput captures the surgeon, patient and room factors.
 func (g *Game) surgeryInput(surgeon, patient entity.EntityID, op body.OpKind, med item.Kind) body.SurgeryInput {
 	in := body.SurgeryInput{Manip: 1000, Sight: 1000, HospitalBed: g.inHospitalBed(patient), Monitor: g.monitorBy(patient),
 		Op: op, Medicine: med}
@@ -776,10 +730,7 @@ func (g *Game) surgeryInput(surgeon, patient entity.EntityID, op body.OpKind, me
 	return in
 }
 
-// surgeryCleanliness is the cleanliness (RimWorld cleanliness ×100) of
-// the room at (x, y) for surgery, from the rooms index and the room's
-// filth total (no scan; room.SurgeryCleanliness has the rule). Outdoors,
-// or a room outdoors for work (TEMP-6, wiki: Rooms), reports true.
+// surgeryCleanliness reads the room cleanliness or identifies an outdoor operation.
 func (g *Game) surgeryCleanliness(x, y int) (int32, bool) {
 	r := g.roomAt(x, y)
 	if r < 0 || r >= len(g.rooms) || g.thermo.OutdoorsForWork(r) {
@@ -795,9 +746,7 @@ func (g *Game) surgeryChanceOf(surgeon, patient entity.EntityID, op body.OpKind,
 	return body.SurgeryChance(g.surgeryInput(surgeon, patient, op, med))
 }
 
-// bestSurgeon is the standing colonist besides patient who doctors with
-// the highest Medicine (lowest id on a tie; 0: none), the surgeon the
-// Health tab's chance assumes.
+// bestSurgeon selects highest Medical skill, lowest ID on a tie.
 func (g *Game) bestSurgeon(patient entity.EntityID) entity.EntityID {
 	var best entity.EntityID
 	bestLvl := -1
@@ -812,9 +761,7 @@ func (g *Game) bestSurgeon(patient entity.EntityID) entity.EntityID {
 	return best
 }
 
-// operationChance is a queued operation's chance for the Health tab:
-// percent, and a tooltip breaking it down by factor, as the best doctor
-// would do it with the medicine it would use.
+// operationChance supplies the Health tab's percentage and factor breakdown.
 func (g *Game) operationChance(patient entity.EntityID, op body.Operation) (int, string) {
 	if op.Kind == body.Euthanize {
 		return 100, "Euthanasia\nIt cannot fail: the patient dies either way."
@@ -846,34 +793,7 @@ func (g *Game) operationChance(patient entity.EntityID, op body.Operation) (int,
 	return int(c / 10), strings.Join(lines, "\n")
 }
 
-// moreOperationOptions adds the surgery v2 options to the picker
-// (operationOptions, body.go), after the amputations: harvesting each
-// natural organ, transplanting an organ into each missing or damaged one,
-// euthanasia, anaesthesia, then excising carcinomas, in operation kind
-// order (add skips what can't be done on the body
-// and what is already queued; a carcinoma excision appears with MED-08's
-// condition).
-func (g *Game) moreOperationOptions(b *body.Body, add func(body.Operation)) {
-	for p := body.Part(0); p < body.NumParts; p++ {
-		if body.OrganOf(p) != 0 {
-			add(body.Operation{Kind: body.HarvestOrgan, Part: p})
-		}
-	}
-	for p := body.Part(0); p < body.NumParts; p++ {
-		if k := body.OrganOf(p); k != 0 {
-			add(body.Operation{Kind: body.InstallOrgan, Part: p, Item: k})
-		}
-	}
-	add(body.Operation{Kind: body.Euthanize, Part: body.Torso})
-	add(body.Operation{Kind: body.Anesthetize, Part: body.Torso})
-	for p := body.Part(0); p < body.NumParts; p++ {
-		add(body.Operation{Kind: body.ExciseCarcinoma, Part: p})
-	}
-}
-
-// operate carries out slot's operation on patient with medicine med (its
-// doses already used up): roll, apply, use up the carried implant or
-// organ, wound or kill on failure, then the anaesthetic and memories.
+// operate resolves a queued bill and its costs, outcome, consequences and sedation.
 func (g *Game) operate(surgeon, patient entity.EntityID, slot int, j *job.Record, med item.Kind) {
 	now := uint64(g.clock.Now())
 	op := g.surg.ops[patient][slot]
@@ -892,23 +812,29 @@ func (g *Game) operate(surgeon, patient entity.EntityID, slot int, j *job.Record
 	chance, _ := g.surgeryChanceOf(surgeon, patient, op.Kind, med)
 	lvl := int(g.skillOf(surgeon, skill.Medicine).Level)
 	outcome := body.RollOutcome(chance, lvl, rng.IntN)
-	removed := b.Implant(op.Part)
+	drops := body.SurgeryYields(b, op)
 	done := b.Apply(op, outcome, rng.IntN, now)
-	if j.Carry != 0 && outcome != body.MinorFail {
-		g.deleteItem(j.Carry) // an implant or organ is fitted or ruined
+	if j.Carry != 0 && (outcome != body.MinorFail || op.Kind == body.InstallImplant) {
+		g.deleteItem(j.Carry)
 		j.Carry = 0
 	}
-	if done && (op.Kind == body.RemoveImplant || op.Kind == body.InstallOrgan) && removed.IsImplant() {
-		g.dropStack(removed, 1, pp.X, pp.Y) // world.go: the implant comes out whole
+	if done {
+		for _, drop := range drops {
+			g.dropStack(drop.Kind, drop.Qty, pp.X, pp.Y)
+		}
 	}
 	if done && op.Kind == body.HarvestOrgan {
 		g.dropStack(body.OrganOf(op.Part), 1, pp.X, pp.Y)
 		g.organHarvested(surgeon, patient, op.Part)
 	}
+	if done && op.Item == item.ValveHeart && op.Kind == body.InstallImplant &&
+		len(drops) > 0 && drops[0].Kind == item.Heart && !slices.Contains(g.pawnIDs, patient) && !g.prison.Is(patient) {
+		g.organHarvested(surgeon, patient, body.Heart)
+	}
 	failDeath := outcome != body.Success && body.FailDeathChance(op) > 0 &&
 		int32(rng.IntN(1000)) < body.FailDeathChance(op)
 	if v.Status != health.Dead && !failDeath {
-		b.Anesthetize(now) // body/cond_anesthetic.go: every operation sedates
+		body.AnesthetizeFor(b, now, 45000+rng.IntN(30001)) // wiki: Anesthetic
 	}
 	g.bodyChanged(patient, b, &v)
 	g.remember(patient, mood.Surgery) // rooms.go
@@ -992,6 +918,9 @@ func (g *Game) organHarvested(surgeon, donor entity.EntityID, part body.Part) {
 	gw := harvestGoodwill
 	if part == body.Heart {
 		gw = harvestGoodwillHeart
+		if b := g.bodies[donor]; b != nil && b.ReplacementAt(body.Heart) == item.ValveHeart {
+			gw = -70 // wiki: Prosthetic heart (unnecessary surgery on foreign guest)
+		}
 	}
 	gw = max(gw, harvestGoodwillCap)
 	faction.Adjust(f, gw, fmt.Sprintf("Day %d: %s's %s harvested (%d goodwill)", g.relDay(now)+1, g.name(donor), part.Label(), gw))
@@ -1011,6 +940,26 @@ func (g *Game) stepAnesthetics(now uint64) {
 		}
 		if b.StepAnesthetic(now) {
 			g.bodyChanged(id, b, &v)
+		}
+		if c, ok := b.Cond(body.CondAnesthetic); ok {
+			r := g.stream(streamMedical)
+			if !g.poisoned(id) {
+				g.foodVomit(id, b)
+			}
+			if c.Stage < 2 {
+				// wiki: Anesthetic; woozy confusion MTB 5 days,
+				// wearing-off confusion MTB 50 days.
+				wanderDays := 50
+				if c.Stage == 1 {
+					wanderDays = 5
+				}
+				if r.IntN(wanderDays*24) == 0 {
+					confusedWander(g, id, now, "anesthetic")
+				}
+				if c.Stage == 1 && r.IntN(5*24) == 0 {
+					forgetThought(g, id, now, r.IntN)
+				}
+			}
 		}
 		g.wakeIfClear(id, b, &v)
 	}
@@ -1085,7 +1034,7 @@ func (g *Game) onSurgeryBotched(surgeon, patient entity.EntityID) {
 // the patient to lie down or the doctor on the way ("" and true when a
 // doctor could start it this moment; SIM-049).
 func (g *Game) surgeryWait(patient entity.EntityID, op body.Operation) (string, bool) {
-	if g.surgeonComing(patient, opCode(op)) {
+	if g.surgeonComing(patient, body.OpCode(op)) {
 		return waitOnTheWay, true
 	}
 	lying := g.care.Doctor.Lying(patient)

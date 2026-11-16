@@ -9,15 +9,9 @@ import (
 	"rimworld-go/internal/domain/sim/entity"
 )
 
-// Bleeding, blood loss and capacity downing (MED-01). Every open cut,
-// bite, scratch or surgical wound bleeds until a doctor tends it
-// (body/bleed.go); once an hour the medical phase walks the patients index
-// (patients.go), never every body: blood loss grows by the hour's
-// bleeding (or drains back when nothing bleeds), kills at 1000, and the
-// pawn is downed or stood up again by its capacities with hysteresis
-// (health.BodyDowns / BodyRecovered). Colonists, prisoners and raiders
-// bleed alike: a downed raider no longer dies on a timer, it bleeds out
-// unless captured and tended.
+// MED-01: untreated wounds bleed, blood loss can kill, and capacities
+// determine downing and recovery. Medical phases use the patient index.
+// The same rules apply to colonists, prisoners and raiders.
 
 // phaseMedical runs the hourly medical work: blood loss and downing, the
 // infections (infection.go), then the patients sweep, so right after it
@@ -88,6 +82,9 @@ func (g *Game) standsUp(id entity.EntityID, v health.Record) bool {
 	b := g.bodies[id]
 	if b == nil {
 		return v.Injury <= health.RecoverInjury
+	}
+	if _, active := b.Cond(body.CondHeartAttack); active {
+		return false // wiki: Heart attack: the attack can debilitate until it resolves
 	}
 	return health.BodyRecovered(b.Capacity(body.Consciousness), b.Capacity(body.Moving), b.Pain(), g.painShockAt(id))
 }

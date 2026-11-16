@@ -129,10 +129,7 @@ type restRoutine struct{ g *Game }
 
 func (h restRoutine) Activity(id entity.EntityID) schedule.Activity { return h.g.activityOf(id) }
 func (h restRoutine) SeekFood(id entity.EntityID) bool              { return h.g.seekFood(id) }
-func (h restRoutine) Job(id entity.EntityID) job.Record {
-	j, _ := h.g.jobs.Get(id)
-	return j
-}
+func (h restRoutine) Job(id entity.EntityID) job.Record             { j, _ := h.g.jobs.Get(id); return j }
 
 func (h restRoutine) Band(id entity.EntityID) (int, int) {
 	c, ht := h.g.comfortShift(id) // TEMP-3: before apparel (wiki: Thoughts), traits and build kept
@@ -142,6 +139,9 @@ func (h restRoutine) Band(id entity.EntityID) (int, int) {
 
 type restPatients struct{ g *Game }
 
+func (h restPatients) RestFactor(id entity.EntityID) int32 {
+	return body.RestRateMultiplier(h.g.bodies[id])
+}
 func (h restPatients) OnBedRest(id entity.EntityID) bool { return h.g.care.Rest.On(id) }
 func (h restPatients) MayUseMedicalBed(id entity.EntityID) bool {
 	return h.g.care.Rest.MayUseMedicalBed(id)

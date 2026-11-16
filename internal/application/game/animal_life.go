@@ -17,22 +17,23 @@ import (
 	"rimworld-go/pkg/mathx"
 )
 
-// Animal life (SIM-026): growing up, old age, mating, birth, eggs and
-// hatching, run inside phaseAnimals with no state of its own. The rules are in
-// herd/AGENTS.md.
+// Animal life (SIM-026): age, breeding, eggs and products in phaseAnimals.
 
-// lifeEvery: a product fills in steps of this many ticks (staggered by
-// id), so the per-tick cost of life is a few compares.
+// lifeEvery spreads product growth over entity ticks.
 const lifeEvery = 250
 
-// tickLife is one animal's life for the tick (phaseAnimals, after its
-// needs). It reports false when the animal died of old age.
+// tickLife reports false when the animal dies of old age.
 func (g *Game) tickLife(id entity.EntityID, a *animal.State, now uint64) bool {
 	if a.Mate != 0 && a.Mode != animal.Wander {
 		g.endMating(id, a) // she lay down, he went to eat, either fled
 	}
 	if a.Pregnant != 0 && now >= a.Pregnant {
 		g.giveBirth(id, a, now)
+	}
+	// One birthday check is distributed over animal ticks (MED-16).
+	if cadence.Due(now, clock.TicksPerDay, cadence.OffMedical, id) &&
+		animal.RollAsthmaBirthday(a, now, g.stream(streamMedical).IntN) {
+		g.markAnimalPatient(id)
 	}
 	tod := now % clock.TicksPerDay
 	if tod == dawnHour*clock.TicksPerHour && animal.Breeds(a.Species) && g.oldAge(id, a, now) {
@@ -62,8 +63,7 @@ func (g *Game) tickLife(id entity.EntityID, a *animal.State, now uint64) bool {
 	return true
 }
 
-// rateSpan is the share of per units over period ticks that falls in the
-// span ticks up to now (rateStep over a span).
+// rateSpan apportions production across the tick interval.
 func rateSpan(now uint64, per, period, span int) int {
 	from := uint64(0)
 	if now > uint64(span) {
@@ -73,9 +73,7 @@ func rateSpan(now uint64, per, period, span int) int {
 	return int(now*p/q - from*p/q)
 }
 
-// lifePhase is the phase-level part of life (phaseAnimals, once a tick):
-// each fertile egg incubates once a climate interval, on its own tick
-// (cadence); the auto-slaughter check runs once a day.
+// lifePhase incubates eggs and runs daily auto-slaughter checks.
 func (g *Game) lifePhase(now uint64) {
 	g.incubate(now)
 	if herd.CheckTick(now) {
@@ -83,12 +81,12 @@ func (g *Game) lifePhase(now uint64) {
 	}
 }
 
-// grown reports a grown animal.
+// grown checks adult age.
 func (g *Game) grown(a animal.State, now uint64) bool {
 	return animal.Adult(a.Species, animal.AgeDays(a.Born, now, a.Species))
 }
 
-// portion is a meal of v food to a: young animals eat half portions.
+// portion scales meals for young animals.
 func (g *Game) portion(a *animal.State, now uint64, v int) int {
 	if g.grown(*a, now) {
 		return v
@@ -98,8 +96,7 @@ func (g *Game) portion(a *animal.State, now uint64, v int) int {
 
 // --- old age --------------------------------------------------------------
 
-// oldAge rolls the day's old-age death for an old animal; it reports true
-// when it died.
+// oldAge reports whether this animal died from aging.
 func (g *Game) oldAge(id entity.EntityID, a *animal.State, now uint64) bool {
 	p := animal.OldAgeChance(a.Species, animal.AgeDays(a.Born, now, a.Species))
 	if p <= 0 || g.rng.IntN(1000) >= p {
@@ -121,8 +118,7 @@ func (g *Game) oldAge(id entity.EntityID, a *animal.State, now uint64) bool {
 
 // --- mating ---------------------------------------------------------------
 
-// mateCheck is a grown male's daily look for a mate (the MateChance roll
-// only when there is one).
+// mateCheck rolls mating when an eligible partner is available.
 func (g *Game) mateCheck(id entity.EntityID, a *animal.State, now uint64) {
 	if a.Mode != animal.Wander || a.Leaving || a.Mate != 0 || a.Food < animal.MateFood || a.Enraged(now) || g.beingTamed(id) {
 		return

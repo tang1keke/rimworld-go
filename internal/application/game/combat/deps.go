@@ -157,6 +157,11 @@ type Skills interface {
 	// Melee is id's melee numbers (CBT-2): what its melee hit and dodge
 	// chances are read from (attack.HitChanceOf, attack.DodgeChanceOf).
 	Melee(id entity.EntityID) attack.Melee
+	// ImplantTools are natural close-combat attacks from equipped bionic
+	// arms or claws. The fixed array avoids allocation on every blow.
+	ImplantTools(id entity.EntityID) ([2]weapon.Tool, int)
+	// NaturalFists counts organic hands whose original punch remains available.
+	NaturalFists(id entity.EntityID) int
 	// ShotAim is id's shooting accuracy per tile (ppm, from its Shooting
 	// skill) and its Shooting accuracy stat offset (permille).
 	ShotAim(id entity.EntityID) (perTilePPM, offset int)

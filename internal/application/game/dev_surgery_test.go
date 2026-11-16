@@ -68,10 +68,10 @@ func TestDevSpawnImplants(t *testing.T) {
 	if !g.DevSpawnImplants(a) || g.viewGen == gen {
 		t.Fatal("spawned (and the view generation bumped)")
 	}
-	if len(implantKinds) < 9 {
-		t.Fatalf("implant kinds %v", implantKinds)
+	if len(item.ImplantKinds()) < 9 {
+		t.Fatalf("implant kinds %v", item.ImplantKinds())
 	}
-	for _, k := range implantKinds {
+	for _, k := range item.ImplantKinds() {
 		if n := g.stockOf(k); n != 1 {
 			t.Fatalf("%s: %d in stock", k, n)
 		}

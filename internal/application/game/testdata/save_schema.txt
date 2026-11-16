@@ -86,7 +86,16 @@ saveState.Animals[].V.Body.Conds[].TendUntil uint64
 saveState.Animals[].V.Body.Fitted []rimworld-go/internal/domain/economy/item.Kind
 saveState.Animals[].V.Body.Fitted[] rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.Animals[].V.Body.Fresh uint32
+saveState.Animals[].V.Body.Implants []rimworld-go/internal/domain/pawn/body.Implant
+saveState.Animals[].V.Body.Implants[] rimworld-go/internal/domain/pawn/body.Implant
+saveState.Animals[].V.Body.Implants[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.Animals[].V.Body.Implants[].Part rimworld-go/internal/domain/pawn/body.Part = uint8
 saveState.Animals[].V.Body.Missing uint32
+saveState.Animals[].V.Body.Replacements []rimworld-go/internal/domain/pawn/body.Replacement
+saveState.Animals[].V.Body.Replacements[] rimworld-go/internal/domain/pawn/body.Replacement
+saveState.Animals[].V.Body.Replacements[].Damage int16
+saveState.Animals[].V.Body.Replacements[].HealAcc int32
+saveState.Animals[].V.Body.Replacements[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.Animals[].V.Body.Scale int32
 saveState.Animals[].V.Body.Wounds []rimworld-go/internal/domain/pawn/body.Wound
 saveState.Animals[].V.Body.Wounds[] rimworld-go/internal/domain/pawn/body.Wound
@@ -305,6 +314,10 @@ saveState.Bodies []rimworld-go/internal/application/game.entry[rimworld-go/inter
 saveState.Bodies[] rimworld-go/internal/application/game.entry[rimworld-go/internal/application/game.savedBody]
 saveState.Bodies[].ID rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.Bodies[].V rimworld-go/internal/application/game.savedBody
+saveState.Bodies[].V.Added []rimworld-go/internal/domain/pawn/body.Implant
+saveState.Bodies[].V.Added[] rimworld-go/internal/domain/pawn/body.Implant
+saveState.Bodies[].V.Added[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.Bodies[].V.Added[].Part rimworld-go/internal/domain/pawn/body.Part = uint8
 saveState.Bodies[].V.BloodLoss int32
 saveState.Bodies[].V.BloodStage uint8
 saveState.Bodies[].V.Conds []rimworld-go/internal/domain/pawn/body.Condition
@@ -325,6 +338,11 @@ saveState.Bodies[].V.Fresh uint32
 saveState.Bodies[].V.Implants [20]rimworld-go/internal/domain/economy/item.Kind
 saveState.Bodies[].V.Implants[] rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.Bodies[].V.Missing uint32
+saveState.Bodies[].V.Replacements []rimworld-go/internal/domain/pawn/body.Replacement
+saveState.Bodies[].V.Replacements[] rimworld-go/internal/domain/pawn/body.Replacement
+saveState.Bodies[].V.Replacements[].Damage int16
+saveState.Bodies[].V.Replacements[].HealAcc int32
+saveState.Bodies[].V.Replacements[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.Bodies[].V.Wounds []rimworld-go/internal/domain/pawn/body.Wound
 saveState.Bodies[].V.Wounds[] rimworld-go/internal/domain/pawn/body.Wound
 saveState.Bodies[].V.Wounds[].At uint64
@@ -2153,7 +2171,16 @@ saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Conds[].TendUntil uint64
 saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Fitted []rimworld-go/internal/domain/economy/item.Kind
 saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Fitted[] rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Fresh uint32
+saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Implants []rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Implants[] rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Implants[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Implants[].Part rimworld-go/internal/domain/pawn/body.Part = uint8
 saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Missing uint32
+saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Replacements []rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Replacements[] rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Replacements[].Damage int16
+saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Replacements[].HealAcc int32
+saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Replacements[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Scale int32
 saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Wounds []rimworld-go/internal/domain/pawn/body.Wound
 saveState.World.AX9.Cargo[].Hold.Animals[].State.Body.Wounds[] rimworld-go/internal/domain/pawn/body.Wound
@@ -2301,7 +2328,16 @@ saveState.World.AX9.Flights[].Load.Animals[].State.Body.Conds[].TendUntil uint64
 saveState.World.AX9.Flights[].Load.Animals[].State.Body.Fitted []rimworld-go/internal/domain/economy/item.Kind
 saveState.World.AX9.Flights[].Load.Animals[].State.Body.Fitted[] rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Flights[].Load.Animals[].State.Body.Fresh uint32
+saveState.World.AX9.Flights[].Load.Animals[].State.Body.Implants []rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.AX9.Flights[].Load.Animals[].State.Body.Implants[] rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.AX9.Flights[].Load.Animals[].State.Body.Implants[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.World.AX9.Flights[].Load.Animals[].State.Body.Implants[].Part rimworld-go/internal/domain/pawn/body.Part = uint8
 saveState.World.AX9.Flights[].Load.Animals[].State.Body.Missing uint32
+saveState.World.AX9.Flights[].Load.Animals[].State.Body.Replacements []rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.AX9.Flights[].Load.Animals[].State.Body.Replacements[] rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.AX9.Flights[].Load.Animals[].State.Body.Replacements[].Damage int16
+saveState.World.AX9.Flights[].Load.Animals[].State.Body.Replacements[].HealAcc int32
+saveState.World.AX9.Flights[].Load.Animals[].State.Body.Replacements[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Flights[].Load.Animals[].State.Body.Scale int32
 saveState.World.AX9.Flights[].Load.Animals[].State.Body.Wounds []rimworld-go/internal/domain/pawn/body.Wound
 saveState.World.AX9.Flights[].Load.Animals[].State.Body.Wounds[] rimworld-go/internal/domain/pawn/body.Wound
@@ -2456,7 +2492,16 @@ saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Conds[].TendUntil uint64
 saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Fitted []rimworld-go/internal/domain/economy/item.Kind
 saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Fitted[] rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Fresh uint32
+saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Implants []rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Implants[] rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Implants[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Implants[].Part rimworld-go/internal/domain/pawn/body.Part = uint8
 saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Missing uint32
+saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Replacements []rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Replacements[] rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Replacements[].Damage int16
+saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Replacements[].HealAcc int32
+saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Replacements[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Scale int32
 saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Wounds []rimworld-go/internal/domain/pawn/body.Wound
 saveState.World.AX9.Holds[].Hold.Animals[].State.Body.Wounds[] rimworld-go/internal/domain/pawn/body.Wound
@@ -2607,7 +2652,16 @@ saveState.World.AX9.Roped[].Beast.State.Body.Conds[].TendUntil uint64
 saveState.World.AX9.Roped[].Beast.State.Body.Fitted []rimworld-go/internal/domain/economy/item.Kind
 saveState.World.AX9.Roped[].Beast.State.Body.Fitted[] rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Roped[].Beast.State.Body.Fresh uint32
+saveState.World.AX9.Roped[].Beast.State.Body.Implants []rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.AX9.Roped[].Beast.State.Body.Implants[] rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.AX9.Roped[].Beast.State.Body.Implants[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.World.AX9.Roped[].Beast.State.Body.Implants[].Part rimworld-go/internal/domain/pawn/body.Part = uint8
 saveState.World.AX9.Roped[].Beast.State.Body.Missing uint32
+saveState.World.AX9.Roped[].Beast.State.Body.Replacements []rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.AX9.Roped[].Beast.State.Body.Replacements[] rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.AX9.Roped[].Beast.State.Body.Replacements[].Damage int16
+saveState.World.AX9.Roped[].Beast.State.Body.Replacements[].HealAcc int32
+saveState.World.AX9.Roped[].Beast.State.Body.Replacements[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Roped[].Beast.State.Body.Scale int32
 saveState.World.AX9.Roped[].Beast.State.Body.Wounds []rimworld-go/internal/domain/pawn/body.Wound
 saveState.World.AX9.Roped[].Beast.State.Body.Wounds[] rimworld-go/internal/domain/pawn/body.Wound
@@ -2883,7 +2937,16 @@ saveState.World.Stashed[].Beast.Body.Conds[].TendUntil uint64
 saveState.World.Stashed[].Beast.Body.Fitted []rimworld-go/internal/domain/economy/item.Kind
 saveState.World.Stashed[].Beast.Body.Fitted[] rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.Stashed[].Beast.Body.Fresh uint32
+saveState.World.Stashed[].Beast.Body.Implants []rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.Stashed[].Beast.Body.Implants[] rimworld-go/internal/domain/pawn/body.Implant
+saveState.World.Stashed[].Beast.Body.Implants[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.World.Stashed[].Beast.Body.Implants[].Part rimworld-go/internal/domain/pawn/body.Part = uint8
 saveState.World.Stashed[].Beast.Body.Missing uint32
+saveState.World.Stashed[].Beast.Body.Replacements []rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.Stashed[].Beast.Body.Replacements[] rimworld-go/internal/domain/pawn/body.Replacement
+saveState.World.Stashed[].Beast.Body.Replacements[].Damage int16
+saveState.World.Stashed[].Beast.Body.Replacements[].HealAcc int32
+saveState.World.Stashed[].Beast.Body.Replacements[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.Stashed[].Beast.Body.Scale int32
 saveState.World.Stashed[].Beast.Body.Wounds []rimworld-go/internal/domain/pawn/body.Wound
 saveState.World.Stashed[].Beast.Body.Wounds[] rimworld-go/internal/domain/pawn/body.Wound

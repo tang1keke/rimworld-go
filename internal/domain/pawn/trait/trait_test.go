@@ -155,3 +155,13 @@ func TestSocialTraitGroups(t *testing.T) {
 		}
 	}
 }
+
+func TestCorePuristMoodLimit(t *testing.T) {
+	for _, tc := range []struct{ parts, want int }{
+		{0, 0}, {1, -10}, {2, -15}, {3, -20}, {4, -25}, {5, -30}, {6, -35}, {7, -35}, {12, -35},
+	} {
+		if got := ImplantMood(NaturalPurist, tc.parts); got != tc.want {
+			t.Fatalf("natural purist with %d implants: %d, want %d", tc.parts, got, tc.want)
+		}
+	}
+}

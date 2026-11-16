@@ -371,6 +371,24 @@ func TestJourneyDialogsCommsConsole(t *testing.T) {
 	}
 }
 
+// tradeReveal moves the trade rows to a requested counter. Trade stock is
+// generated from weighted pools, so its chosen row may be below the fold.
+func tradeReveal(j *journey, id string) {
+	j.t.Helper()
+	ui := j.a.uiSt()
+	for off := float32(0); off < 5000; off += 30 {
+		if ui.Scroll == nil {
+			ui.Scroll = map[string]float32{}
+		}
+		ui.Scroll["trade.rows"] = off
+		j.update(1)
+		if _, ok := ui.Find(id); ok {
+			return
+		}
+	}
+	j.t.Fatalf("trade counter %q never appeared while scrolling", id)
+}
+
 // tradeOne puts one item on the open trade dialog's table (sells one of
 // the first goods the trader buys, else buys the cheapest it sells) and
 // accepts: ProposeTrade leaves, and the trader's stock moves by one.
@@ -398,6 +416,7 @@ func tradeOne(t *testing.T, j *journey) {
 	if row.Kind == "" {
 		t.Fatalf("nothing to trade: %+v", v.Rows)
 	}
+	tradeReveal(j, "trade."+row.Kind+"."+btn+".1")
 	if !j.clickID("trade." + row.Kind + "." + btn + ".1") {
 		t.Fatalf("%s 1 %s is disabled", btn, row.Kind)
 	}

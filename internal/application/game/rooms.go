@@ -11,6 +11,7 @@ import (
 	"rimworld-go/internal/domain/pawn/health"
 	"rimworld-go/internal/domain/pawn/mood"
 	"rimworld-go/internal/domain/pawn/needs"
+	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/internal/domain/world/filth"
 	"rimworld-go/internal/domain/world/room"
@@ -42,9 +43,7 @@ func (g *Game) isBoundary(x, y int) bool {
 	return false
 }
 
-// roomWall reports a building that bounds rooms: a wall, a door, or a
-// cooler or vent standing in a wall gap (PLAY-021, TEMP-0: they move heat
-// or air between the two rooms they separate).
+// roomWall recognizes walls, doors and wall-mounted air transfer buildings.
 func roomWall(k construction.Kind) bool {
 	return k == construction.Wall || k.IsDoor() || k.WallMounted()
 }
@@ -63,8 +62,7 @@ func (g *Game) ensureRooms() {
 	g.rebuildRoomsIncremental()
 }
 
-// rebuildRoomsFull detects every room and recounts its contents from
-// scratch (the reference the incremental rebuild must match).
+// rebuildRoomsFull is the reference room-state rebuild.
 func (g *Game) rebuildRoomsFull() {
 	w, h := g.grid.Width(), g.grid.Height()
 	grid, sizes := room.Detect(w, h, g.isBoundary)
@@ -76,7 +74,7 @@ func (g *Game) rebuildRoomsFull() {
 	g.afterRoomsRebuilt() // roof.go
 }
 
-// roomStatsFull scores every room of a detected grid by a full scan.
+// roomStatsFull counts the detected rooms.
 func (g *Game) roomStatsFull(grid []int, sizes []int) []roomStats {
 	w := g.grid.Width()
 	stats := make([]roomStats, len(sizes))
@@ -195,8 +193,13 @@ func (g *Game) appendThoughts(dst []mood.Thought, id entity.EntityID) []mood.Tho
 	if g.feelsSick(id) { // disease.go: infections (MED-02), diseases and parasites (MED-04)
 		states = append(states, mood.Sick)
 	}
+	if b := g.bodies[id]; b != nil && body.AnestheticWoozy(b) {
+		states = append(states, mood.AnestheticWoozy)
+	}
 	if v, _ := g.vital.Get(id); v.Injury >= painInjury {
-		states = append(states, mood.InPain)
+		if b := g.bodies[id]; b == nil || b.Pain() > 0 {
+			states = append(states, mood.InPain)
+		}
 	}
 	pos, _ := g.positions.Get(id)
 	if k, ok := g.bandsOf(id).Thought(int(g.temperatureAt(pos.X, pos.Y))); ok { // TEMP-3: the 4-rung ladders (exposure)
@@ -214,7 +217,12 @@ func (g *Game) appendThoughts(dst []mood.Thought, id entity.EntityID) []mood.Tho
 	ts := g.traitThoughts(id, mood.AppendActive(dst, g.memories[id].Prune(uint64(g.clock.Now())), states...)) // skills.go
 	ts = append(ts, g.bodyThoughts(id)...)                                                                    // body.go
 	ts = append(ts, doseOf(g).Thoughts(id)...)                                                                // game/dose
-	return append(ts, g.socialThoughts(id)...)                                                                // social_mood.go
+	ts = append(ts, g.socialThoughts(id)...)
+	chance := body.AlzheimerThoughtNullification(g.bodies[id])
+	if chance > 0 {
+		ts = mood.NullifyConditional(ts, chance, g.streams.seed, uint64(id), uint64(g.clock.Now())/clock.TicksPerHour)
+	}
+	return ts // social_mood.go
 }
 
 // moodOf is the colonist's mood: the level its thoughts add up to, as the

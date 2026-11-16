@@ -32,11 +32,12 @@ type fakeHost struct {
 	colonists map[entity.EntityID]bool
 	partner   map[entity.EntityID]entity.EntityID
 
-	act        schedule.Activity
-	food       bool
-	bedRest    map[entity.EntityID]bool
-	medicalOK  map[entity.EntityID]bool
-	surgeryRan []int
+	act          schedule.Activity
+	food         bool
+	bedRest      map[entity.EntityID]bool
+	bodyRestRate map[entity.EntityID]int32
+	medicalOK    map[entity.EntityID]bool
+	surgeryRan   []int
 
 	room    int
 	sky     bool
@@ -189,6 +190,13 @@ func (f *fakeHost) SeekFood(entity.EntityID) bool              { return f.food }
 
 func (f *fakeHost) OnBedRest(id entity.EntityID) bool        { return f.bedRest[id] }
 func (f *fakeHost) MayUseMedicalBed(id entity.EntityID) bool { return f.medicalOK[id] }
+func (f *fakeHost) RestFactor(id entity.EntityID) int32 {
+	if v := f.bodyRestRate[id]; v > 0 {
+		return v
+	}
+	return 1000
+}
+
 func (f *fakeHost) SurgeryWait(_ entity.EntityID, workLeft int) {
 	f.surgeryRan = append(f.surgeryRan, workLeft)
 }

@@ -39,7 +39,10 @@ func TestDefInputs(t *testing.T) {
 		t.Fatalf("label %q kinds %v", multi.InputsLabel(), multi.InputKinds())
 	}
 	for _, d := range All()[:MakeMace] { // every older recipe takes what it always took (PRD-3's guns take two)
-		if len(d.Inputs) != 0 || !d.Accepts(d.Input.Kind) && !d.Input.AnyRaw && !d.Input.AnyDryable && !d.Input.AnyStoneBlocks {
+		if len(d.Inputs) > 0 && (len(d.Inputs) != 2 || d.Output != item.ServoArm && d.Output != item.ServoLeg &&
+			d.Output != item.OpticImplant && d.Output != item.CochlearImplant && d.Output != item.SpinalBrace &&
+			d.Output != item.PumpHeart && d.Output != item.SynthStomach) ||
+			!d.Accepts(d.Input.Kind) && !d.Input.AnyRaw && !d.Input.AnyDryable && !d.Input.AnyStoneBlocks {
 			t.Fatalf("%s: inputs %v", d.Name, d.Inputs)
 		}
 	}
