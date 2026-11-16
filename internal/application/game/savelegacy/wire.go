@@ -54,11 +54,42 @@ type SkillLive struct {
 	Research  int
 }
 
+// DifficultySettings and Adapter freeze their pre-difficulty-PR v1-v17 gob shapes.
+// New balancing fields belong only to the canonical v18 SetupState.
+type DifficultySettings struct {
+	ThreatScale            int
+	BigThreats             bool
+	PeacefulDays           int
+	Adaptation             bool
+	AdaptStrength          int
+	TimeEscalation         bool
+	EscPerYear             int
+	IgnoreWealth           bool
+	CropYield              int
+	MineYield              int
+	ButcherYield           int
+	ResearchSpeed          int
+	MoodOffset             int
+	Infection              int
+	DiseaseFreq            int
+	AnimalRevenge          int
+	PredatorsHuntColonists bool
+	ExtremeWeather         bool
+	PainTolerance          int
+	QuestRewardPct         int
+	QuestThreats           bool
+}
+
+type Adapter struct {
+	Days  int16
+	Value int8
+}
+
 type Setup struct {
 	Scenario       scenario.Def
 	Storyteller    string
 	Preset         difficulty.Preset
-	Difficulty     difficulty.Settings
+	Difficulty     DifficultySettings
 	SaveMode       difficulty.SaveMode
 	World          planet.Params
 	Tile           int
@@ -93,7 +124,7 @@ type SetupState struct {
 	Factions  []faction.Faction
 	Story     storyteller.State
 	Plan      storyteller.Decision
-	Adapt     difficulty.Adapter
+	Adapt     Adapter
 	Climate   temperature.Climate
 	StartDay  int
 	Dead      []entity.EntityID

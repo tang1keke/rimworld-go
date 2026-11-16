@@ -50,9 +50,16 @@ func TestV17SkillArraysMigrateIntoCanonicalFields(t *testing.T) {
 			Working:   map[entity.EntityID]savelegacy.Working{id: {Skill: skill.Melee, Tick: 320}},
 			Research:  37,
 		},
-		NG1: &savelegacy.SetupState{Setup: savelegacy.Setup{
-			Seed: 123, Colonists: []savelegacy.Pawn{oldPawn},
-		}},
+		NG1: &savelegacy.SetupState{
+			Adapt: savelegacy.Adapter{Days: 16, Value: 9},
+			Setup: savelegacy.Setup{
+				Seed: 123, Colonists: []savelegacy.Pawn{oldPawn},
+				Difficulty: savelegacy.DifficultySettings{
+					ThreatScale: 175, AdaptStrength: 60, ExtremeWeather: true,
+					QuestRewardPct: 130, QuestThreats: true,
+				},
+			},
+		},
 		People: &savelegacy.People{Version: 1, Seeded: true, Persons: []savelegacy.Person{
 			{ID: id + 1, Bio: &oldPawn, Faction: 2},
 		}},
@@ -105,6 +112,17 @@ func TestV17SkillArraysMigrateIntoCanonicalFields(t *testing.T) {
 	if s.NG118 == nil || s.NG118.Setup.Seed != 123 ||
 		len(s.NG118.Setup.Colonists) != 1 || s.NG118.Setup.Colonists[0].Skills != want {
 		t.Fatal("wizard colonist skills were not migrated")
+	}
+	if got := s.NG118.Adapt; got.Days != 16 || got.Value != 9 || got.GrowthCarry != 0 {
+		t.Fatalf("legacy adaptation state %+v", got)
+	}
+	settings := s.NG118.Setup.Difficulty
+	if settings.ThreatScale != 175 || settings.AdaptStrength != 60 ||
+		!settings.ExtremeWeather || settings.QuestRewardPct != 130 || !settings.QuestThreats {
+		t.Fatalf("legacy difficulty settings %+v", settings)
+	}
+	if settings.AdaptGrowthPercent() != 100 || settings.FoodPoisonPercent() != 100 {
+		t.Fatal("new difficulty multipliers must default to neutral for legacy saves")
 	}
 	if s.People18 == nil || len(s.People18.Persons) != 1 ||
 		s.People18.Persons[0].Bio == nil || s.People18.Persons[0].Bio.Skills != want {

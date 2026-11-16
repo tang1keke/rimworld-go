@@ -403,6 +403,9 @@ func (g *Game) down(id entity.EntityID, cause health.Cause) {
 	}
 	delete(g.calm, id) // lying down ends any flight
 	v, _ := g.vital.Get(id)
+	if g.hasSetup() && g.isPawn(id) && v.Status == health.Alive && cause == health.CauseInjury {
+		g.ng.setback.Downed++
+	}
 	v.Status, v.Cause, v.DownedTick = health.Downed, cause, uint64(g.clock.Now())
 	g.vital.Set(id, v)
 }

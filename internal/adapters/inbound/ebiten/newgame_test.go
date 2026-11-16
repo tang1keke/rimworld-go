@@ -710,8 +710,8 @@ func TestCustomDifficultyCancelRestores(t *testing.T) {
 	track := uikit.SliderTrackRect(w.R)
 	f.press(t, a, int(track.Right()), int(w.R.Y+9))
 	f.letGo(t, a, int(track.Right()), int(w.R.Y+9))
-	if ng.Cd.S.ThreatScale != 400 {
-		t.Fatalf("dragged threat scale = %d, want 400", ng.Cd.S.ThreatScale)
+	if ng.Cd.S.ThreatScale != 500 {
+		t.Fatalf("dragged threat scale = %d, want 500", ng.Cd.S.ThreatScale)
 	}
 	press(t, a, f, "modal.diff.custom.cancel")
 	f.Frame(t, a)

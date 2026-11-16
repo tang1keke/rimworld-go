@@ -1,6 +1,8 @@
 package difficulty
 
 import (
+	"bytes"
+	"encoding/gob"
 	"strings"
 	"testing"
 )
@@ -23,12 +25,12 @@ func TestPresetValues(t *testing.T) {
 		pain                   int
 	}
 	rows := []row{
-		{Wanderer, 5, false, 0, false, 100, 130, 130, 120, 120, 12, 40, 0, 50, false, false, 10},
-		{Gentle, 35, true, 12, true, 60, 115, 115, 110, 120, 8, 60, 50, 70, false, true, 5},
-		{Settled, 65, true, 8, true, 80, 105, 105, 100, 100, 4, 80, 75, 85, true, true, 0},
-		{Seasoned, 100, true, 6, true, 100, 100, 100, 100, 100, 0, 100, 100, 100, true, true, 0},
-		{Grim, 145, true, 4, true, 100, 90, 90, 90, 95, -4, 115, 120, 115, true, true, 0},
-		{Merciless, 200, true, 3, true, 100, 80, 80, 80, 90, -8, 130, 150, 130, true, true, -5},
+		{Wanderer, 10, false, 0, false, 100, 120, 120, 100, 120, 10, 30, 33, 25, false, false, 10},
+		{Gentle, 30, true, 12, true, 100, 120, 120, 100, 120, 10, 50, 40, 100, false, false, 5},
+		{Settled, 60, true, 8, true, 100, 100, 100, 100, 100, 5, 75, 67, 100, true, true, 0},
+		{Seasoned, 100, true, 6, true, 90, 100, 100, 100, 100, 0, 100, 100, 100, true, true, 0},
+		{Grim, 155, true, 4, true, 70, 95, 95, 90, 95, -5, 100, 105, 100, true, true, 0},
+		{Merciless, 220, true, 3, true, 40, 80, 80, 80, 90, -10, 110, 111, 100, true, true, -5},
 	}
 	if len(Presets()) != len(rows) {
 		t.Fatalf("Presets() = %d rows, want %d", len(Presets()), len(rows))
@@ -111,11 +113,11 @@ func TestThreatPointsFormula(t *testing.T) {
 		{"mid curve", s, 60000, 2, 0, 0, 400 + 500 + 65}, // 400 + 40000/80 + 2*32.5
 		{"knee two", s, 100000, 0, 0, 0, 1400},
 		{"top curve", s, 250000, 0, 0, 0, 1400 + 1000},
-		{"rich colonists", s, 400000, 2, 0, 0, 1400 + 2000 + 120}, // past the last knee: 60 a colonist
-		{"scale", Of(Merciless), 4000, 3, 0, 0, 286},              // (80+63) * 2
-		{"adapt up", s, 4000, 3, 0, 40, 200},                      // 143 * 1.4 = 200.2
-		{"adapt down", s, 4000, 3, 0, -30, 100},                   // 143 * 0.7 = 100.1
-		{"adapt off ignored", Of(Wanderer), 100000, 0, 0, 40, 70}, // 1400 * 5% (no adapt)
+		{"rich colonists", s, 400000, 2, 0, 0, 1400 + 2000 + 120},  // past the last knee: 60 a colonist
+		{"scale", Of(Merciless), 4000, 3, 0, 0, 315},               // 143 * 2.2
+		{"adapt up", s, 4000, 3, 0, 40, 200},                       // 143 * 1.4 = 200.2
+		{"adapt down", s, 4000, 3, 0, -30, 100},                    // 143 * 0.7 = 100.1
+		{"adapt off ignored", Of(Wanderer), 100000, 0, 0, 40, 140}, // 1400 * 10% (no adapt)
 		{"time replaces wealth", func() Settings { x := s; x.IgnoreWealth = true; return x }(), 999999, 2, 1.5, 0, 120 + 50},
 		{"escalation", func() Settings { x := s; x.TimeEscalation = true; x.EscPerYear = 50; return x }(), 4000, 3, 2, 0, 286},
 	}
@@ -145,44 +147,44 @@ func TestAdapterRisesAndFallsAndIsBounded(t *testing.T) {
 	s := Of(Seasoned)
 	var a Adapter
 	for i := 0; i < 400; i++ {
-		a.Day(s, false)
+		a.Day(s, Setback{})
 	}
-	// Target is capped at 40; the dead band stops Value within 2 of it.
-	if a.Days != 120 || a.Value < 38 || a.Value > 40 {
-		t.Fatalf("after a long quiet spell: %+v, want days 120 value 38..40", a)
+	// With 90% adaptation impact, the 40-point target becomes 36.
+	if a.Days != 120 || a.Value < 34 || a.Value > 36 {
+		t.Fatalf("after a long quiet spell: %+v, want days 120 value 34..36", a)
 	}
-	a.Day(s, true)
+	a.Day(s, Setback{Deaths: 1})
 	if a.Days != 95 {
 		t.Errorf("a death takes 25 days: %d", a.Days)
 	}
 	for i := 0; i < 10; i++ {
-		a.Day(s, true)
+		a.Day(s, Setback{Deaths: 1})
 	}
 	if a.Days != -40 {
 		t.Errorf("days floor at -40: %d", a.Days)
 	}
 	for i := 0; i < 60; i++ {
-		a.Day(s, true)
+		a.Day(s, Setback{Deaths: 1})
 	}
-	if a.Value > -28 {
-		t.Errorf("value falls toward -30: %d", a.Value)
+	if a.Value > -25 {
+		t.Errorf("value falls toward -27: %d", a.Value)
 	}
-	if a.Value < -30 {
-		t.Errorf("value never below -30: %d", a.Value)
+	if a.Value < -27 {
+		t.Errorf("value never below -27: %d", a.Value)
 	}
 	// Strength scales the target; off stops movement.
-	weak := Of(Gentle) // 60%
+	weak := Of(Merciless) // 40% impact
 	var b Adapter
 	for i := 0; i < 400; i++ {
-		b.Day(weak, false)
+		b.Day(weak, Setback{})
 	}
-	if b.Value < 22 || b.Value > 24 {
-		t.Errorf("60%% strength settles near 24, got %d", b.Value)
+	if b.Value < 14 || b.Value > 16 {
+		t.Errorf("40%% strength settles near 16, got %d", b.Value)
 	}
 	off := Of(Wanderer)
 	var c Adapter
 	for i := 0; i < 100; i++ {
-		c.Day(off, false)
+		c.Day(off, Setback{})
 	}
 	if c.Value != 0 {
 		t.Errorf("adaptation off keeps value at 0, got %d", c.Value)
@@ -237,7 +239,7 @@ func TestAdaptationNoFlap(t *testing.T) {
 				a := Adapter{Days: days, Value: val}
 				vals := []int8{a.Value}
 				for d := 0; d < 60; d++ {
-					a.Day(s, lost(d))
+					a.Day(s, setbackForDeath(lost(d)))
 					vals = append(vals, a.Value)
 				}
 				if w := worstReversals(vals, 6); w > 1 {
@@ -250,7 +252,7 @@ func TestAdaptationNoFlap(t *testing.T) {
 	// never moves however the daily result alternates around it.
 	a := Adapter{Days: 40, Value: 10} // target = 10
 	for d := 0; d < 60; d++ {
-		a.Day(s, d%2 == 0)
+		a.Day(s, setbackForDeath(d%2 == 0))
 	}
 	if a.Value < -30 || a.Value > 40 {
 		t.Errorf("value escaped its bounds: %d", a.Value)
@@ -276,7 +278,7 @@ func TestCodecRoundTrip(t *testing.T) {
 	if got, err := Decode("ts=77"); err != nil || got.ThreatScale != 77 || got.CropYield != 100 {
 		t.Errorf("partial string keeps defaults: %+v %v", got, err)
 	}
-	bad := []string{"zz=1", "ts", "ts=abc", "ts=401", "bt=2", "mo=-21", "ts=1,ts=2", "ts=1,zz=2,yy=3"}
+	bad := []string{"zz=1", "ts", "ts=abc", "ts=501", "bt=2", "mo=-21", "ts=1,ts=2", "ts=1,zz=2,yy=3"}
 	for _, v := range bad {
 		if _, err := Decode(v); err == nil {
 			t.Errorf("Decode(%q) should fail", v)
@@ -287,6 +289,22 @@ func TestCodecRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCustomDifficultyFiveHundredPercentLimits(t *testing.T) {
+	t.Parallel()
+	for _, key := range []string{"ts", "cy", "my", "by", "rs", "if", "df", "ar"} {
+		limit, ok := Limit(key)
+		if !ok || limit.Max != 500 {
+			t.Fatalf("%s max = %+v, ok %v; want 500", key, limit, ok)
+		}
+		if got, err := Decode(key + "=500"); err != nil || len(Valid(got)) != 0 {
+			t.Fatalf("%s=500 was rejected: %+v, %v", key, got, err)
+		}
+		if _, err := Decode(key + "=501"); err == nil {
+			t.Fatalf("%s=501 was accepted", key)
+		}
+	}
+}
+
 func TestClampValidLimit(t *testing.T) {
 	t.Parallel()
 	wild := Settings{ThreatScale: 9999, PeacefulDays: -4, CropYield: 1, MoodOffset: 99, ResearchSpeed: 0}
@@ -294,13 +312,13 @@ func TestClampValidLimit(t *testing.T) {
 	if bad := Valid(c); len(bad) != 0 {
 		t.Errorf("clamped settings are valid: %v", bad)
 	}
-	if c.ThreatScale != 400 || c.PeacefulDays != 0 || c.CropYield != 20 || c.MoodOffset != 20 || c.ResearchSpeed != 25 {
+	if c.ThreatScale != 500 || c.PeacefulDays != 0 || c.CropYield != 20 || c.MoodOffset != 20 || c.ResearchSpeed != 25 {
 		t.Errorf("clamp: %+v", c)
 	}
 	if len(Valid(wild)) == 0 {
 		t.Error("wild settings are invalid")
 	}
-	if l, ok := Limit("ts"); !ok || l.Min != 0 || l.Max != 400 {
+	if l, ok := Limit("ts"); !ok || l.Min != 0 || l.Max != 500 {
 		t.Errorf("ts limit: %+v %v", l, ok)
 	}
 	if _, ok := Limit("bt"); ok {
@@ -363,5 +381,182 @@ func TestColonistPointsByWealth(t *testing.T) {
 	flat.IgnoreWealth = true
 	if a, b := ThreatPoints(flat, 0, 4, 1, 0), ThreatPoints(flat, 900_000, 4, 1, 0); a != b || a != 4*25+80 {
 		t.Fatalf("wealth ignored: %d and %d, want both %d", a, b, 4*25+80)
+	}
+}
+
+func TestLegacyAndExplicitZeroDifficultyControls(t *testing.T) {
+	t.Parallel()
+	legacy := Settings{Adaptation: true, AdaptStrength: 100}
+	if legacy.AdaptGrowthPercent() != 100 || legacy.FoodPoisonPercent() != 100 {
+		t.Fatal("legacy settings must preserve the original neutral multipliers")
+	}
+	upgraded := Clamp(legacy)
+	if upgraded.BalanceVersion != 1 || upgraded.AdaptGrowth != 100 || upgraded.FoodPoisonChance != 100 {
+		t.Fatalf("legacy editor upgrade %+v", upgraded)
+	}
+	custom := Of(Seasoned)
+	custom.AdaptGrowth, custom.FoodPoisonChance = 0, 0
+	if custom.AdaptGrowthPercent() != 0 || custom.FoodPoisonPercent() != 0 {
+		t.Fatal("explicit zero settings were treated as legacy")
+	}
+	got, err := Decode(Encode(custom))
+	if err != nil || got != custom {
+		t.Fatalf("custom zero setting round trip %+v: %v", got, err)
+	}
+	for _, v := range []string{"ag=101", "fp=501"} {
+		if _, err := Decode(v); err == nil {
+			t.Fatalf("%q should fail", v)
+		}
+	}
+}
+
+func TestAdaptationGrowthAndImpactIndependent(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		growth    int
+		wantDays  int16
+		wantCarry uint8
+	}{
+		{"stopped", 0, 0, 0},
+		{"quarter", 25, 1, 0},
+		{"threequarters", 75, 3, 0},
+		{"full", 100, 4, 0},
+		{"half fraction", 50, 2, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := Of(Seasoned)
+			s.AdaptGrowth = tc.growth
+			a := Adapter{}
+			for i := 0; i < 4; i++ {
+				a.Day(s, Setback{})
+			}
+			if a.Days != tc.wantDays || a.GrowthCarry != tc.wantCarry {
+				t.Fatalf("4 days: %+v want days=%d carry=%d", a, tc.wantDays, tc.wantCarry)
+			}
+		})
+	}
+	s := Of(Seasoned)
+	s.AdaptGrowth = 25
+	a := Adapter{}
+	a.Day(s, Setback{})
+	saved := a
+	for i := 0; i < 3; i++ {
+		a.Day(s, Setback{})
+		saved.Day(s, Setback{})
+	}
+	if a.Days != 1 || a.GrowthCarry != 0 || a != saved {
+		t.Fatalf("fractional progress diverged on resume: %+v / %+v", a, saved)
+	}
+	for _, tc := range []struct{ impact, want int }{{0, 0}, {40, 16}, {100, 40}} {
+		s := Of(Seasoned)
+		s.AdaptStrength = tc.impact
+		a := Adapter{Days: 120}
+		for i := 0; i < 35; i++ {
+			a.Day(s, Setback{})
+		}
+		if diff := int(a.Value) - tc.want; diff < -2 || diff > 2 {
+			t.Fatalf("impact %d produced %d, want %d", tc.impact, a.Value, tc.want)
+		}
+	}
+}
+
+func BenchmarkAdaptationGrowthFraction(b *testing.B) {
+	s := Of(Gentle)
+	a := Adapter{}
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		a.Day(s, Setback{})
+	}
+	benchAdapt = a
+}
+
+func TestDifficultySaveVersionPreservesZeroAndLegacyDefaults(t *testing.T) {
+	t.Parallel()
+	type legacySettings struct {
+		ThreatScale   int
+		Adaptation    bool
+		AdaptStrength int
+	}
+	encodeDecode := func(source any) Settings {
+		t.Helper()
+		var buf bytes.Buffer
+		if err := gob.NewEncoder(&buf).Encode(source); err != nil {
+			t.Fatal(err)
+		}
+		var restored Settings
+		if err := gob.NewDecoder(&buf).Decode(&restored); err != nil {
+			t.Fatal(err)
+		}
+		return restored
+	}
+	legacy := encodeDecode(legacySettings{ThreatScale: 100, Adaptation: true, AdaptStrength: 100})
+	if legacy.BalanceVersion != 0 || legacy.AdaptGrowthPercent() != 100 || legacy.FoodPoisonPercent() != 100 {
+		t.Fatalf("legacy save %+v", legacy)
+	}
+	explicitZero := Of(Seasoned)
+	explicitZero.AdaptGrowth = 0
+	explicitZero.FoodPoisonChance = 0
+	restored := encodeDecode(explicitZero)
+	if restored != explicitZero || restored.AdaptGrowthPercent() != 0 || restored.FoodPoisonPercent() != 0 {
+		t.Fatalf("explicit zero save changed: %+v", restored)
+	}
+	a := Adapter{Days: 4, Value: 2, GrowthCarry: 75}
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(a); err != nil {
+		t.Fatal(err)
+	}
+	var decoded Adapter
+	if err := gob.NewDecoder(&buf).Decode(&decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded != a {
+		t.Fatalf("adaptation credit lost: %+v", decoded)
+	}
+}
+
+func TestFieldKeysStayInSyncWithCodec(t *testing.T) {
+	t.Parallel()
+	for _, f := range fields {
+		got, ok := findField(f.key)
+		if !ok || got.key != f.key || got.min != f.min || got.max != f.max {
+			t.Fatalf("field lookup out of sync for %s", f.key)
+		}
+	}
+	if _, ok := findField("unknown"); ok {
+		t.Fatal("unknown field accepted")
+	}
+}
+
+func setbackForDeath(death bool) Setback {
+	if death {
+		return Setback{Deaths: 1}
+	}
+	return Setback{}
+}
+
+func TestAdaptationDistinguishesInjuriesDownsAndDeaths(t *testing.T) {
+	t.Parallel()
+	s := Of(Seasoned)
+	cases := []struct {
+		name string
+		loss Setback
+		days int
+	}{
+		{"quiet", Setback{}, 41},
+		{"injury", Setback{Wounds: 16}, 38},
+		{"downed", Setback{Downed: 1}, 32},
+		{"one death", Setback{Deaths: 1}, 15},
+		{"two deaths", Setback{Deaths: 2}, -10},
+		{"combined", Setback{Wounds: 16, Downed: 1, Deaths: 1}, 5},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			a := Adapter{Days: 40}
+			a.Day(s, c.loss)
+			if int(a.Days) != c.days {
+				t.Fatalf("%s: %d want %d", c.name, a.Days, c.days)
+			}
+		})
 	}
 }

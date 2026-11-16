@@ -285,9 +285,7 @@ func storyHour(g *Game, now uint64) {
 	}
 }
 
-// checkLosses notes colonists who died since the last check: the
-// storyteller eases the pending threat (OnLoss) and adaptation counts
-// the loss at the day rollover.
+// checkLosses counts each death once and eases the pending raid.
 func (g *Game) checkLosses(now uint64) {
 	for _, id := range g.pawnIDs {
 		if g.isStashed(id) {
@@ -299,6 +297,7 @@ func (g *Game) checkLosses(now uint64) {
 		}
 		g.ng.dead = append(g.ng.dead, id)
 		g.ng.lost = true
+		g.ng.setback.Deaths++
 		if storyteller.OnLoss(g.storyProfile(), &g.ng.story, &g.ng.plan, g.relDay(now)) {
 			g.nextThreat = g.ng.plan.AtTick + g.dayOff()
 		}
@@ -307,7 +306,8 @@ func (g *Game) checkLosses(now uint64) {
 
 // dayRollover: adaptation, faction goodwill drift.
 func (g *Game) dayRollover(now uint64) {
-	g.ng.adapt.Day(g.ng.setup.Difficulty, g.ng.lost)
+	g.ng.adapt.Day(g.ng.setup.Difficulty, g.ng.setback)
+	g.ng.setback = difficulty.Setback{}
 	g.ng.lost = false
 	g.factionsDay()         // factions.go
 	questTick(g, now, true) // quest_host.go (QST-1): the offer cadence

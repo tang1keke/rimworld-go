@@ -419,3 +419,21 @@ _Rows: Deterministic benchmark runner_
 | `ColonyHour` (48×40) | ≤ +10% vs 17.5 ms |
 | Existing draw, shadow, stain and dirt benches | within +10% |
 
+
+## NG-2-difficulty-controls
+Difficulty presets, adaptation growth and food poison risk · 2026-11-16 · local PR
+- Changed: published wiki difficulty percentages now drive the supported preset parameters; new custom sliders separately control adaptation growth and impact plus the food-poisoning risk at ingestion.
+- Changed: reviewed preset data is maintained as JSON and compiled into static Go source, with a strict data/source consistency test. The runtime preset initializer, mutable codec lookup map and architecture budget exceptions are removed.
+- Decisions: `.agents/specs/CLEAN_ROOM.md` records the limited wiki-numbers permission; the existing adaptation curve, names, source, labels and all unpublished tuning stay original.
+- Saves: `Settings.BalanceVersion` distinguishes legacy neutral 100% multipliers from explicit zero values. The adaptation fractional-day carry is saved for deterministic replay. Existing setting keys remain stable. Four additive fields are recorded in the save schema; the frozen v12 fixture still loads.
+- UI: the custom difficulty dialog exposes growth and food-poison percentage sliders. The existing food poisoning condition and inspector show the applied outcome.
+- Proof: focused preset, codec, save, adaptation, poison and dialog tests pass with race detection; the architecture check passes. The new branches of the per-day adaptation and food-roll paths keep zero allocations.
+
+## NG1-adaptation-observed-damage
+Observed colony damage and persistence · 2026-11-16 · local PR
+- Accumulate wound points, injury downings and distinct deaths between daily difficulty updates. The storyteller's separate Lost signal still controls raid easing.
+- Save partial-day setback; migrate old Lost=true save state as one death when setback was absent. v12 saves, gob schema, numeric preset IDs, codec and fractional-day replay remain compatible.
+- Damage-to-days conversion is original, documented tuning. The published adaptation growth and strength settings are preserved.
+- Canonical difficulty field list handles code lookup without a duplicated index switch.
+- Focused race, live damage and multiple-death tests, historical saves and architecture checks pass.
+- Follow-up (2026-11-16): moved wound-delta recording to bodyChanged so surgical, exposure, infection and other body mutations are included; damage on old bodyless pawns is recorded in harm. Real body mutation, repeat-write idempotence and combat no-double-count tests pass.

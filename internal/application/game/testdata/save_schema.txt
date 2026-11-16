@@ -795,7 +795,7 @@ saveState.Motion[].V.StaggerUntil uint64
 saveState.Motion[].V.StepTick uint64
 saveState.Motion[].V.StepTicks int
 saveState.NG1 rimworld-go/internal/application/game/savelegacy.SetupState
-saveState.NG1.Adapt rimworld-go/internal/domain/difficulty.Adapter
+saveState.NG1.Adapt rimworld-go/internal/application/game/savelegacy.Adapter
 saveState.NG1.Adapt.Days int16
 saveState.NG1.Adapt.Value int8
 saveState.NG1.Climate rimworld-go/internal/domain/world/temperature.Climate
@@ -889,7 +889,7 @@ saveState.NG1.Setup.Colonists[].Skills[].XP int32
 saveState.NG1.Setup.Colonists[].Temperament rimworld-go/internal/domain/pawn/pawngen.Temperament = uint8
 saveState.NG1.Setup.Colonists[].Traits []rimworld-go/internal/domain/pawn/trait.ID
 saveState.NG1.Setup.Colonists[].Traits[] rimworld-go/internal/domain/pawn/trait.ID = uint8
-saveState.NG1.Setup.Difficulty rimworld-go/internal/domain/difficulty.Settings
+saveState.NG1.Setup.Difficulty rimworld-go/internal/application/game/savelegacy.DifficultySettings
 saveState.NG1.Setup.Difficulty.AdaptStrength int
 saveState.NG1.Setup.Difficulty.Adaptation bool
 saveState.NG1.Setup.Difficulty.AnimalRevenge int
@@ -1028,6 +1028,7 @@ saveState.NG1.Story.Started bool
 saveState.NG118 rimworld-go/internal/application/game.SetupState
 saveState.NG118.Adapt rimworld-go/internal/domain/difficulty.Adapter
 saveState.NG118.Adapt.Days int16
+saveState.NG118.Adapt.GrowthCarry uint8
 saveState.NG118.Adapt.Value int8
 saveState.NG118.Climate rimworld-go/internal/domain/world/temperature.Climate
 saveState.NG118.Climate.Amplitude int
@@ -1087,6 +1088,10 @@ saveState.NG118.Pods[].Pawns[] int
 saveState.NG118.Pods[].Tick uint64
 saveState.NG118.Pods[].X int
 saveState.NG118.Pods[].Y int
+saveState.NG118.Setback rimworld-go/internal/domain/difficulty.Setback
+saveState.NG118.Setback.Deaths int
+saveState.NG118.Setback.Downed int
+saveState.NG118.Setback.Wounds int
 saveState.NG118.Setup rimworld-go/internal/application/game.Setup
 saveState.NG118.Setup.Colonists []rimworld-go/internal/domain/pawn/pawngen.Pawn
 saveState.NG118.Setup.Colonists[] rimworld-go/internal/domain/pawn/pawngen.Pawn
@@ -1121,15 +1126,18 @@ saveState.NG118.Setup.Colonists[].Temperament rimworld-go/internal/domain/pawn/p
 saveState.NG118.Setup.Colonists[].Traits []rimworld-go/internal/domain/pawn/trait.ID
 saveState.NG118.Setup.Colonists[].Traits[] rimworld-go/internal/domain/pawn/trait.ID = uint8
 saveState.NG118.Setup.Difficulty rimworld-go/internal/domain/difficulty.Settings
+saveState.NG118.Setup.Difficulty.AdaptGrowth int
 saveState.NG118.Setup.Difficulty.AdaptStrength int
 saveState.NG118.Setup.Difficulty.Adaptation bool
 saveState.NG118.Setup.Difficulty.AnimalRevenge int
+saveState.NG118.Setup.Difficulty.BalanceVersion uint8
 saveState.NG118.Setup.Difficulty.BigThreats bool
 saveState.NG118.Setup.Difficulty.ButcherYield int
 saveState.NG118.Setup.Difficulty.CropYield int
 saveState.NG118.Setup.Difficulty.DiseaseFreq int
 saveState.NG118.Setup.Difficulty.EscPerYear int
 saveState.NG118.Setup.Difficulty.ExtremeWeather bool
+saveState.NG118.Setup.Difficulty.FoodPoisonChance int
 saveState.NG118.Setup.Difficulty.IgnoreWealth bool
 saveState.NG118.Setup.Difficulty.Infection int
 saveState.NG118.Setup.Difficulty.MineYield int

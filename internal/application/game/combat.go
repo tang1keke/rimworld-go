@@ -51,14 +51,12 @@ func (g *Game) standingPawn(id entity.EntityID) bool {
 	return ok && v.Status == health.Alive && g.isPawn(id)
 }
 
-// hurt applies damage to an animal or a colonist (a bruise; hits come
-// through hurtHit, body.go).
+// hurt applies blunt damage.
 func (g *Game) hurt(target entity.EntityID, dmg int, by entity.EntityID) {
 	g.hurtAs(target, dmg, by, body.Bruise, health.CauseInjury)
 }
 
-// hurtAs is hurt with a wound kind for humanlikes (fire.go: burns) and the
-// cause of death should it kill.
+// hurtAs supplies wound kind and cause.
 func (g *Game) hurtAs(target entity.EntityID, dmg int, by entity.EntityID, kind body.WoundKind, cause health.Cause) {
 	g.harm(target, hit.Blow{Dmg: dmg, Kind: kind}, by, cause)
 }
@@ -94,6 +92,9 @@ func (g *Game) harm(target entity.EntityID, bl hit.Blow, by entity.EntityID, cau
 	} else {
 		v.Injury += dmg
 		g.vital.Set(target, v)
+		if g.hasSetup() && g.isPawn(target) {
+			g.ng.setback.Wounds += max(dmg, 0)
+		}
 	}
 	g.woundOpened(target)
 	if by != 0 {

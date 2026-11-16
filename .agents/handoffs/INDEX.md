@@ -199,7 +199,9 @@ One row per handoff section. Open the ledger at `#<lowercased ID>`. A new task a
 | MED-16-core-medical-final-parity | Medical Core audit | 2026-11-16 | [MED.md](MED.md#med-16-core-medical-final-parity) |
 | MOD-000-mods-programme | RimHUD, Neat Storage and Common Sense programme | 2026-11-03 | [MOD.md](MOD.md#mod-000-mods-programme) |
 | MOD-W0-P-budget | Room in package `game` | 2026-11-03 | [MOD.md](MOD.md#mod-w0-p-budget) |
+| NG1-adaptation-observed-damage | Observed colony damage and persistence | 2026-11-16 | [NG.md](NG.md#ng1-adaptation-observed-damage) |
 | NG1_NEW_GAME_PLAN | NG-1: complete new-game flow, big maps at 60 fps, generated colonists, factions, water | 2026-10-22 | [NG.md](NG.md#ng1_new_game_plan) |
+| NG-2-difficulty-controls | Difficulty presets, adaptation growth and food poison risk | 2026-11-16 | [NG.md](NG.md#ng-2-difficulty-controls) |
 | NST-A-kinds | Neat Storage kinds (domain) | 2026-11-03 | [STORAGE.md](STORAGE.md#nst-a-kinds) |
 | NST-B-storage | Storage behaviour of the 27 Neat Storage pieces | 2026-11-03 | [STORAGE.md](STORAGE.md#nst-b-storage) |
 | NST-C-architect | Architect category, cards and inspector for Neat Storage | 2026-11-04 | [STORAGE.md](STORAGE.md#nst-c-architect) |

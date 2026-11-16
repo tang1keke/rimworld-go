@@ -19,7 +19,6 @@ methods rimworld-go/internal/application/game.Game 1767
 methods rimworld-go/internal/domain/pawn/body.Body 99
 
 # --- init(): registration from the composition root instead (SOLID_GO.md §4) ---
-init rimworld-go/internal/domain/difficulty/difficulty.go
 init rimworld-go/internal/domain/faction/faction.go
 init rimworld-go/internal/domain/incident/incident.go
 init rimworld-go/internal/domain/pawn/trait/trait.go
@@ -29,7 +28,6 @@ init rimworld-go/internal/domain/world/biome/biome.go
 global rimworld-go/internal/application/game.indexSelfCheck
 global rimworld-go/internal/application/game.regionsOffAll
 global rimworld-go/internal/application/game.selfCheckEvery
-global rimworld-go/internal/domain/difficulty.presets
 global rimworld-go/internal/domain/faction.defs
 global rimworld-go/internal/domain/incident.defs
 global rimworld-go/internal/domain/pawn/social.memDefs

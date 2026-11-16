@@ -18,48 +18,36 @@ import (
 	"rimworld-go/internal/domain/world/temperature"
 )
 
-// New-game setup (NG-1 §5.1): builds a colony from the wizard's Setup in
-// budgeted steps so the loading screen shows progress. Owned by SETUP.
-//
-// A nil Config.Setup is the legacy colony (NewColony, in one step) and
-// every NG-1 hook in the package is a no-op for it, so legacy games, the
-// -scenario set pieces and the golden hashes are unchanged bit for bit.
+// SETUP: staged new-colony setup. Nil Config.Setup preserves legacy behaviour.
 
-// ng1State is the live state of a colony started from a Setup. The zero
-// value is a legacy colony.
+// ng1State holds a configured colony; zero is the legacy colony.
 type ng1State struct {
 	setup *Setup // nil: legacy
-	// landing is the landing spot chosen by the map generator (MAPGEN-2);
-	// hasLanding false means the map centre (legacy and older saves).
+	// A missing landing retains the old map-centre default.
 	landing    [2]int
 	hasLanding bool
 	fx         scenario.Effects // setup.Scenario.Apply() (derived, not saved)
 	// factions are the world's other peoples (copied from the Setup).
 	factions []faction.Faction
-	// story is the storyteller's memory; plan the pending threat (its
-	// AtTick relative to the landing day); adapt the difficulty adaptation.
+	// Story, pending threat and adaptation are saved independently.
 	story storyteller.State
 	plan  storyteller.Decision
 	adapt difficulty.Adapter
-	// startDay is the calendar day the colony landed on: colony days
-	// (relDay) count from it.
+	// startDay anchors relative colony time.
 	startDay int
-	// dead are the colonists already counted as lost; lost is set by a
-	// death since the last day rollover (adaptation).
-	dead []entity.EntityID
-	lost bool
-	// climateOff: the climate event's offset in g.climate (unsaved);
-	// legacyExtreme: an older save's event (weather_ng1.go, TEMP-2).
+	// Loss eases raids; setback accumulates damage until day rollover.
+	dead    []entity.EntityID
+	lost    bool
+	setback difficulty.Setback
+	// climateOff is unsaved; legacyExtreme migrates older climate events.
 	climateOff    int
 	legacyExtreme extremeEvent
-	// pods are the arrival's drop pods (arrival.go); introDone: the intro
-	// letter was posted.
+	// Arrival pods and the intro's completion.
 	pods      []podState
 	introDone bool
 }
 
-// Builder phases (NG-1 §2.10, MAPGEN-2 §7): "Preparing the site", one
-// build step per map-generator step (its pipeline.Label), then these two.
+// Builder phase labels.
 const (
 	phasePrepare = "Preparing the site"
 	phasePlace   = "Placing the colony"
@@ -333,6 +321,7 @@ type SetupState struct {
 	StartDay  int
 	Dead      []entity.EntityID
 	Lost      bool
+	Setback   difficulty.Setback
 	Extreme   extremeEvent // before TEMP-2 (v8): migrateExtreme; never written now
 	Pods      []podState
 	IntroDone bool
@@ -349,7 +338,7 @@ func (g *Game) exportSetupState() *SetupState {
 	s.Colonists = slices.Clone(s.Colonists)
 	return &SetupState{
 		Setup: s, Factions: cloneFactionList(st.factions), Story: st.story, Plan: st.plan, Adapt: st.adapt,
-		Climate: baseClimate(g), StartDay: st.startDay, Dead: slices.Clone(st.dead), Lost: st.lost,
+		Climate: baseClimate(g), StartDay: st.startDay, Dead: slices.Clone(st.dead), Lost: st.lost, Setback: st.setback,
 		Pods: clonePods(st.pods), IntroDone: st.introDone,
 	}
 }
@@ -366,7 +355,12 @@ func (g *Game) importSetupState(s *SetupState) {
 	g.ng = ng1State{
 		setup: &setup, fx: setup.Scenario.Apply(), factions: cloneFactionList(s.Factions),
 		story: s.Story, plan: s.Plan, adapt: s.Adapt, startDay: s.StartDay,
-		dead: slices.Clone(s.Dead), lost: s.Lost, legacyExtreme: s.Extreme, pods: clonePods(s.Pods), introDone: s.IntroDone,
+		dead: slices.Clone(s.Dead), lost: s.Lost, setback: s.Setback,
+		legacyExtreme: s.Extreme, pods: clonePods(s.Pods), introDone: s.IntroDone,
+	}
+	// Before Setback was saved, the Lost flag carried at most one death.
+	if s.Lost && g.ng.setback.Deaths == 0 {
+		g.ng.setback.Deaths = 1
 	}
 	if s.Climate != (temperature.Climate{}) {
 		g.climate = s.Climate
