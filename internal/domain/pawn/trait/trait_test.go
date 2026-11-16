@@ -11,8 +11,8 @@ import (
 
 func TestCatalogue(t *testing.T) {
 	all := All()
-	if len(all) != 41 { // FOOD-4: Cannibal
-		t.Fatalf("%d traits, want 41", len(all))
+	if len(all) != 42 { // PRD-6: Brawler
+		t.Fatalf("%d traits, want 42", len(all))
 	}
 	keys, labels := map[string]bool{}, map[string]bool{}
 	for i, d := range all {
@@ -117,7 +117,7 @@ func TestGenerated(t *testing.T) {
 	if len(legacy) != 19 || legacy[0] != Tireless || legacy[18] != Sturdy {
 		t.Fatalf("legacy = %v", legacy)
 	}
-	if len(all) != int(NumTraits)-1 || all[len(all)-1] != Cannibal {
+	if len(all) != int(NumTraits)-1 || all[len(all)-1] != Brawler {
 		t.Fatalf("all = %v", all)
 	}
 	for i, id := range all {

@@ -19,6 +19,7 @@ const (
 	Medicine
 	Social
 	Intellectual
+	Artistic
 	NumSkills
 )
 
@@ -63,6 +64,7 @@ var names = [NumSkills]struct{ key, label string }{
 	Medicine:     {"medicine", "Medicine"},
 	Social:       {"social", "Social"},
 	Intellectual: {"intellectual", "Intellectual"},
+	Artistic:     {"artistic", "Artistic"},
 }
 
 // Key is the stable name ("shooting"); Label the display name.

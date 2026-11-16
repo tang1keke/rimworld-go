@@ -80,12 +80,12 @@ func gun(id ID, name, label string, out item.Kind, steel, comps, w int, minSkill
 // sculpt is a sculpture carved at the sculpting bench from its kind's
 // material count (construction Def Wood: wiki Sculpture 50/100/400
 // stuff, scaled / 9 like every building) in wood, metal or stone.
-// Sculpting trains Crafting: there is no Artistic skill.
+// Sculpting trains Artistic separately from other Craft work.
 func sculpt(id ID, name, label string, k construction.Kind) Def {
 	cd := construction.DefOf(k)
 	return Def{ID: id, Name: name, Label: label, Bench: construction.ArtBench,
 		Input:  Input{Kind: item.Wood, Qty: cd.Wood, Stuff: item.Woody | item.Metallic | item.Stony},
-		OutQty: 1, Work: cd.Work, Skill: work.Craft, Learn: skill.Crafting, Builds: k}
+		OutQty: 1, Work: cd.Work, Skill: work.Craft, Learn: skill.Artistic, Builds: k}
 }
 
 // SmeltPct is the share of its steel a smelted item gives back (wiki:

@@ -274,6 +274,7 @@ One row per handoff section. Open the ledger at `#<lowercased ID>`. A new task a
 | PRD-3-benches-work-speed-sculptures | Benches, work speed, art and sculptures | 2026-10-29 | [BASE.md](BASE.md#prd-3-benches-work-speed-sculptures) |
 | PRD-4-catalogue-stockpiles-shelves | Recipe catalogue, stockpile filters, shelves, barrel | 2026-10-29 | [BASE.md](BASE.md#prd-4-catalogue-stockpiles-shelves) |
 | PRD-5-core-inspiration-effects | Eight mental inspiration kinds and their effects | 2026-11-16 | [BASE.md](BASE.md#prd-5-core-inspiration-effects) |
+| PRD-6-canonical-artistic-and-brawler | Artistic skill, Brawler trait and v18 save boundary | 2026-11-16 | [BASE.md](BASE.md#prd-6-canonical-artistic-and-brawler) |
 | PWR-power-wires | Visible power wires and Reconnect | 2026-11-03 | [BASE.md](BASE.md#pwr-power-wires) |
 | QA-001-player-journeys | Player-journey tests, CI on every push, real-path clicks | 2026-10-27 | [OPS.md](OPS.md#qa-001-player-journeys) |
 | QST-1-quests-contract | Quests contract: domain, root, glue | 2026-11-07 | [WORLD.md](WORLD.md#qst-1-quests-contract) |

@@ -8,10 +8,9 @@ import (
 	"rimworld-go/internal/domain/pawn/trait"
 )
 
-// legacyGolden fingerprints 1 200 generated pawns as they were before the
-// ENG-003 traits (computed with Rules{} on f957fc8a): Legacy rules must keep
-// generating exactly these.
-const legacyGolden = 0xb198f6b3c2d04186
+// legacyGolden fingerprints 1,200 v18 generated pawns with the added
+// Artistic skill. The new skill changes generation and requires a new pin.
+const legacyGolden = 0x833d997dc5201ca7
 
 func pawnPrint(r Rules) uint64 {
 	h := fnv.New64a()
@@ -27,7 +26,7 @@ func pawnPrint(r Rules) uint64 {
 	return h.Sum64()
 }
 
-func TestLegacyRulesUnchanged(t *testing.T) {
+func TestLegacyGenerationPinnedWithArtistic(t *testing.T) {
 	if got := pawnPrint(Rules{Legacy: true}); got != legacyGolden {
 		t.Fatalf("legacy generation moved: %#x, want %#x", got, uint64(legacyGolden))
 	}

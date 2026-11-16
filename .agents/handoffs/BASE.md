@@ -206,6 +206,15 @@ Eight mental inspiration kinds and their effects · 2026-11-16 · local PR
 - Artistic skill and exact Brawler trait remain unavailable in the project; creativity uses the existing Crafting/Construction prerequisite and GoFrenzy uses a current trait analogue. The previous one-day cooldown is removed to match Core; legacy InspireCalm save data is accepted but ignored.
 - PRD-5 correction: Shoot frenzy uses eight effective shooting skill levels before the per-tile curve. The obsolete inspiration cooldown was removed. Real death drops the active inspiration; ordinary downing preserves it. Targeted behavioral and saved-legacy regression tests pass.
 
+## PRD-6-canonical-artistic-and-brawler
+Artistic skill, Brawler trait and v18 save boundary · 2026-11-16 · local PR
+- Changed: Artistic is a regular twelfth skill.ID with one skill.Set and the same XP, passion, saturated learning, Bio view, work-speed and save paths as the other eleven skills; sculpting quality and work read Artistic directly.
+- Changed: Inspired creativity eligibility includes Artistic/Crafting/Construction >= 3; weighting reads Artistic passion. Brawler adjusts generated combat skills, melee hit, bans shooting inspiration and adds a ranged-weapon mood state.
+- Save: intentionally incompatible v18 changes all stored skill arrays in place; Load refuses v1-v17 before gob body decode. A future one-shot conversion, if needed, belongs outside the runtime model. No shadow skill field, alias arrays or per-tick compatibility branch.
+- UI: Bio, new-game candidate skills and work skill text use the normal skill catalogue; Brawler's ranged-weapon mood appears in the existing thought list.
+- Proof: dedicated Artistic learning/save/recipe tests, Brawler combat/mood/eligibility tests, historical fixture rejection and save schema pin; old generation golden is repinned because the skill roster changed.
+- Open: separate Art work priority remains outside this task (WRK-102 scope); the v1-v17 game-load converter is optional.
+
 ## WRK-001-work-order
 Work order and harvesting · 2026-11-04 · d707f6131
 - Changed: user request (2026-11-04): gap analyses of the Work tab and of harvesting vs vanilla (`.agents/gaps/WORK_PRIORITIES_GAP_ANALYSIS.md`, `HARVEST_GAP_ANALYSIS.md`; rows WRK-/HRV-) plus the "harvested piles are hauled at once" report. `work.Order` is the wiki's: Firefight, Doctor, Warden, Handle, Cook, Hunt, Construct, Grow, Mine, PlantCut, Craft, Haul, Clean, Research; `work.Type` keeps its values so saves mean the same. Work tab columns follow `work.Order` (`windows.workSlot`), header "ties: left first"; tooltips corrected.

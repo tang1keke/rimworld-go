@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -26,8 +27,8 @@ import (
 // The save format's safety net (MASTER_SPEC §45). Gob matches struct fields
 // by name, so renaming or removing a saved field silently drops its data,
 // and changing a field's kind makes Load fail. TestSaveSchema lists every
-// field gob writes, and TestSaveV12Fixture keeps a save of the v12 format
-// loading for good.
+// field gob writes. V18 intentionally changes the skill array width;
+// historical fixture headers remain readable and their bodies are rejected.
 
 const (
 	saveSchemaGolden = "testdata/save_schema.txt"
@@ -351,35 +352,19 @@ func writeSaveV12Fixture(t *testing.T) {
 	t.Logf("%s: %d bytes, state hash %#x", saveV12Fixture, buf.Len(), g.StateHash())
 }
 
-// TestSaveV12Fixture loads the checked-in v12 save, so a change that cannot
-// read today's saves fails here for as long as v12 is supported.
+// TestSaveV12Fixture keeps the historical header inspectable while v18
+// explicitly declines the old array schema before decoding its body.
 func TestSaveV12Fixture(t *testing.T) {
-	if os.Getenv(saveV12Env) != "" {
-		writeSaveV12Fixture(t)
-	}
 	t.Parallel()
 	data, err := os.ReadFile(saveV12Fixture)
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, info, err := Load(bytes.NewReader(data))
+	info, err := ReadSaveInfo(bytes.NewReader(data))
 	if err != nil || info.Version != 12 {
-		t.Fatalf("load: %v (info %+v)", err, info)
+		t.Fatalf("header: %+v, %v", info, err)
 	}
-	if !g.hasSetup() || info.MapSize != 60 || info.Colonists == 0 {
-		t.Fatalf("fixture header %+v, has setup %v", info, g.hasSetup())
-	}
-	hash := g.StateHash()
-	if hash != saveV12Hash {
-		t.Fatalf("the v12 fixture loads to state hash %#x, pinned %#x. A v12 save must keep loading to the same state: fix the change that moved it. Re-pin only for a migration that means to change a v12 save, and say why in the commit", hash, saveV12Hash)
-	}
-	h, _ := saveLoadInfo(t, g)
-	if got := h.StateHash(); got != hash {
-		t.Fatalf("saved again and loaded, state hash %#x, want %#x", got, hash)
-	}
-	g.Step(600)
-	h.Step(600)
-	if a, b := g.StateHash(), h.StateHash(); a != b {
-		t.Fatalf("the fixture does not continue identically after a re-save: %#x vs %#x", a, b)
+	if _, _, err := Load(bytes.NewReader(data)); !errors.Is(err, ErrSaveVersion) {
+		t.Fatalf("old v12 save must be rejected as incompatible: %v", err)
 	}
 }

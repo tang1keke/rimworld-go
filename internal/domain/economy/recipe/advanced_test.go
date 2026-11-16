@@ -79,6 +79,9 @@ func TestEveryRecipeLearnsItsSkill(t *testing.T) {
 		if !ok {
 			t.Fatalf("%s: work type %v trains no skill", d.Name, d.Skill)
 		}
+		if d.ID == recipe.SculptSmall || d.ID == recipe.SculptLarge || d.ID == recipe.SculptGrand {
+			want = skill.Artistic // sculptures remain Craft work but use Artistic proficiency
+		}
 		if d.Learn != want {
 			t.Errorf("%s learns %s, want %s", d.Name, d.Learn.Key(), want.Key())
 		}

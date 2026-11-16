@@ -49,6 +49,7 @@ import (
 	"rimworld-go/internal/domain/pawn/needs"
 	"rimworld-go/internal/domain/pawn/recreation"
 	"rimworld-go/internal/domain/pawn/schedule"
+	"rimworld-go/internal/domain/pawn/skill"
 	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/command"
 	"rimworld-go/internal/domain/sim/component"
@@ -120,8 +121,8 @@ type PawnView struct {
 	AgeYears  int
 	Look      look.Look
 	Incapable work.Mask
-	SkillLv   [11]uint8
-	Passion   [11]uint8
+	SkillLv   [skill.NumSkills]uint8
+	Passion   [skill.NumSkills]uint8
 	Title     string
 	Ate       bool
 	LastMeal  string // kind name of the last food eaten, "" if none

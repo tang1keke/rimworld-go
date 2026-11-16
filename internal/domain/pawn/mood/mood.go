@@ -148,6 +148,7 @@ const (
 	// RescuedByColony (QST-057, QST-068, append only, saved): the colony
 	// came for this pawn, down on a site or held in a cell, and took them in.
 	RescuedByColony
+	BrawlerRanged // wiki: Traits, Brawler's ranged-weapon mood
 	numKinds
 )
 
@@ -311,6 +312,7 @@ var defs = [numKinds]Def{
 	Naked:              {"naked", -6, 0, groupNone, 0, 0},
 	TurnedAwayWanderer: {"turned a wanderer away", -3, day, groupNone, 0, 0},
 	RescuedByColony:    {"rescued", 18, 30 * day, groupNone, 0, 0},
+	BrawlerRanged:      {"carrying a ranged weapon", -10, 0, groupNone, 0, 0}, // wiki: Traits
 }
 
 // needHour is how long a need thought outlasts its last refresh (BED-3).

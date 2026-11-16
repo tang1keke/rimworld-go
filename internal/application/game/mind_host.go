@@ -21,7 +21,6 @@ import (
 	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/internal/domain/world/room"
 	"rimworld-go/pkg/msgfmt"
-	"slices"
 )
 
 // breakState is a colonist's mental break: its kind and end tick. It stays
@@ -333,12 +332,11 @@ func (h mindMuses) Passion(id entity.EntityID, sk skill.ID) skill.Passion {
 	return h.g.skillOf(id, sk).Passion
 }
 func (h mindMuses) CanRun(id entity.EntityID) bool {
-	if fx := h.g.sk.stats[id]; fx != nil {
-		return !slices.Contains(fx.traits, trait.Plodding)
-	}
-	return true
+	return !h.g.sk.stats[id].hasTrait(trait.Plodding)
 }
-func (h mindMuses) CanShoot(id entity.EntityID) bool { return h.g.canViolence(id) }
+func (h mindMuses) CanShoot(id entity.EntityID) bool {
+	return h.g.canViolence(id) && !h.g.sk.stats[id].hasTrait(trait.Brawler)
+}
 func (h mindMuses) Inspired(id entity.EntityID, label string) {
 	letterf(h.g, letters.Good, "Inspiration", id, "%s gained %s.", h.g.personName(id), label)
 }

@@ -104,11 +104,12 @@ var skillAffects = [skill.NumSkills]struct {
 	skill.Medicine:     {"Doctoring (tend, rescue); heal amount, infection chance", true},
 	skill.Social:       {"Chat mood bonus; tame chance", false},
 	skill.Intellectual: {"Research", true},
+	skill.Artistic:     {"Sculpting; sculpture quality and speed", true},
 }
 
 // BioOf builds p's BioView: names, sex/build/age, backstories with their
-// descriptions filled for p's nickname and pronouns, traits, all eleven
-// skills, incapabilities with their reasons, conditions and look. It is
+// descriptions filled for p's nickname and pronouns, traits, every
+// skill, incapabilities with their reasons, conditions and look. It is
 // pure: the same pawn always gives the same view.
 func BioOf(p pawngen.Pawn) BioView {
 	name := p.Nick

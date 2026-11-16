@@ -65,6 +65,7 @@ const (
 	// Cannibal (FOOD-4, append only): delights in human flesh (game/diet
 	// flips the human meat thoughts) and is untroubled by butchering.
 	Cannibal
+	Brawler
 	NumTraits
 )
 
@@ -229,6 +230,10 @@ var defs = [NumTraits]Def{
 	// thoughts).
 	Cannibal: {Key: "cannibal", Label: "Cannibal", Rarity: 2, Note: "Enjoys human flesh; untroubled by butchering people",
 		Desc: "{name} sees no reason to waste good meat just because it once had a name."},
+	Brawler: {Key: "brawler", Label: "Brawler", Group: GroupTrigger, Needs: backstory.Violence,
+		Desc:       "{name} trusts a close fight and never enjoys carrying a long-range weapon.",
+		SkillBonus: map[skill.ID]int8{skill.Melee: 4, skill.Shooting: -10}, // wiki: Traits
+		Note:       "Melee hit score +4; dislikes ranged weapons; no Shooting passion"},
 }
 
 // Generated lists the traits pawn generation may roll, in ID order: under

@@ -14,17 +14,29 @@ import (
 // unset) and the inspiration news.
 type fakeMuses struct {
 	skill            map[entity.EntityID]uint8
+	levels           map[entity.EntityID]map[skill.ID]uint8
 	passions         map[entity.EntityID]skill.Passion
+	skillPassions    map[entity.EntityID]map[skill.ID]skill.Passion
 	slow, nonviolent map[entity.EntityID]bool
 	inspired         []entity.EntityID
 	faded            []entity.EntityID
 }
 
-func (f *fakeHost) SkillLevel(id entity.EntityID, _ skill.ID) uint8      { return f.skill[id] }
-func (f *fakeHost) Passion(id entity.EntityID, _ skill.ID) skill.Passion { return f.passions[id] }
-func (f *fakeHost) CanRun(id entity.EntityID) bool                       { return !f.slow[id] }
-func (f *fakeHost) CanShoot(id entity.EntityID) bool                     { return !f.nonviolent[id] }
-func (f *fakeHost) Inspired(id entity.EntityID, _ string)                { f.inspired = append(f.inspired, id) }
+func (f *fakeHost) SkillLevel(id entity.EntityID, sk skill.ID) uint8 {
+	if v, ok := f.levels[id]; ok {
+		return v[sk]
+	}
+	return f.skill[id]
+}
+func (f *fakeHost) Passion(id entity.EntityID, sk skill.ID) skill.Passion {
+	if v, ok := f.skillPassions[id]; ok {
+		return v[sk]
+	}
+	return f.passions[id]
+}
+func (f *fakeHost) CanRun(id entity.EntityID) bool        { return !f.slow[id] }
+func (f *fakeHost) CanShoot(id entity.EntityID) bool      { return !f.nonviolent[id] }
+func (f *fakeHost) Inspired(id entity.EntityID, _ string) { f.inspired = append(f.inspired, id) }
 func (f *fakeHost) InspirationEnded(id entity.EntityID, _ string) {
 	f.faded = append(f.faded, id)
 }
@@ -204,6 +216,33 @@ func TestCoreInspirationEligibilityAndHistoricalIDs(t *testing.T) {
 	f.passions[1] = skill.Minor
 	if got := m.Inspire.weight(1, Recruitment); got != 25 {
 		t.Fatalf("minor passion weight %d", got)
+	}
+}
+
+func TestCreativityUsesArtisticSkillAndPassion(t *testing.T) {
+	t.Parallel()
+	f, m := creativeFake()
+	f.levels = map[entity.EntityID]map[skill.ID]uint8{1: {skill.Artistic: 3}}
+	if !m.Inspire.eligible(1, Creativity) {
+		t.Fatal("Artistic alone should unlock creativity")
+	}
+	f.skillPassions = map[entity.EntityID]map[skill.ID]skill.Passion{
+		1: {skill.Crafting: skill.Major, skill.Artistic: skill.NoPassion},
+	}
+	if got := m.Inspire.weight(1, Creativity); got != 10 {
+		t.Fatalf("Crafting passion incorrectly weighted creativity: %d", got)
+	}
+	f.skillPassions[1][skill.Artistic] = skill.Major
+	if got := m.Inspire.weight(1, Creativity); got != 50 {
+		t.Fatalf("Artistic major passion has weight %d, want 50", got)
+	}
+	f.levels[1] = map[skill.ID]uint8{skill.Artistic: 2, skill.Crafting: 2, skill.Construction: 2}
+	if m.Inspire.eligible(1, Creativity) {
+		t.Fatal("all artistic-related skills under 3 unlocked creativity")
+	}
+	f.levels[1][skill.Construction] = 3
+	if !m.Inspire.eligible(1, Creativity) {
+		t.Fatal("Construction skill should also unlock creativity")
 	}
 }
 
