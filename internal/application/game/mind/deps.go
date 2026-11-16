@@ -118,6 +118,9 @@ type Events interface {
 type Muses interface {
 	// SkillLevel is id's level in sk (inspiration minimum skills).
 	SkillLevel(id entity.EntityID, sk skill.ID) uint8
+	Passion(id entity.EntityID, sk skill.ID) skill.Passion
+	CanRun(id entity.EntityID) bool
+	CanShoot(id entity.EntityID) bool
 	// Inspired announces id's new inspiration (a letter, the log).
 	Inspired(id entity.EntityID, label string)
 	// InspirationEnded tells that id's unused inspiration faded.

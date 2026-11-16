@@ -5,6 +5,7 @@ import (
 
 	"rimworld-go/internal/application/game/combat"
 	"rimworld-go/internal/application/game/evlog"
+	"rimworld-go/internal/application/game/mind"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/animal"
@@ -134,7 +135,11 @@ func (h combatSkills) ShotAim(id entity.EntityID) (int, int) {
 	if a, ok := h.g.animals.Get(id); ok && animal.IsMech(a.Species) {
 		return attack.ShooterPerTile(animal.MechShootingSkill), 0 // DEF-4: wiki: Lancer (96 %)
 	}
-	return attack.ShooterPerTile(int(h.g.skillOf(id, skill.Shooting).Level)), 10 * int(h.g.statOf(id, stat.ShootAcc))
+	level := int(h.g.skillOf(id, skill.Shooting).Level)
+	if h.g.mind.Inspire.Has(id, mind.ShootFrenzy) {
+		level += 8
+	}
+	return attack.ShooterPerTile(level), 10 * int(h.g.statOf(id, stat.ShootAcc))
 }
 func (h combatSkills) Learn(id entity.EntityID, ranged bool, xp int) { h.g.combatLearn(id, ranged, xp) }
 func (h combatSkills) AimTicks(id entity.EntityID, cooldown int) int {

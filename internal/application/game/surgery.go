@@ -7,6 +7,7 @@ import (
 
 	"rimworld-go/internal/application/game/care"
 	"rimworld-go/internal/application/game/evlog"
+	"rimworld-go/internal/application/game/mind"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/ai/work"
@@ -26,20 +27,9 @@ import (
 	"rimworld-go/pkg/mathx"
 )
 
-// Surgery (ENG-003 M1; surgery v2, MED-06). The player queues operations
-// on a colonist, prisoner or guest from the Health tab
-// (command.AddOperation). A doctor (Doctor work, after tending) takes the
-// nearest patient lying down with an operation it can do now: it fetches
-// the implant or organ (if any) and the medicine the operation uses up
-// (body.MedicineNeed, capped by the patient's care level), and works
-// SurgeryWork ticks scaled by Medicine. The success chance follows the
-// wiki (body.SurgeryChance: skill, manipulation, sight, bed, cleanliness,
-// light, vitals monitor, medicine, operation); the body domain rolls the
-// outcome on the body stream: success installs, removes, amputates,
-// harvests or transplants; failure wounds the patient (and may kill on a
-// heart or carcinoma operation) and calls onSurgeryBotched. Every
-// operation but euthanasia leaves the patient under an anaesthetic
-// (body.CondAnesthetic), which wears off over 20 hours (stepAnesthetics).
+// MED-06: doctors perform queued operations using a patient, medicine,
+// skill, environment and the body's deterministic success model.
+// Failures wound or kill; successful operations apply anaesthesia.
 
 const (
 	// SurgeryWork is the work an operation takes (Medicine scales speed).
@@ -62,11 +52,8 @@ const (
 	harvestGoodwillCap   = -100
 )
 
-// surgeryState is the queued operations per patient, an older save's
-// patients still under the hour-long anaesthetic (legacy, never added
-// to), who gave up waiting for a surgeon until when (ENG-003, M1), and
-// the hospital bed a patient claimed only to wait for surgery in, given
-// back once it is up again (SIM-049); nil until the first operation.
+// surgeryState retains queues, legacy anaesthetic, retry times and
+// temporary patient beds.
 type surgeryState struct {
 	ops   map[entity.EntityID][]body.Operation
 	under map[entity.EntityID]uint64
@@ -145,11 +132,7 @@ func opCode(op body.Operation) int {
 	return int(op.Kind)<<16 | int(op.Part)<<8 | int(op.Item)
 }
 
-// cmdAddOperation queues operation op on part for patient (a colonist,
-// prisoner or guest): only a valid operation on the body as it is now (an
-// implant or organ on a part it fits, a removal of an implant, an
-// amputation or harvest of a part still there, euthanasia or anaesthesia
-// on the whole body), once.
+// cmdAddOperation queues a valid, currently applicable operation once.
 func (g *Game) cmdAddOperation(patient entity.EntityID, op int, part, kind uint8) {
 	if !g.isPawn(patient) || op < 0 || op >= int(body.NumOps) {
 		return
@@ -192,10 +175,8 @@ func (g *Game) cmdRemoveOperation(patient entity.EntityID, i int) {
 	g.dropOperation(patient, i)
 }
 
-// cmdReorderOperation moves patient's queued operation in slot by one
-// place: up (by -1) or down (by +1), swapping it with its neighbour (MED-00).
-// Any other step, or a slot or neighbour out of range, is a no-op. A
-// running operation finds its own again by opCode, so moving it is safe.
+// cmdReorderOperation moves one valid queue slot by one position,
+// preserving running operations through their stable opCode.
 func (g *Game) cmdReorderOperation(patient entity.EntityID, slot, by int) {
 	q := g.operationsOf(patient)
 	to := slot + by
@@ -247,12 +228,8 @@ func (g *Game) readyOp(doctor, id entity.EntityID) (int, opFetch, bool) {
 	return 0, opFetch{}, false
 }
 
-// awaitingSurgery: id has an operation a doctor could start now (the same
-// test surgeryWait reports on), someone else to do it, and has not just
-// given up waiting (patientRest, infection.go). A patient already lying
-// down keeps waiting while its implant is only briefly taken (a hauler
-// moving it): it lies down on a strict test and gets up on a looser one,
-// so a passing reservation does not flap it (SIM-049).
+// awaitingSurgery uses strict initial admission and loose continuation
+// when a reserved implant briefly moves, avoiding bed-state flapping.
 func (g *Game) awaitingSurgery(id entity.EntityID) bool {
 	if g.surg == nil || len(g.surg.ops[id]) == 0 {
 		return false
@@ -299,14 +276,8 @@ const (
 	waitMedsFm     = "needs %d %s or better"
 )
 
-// opBlocked is why doctor can't start op on patient (body b) now, ""
-// with what to fetch when it can. Doctor 0 asks about any other colonist
-// who doctors. The reasons come in order: the operation no longer fits
-// the body, the patient is already sedated (anaesthesia), the implant or
-// organ needs research or is not in stock or not in reach, no one else
-// to operate, no one skilled enough, no medicine the care level allows.
-// Loose counts a stack a hauler holds as in stock (a waiting patient
-// stays down; awaitingSurgery).
+// opBlocked returns the first failed prerequisite for surgery.
+// Loose mode accepts temporarily reserved supplies while a patient waits.
 func (g *Game) opBlocked(patient, doctor entity.EntityID, b *body.Body, op body.Operation, loose bool) (string, opFetch) {
 	if !b.CanOperate(op) {
 		return waitBody, opFetch{}
@@ -792,7 +763,12 @@ func (g *Game) surgeryCleanliness(x, y int) (int32, bool) {
 // surgeryChanceOf is surgeon's permille chance of op on patient where it
 // lies with medicine med, with its breakdown.
 func (g *Game) surgeryChanceOf(surgeon, patient entity.EntityID, op body.OpKind, med item.Kind) (int32, []body.Factor) {
-	return body.SurgeryChance(g.surgeryInput(surgeon, patient, op, med))
+	chance, factors := body.SurgeryChance(g.surgeryInput(surgeon, patient, op, med))
+	if g.mind.Inspire.Has(surgeon, mind.Surgery) {
+		chance = min(chance*2, body.MaxSurgeryChance)
+		factors = append(factors, body.Factor{Label: "Focused surgeon", Pct: 200})
+	}
+	return chance, factors
 }
 
 // bestSurgeon is the standing colonist besides patient who doctors with
@@ -890,6 +866,7 @@ func (g *Game) operate(surgeon, patient entity.EntityID, slot int, j *job.Record
 	}
 	rng := g.stream(streamBody)
 	chance, _ := g.surgeryChanceOf(surgeon, patient, op.Kind, med)
+	g.mind.Inspire.Use(surgeon, mind.Surgery)
 	lvl := int(g.skillOf(surgeon, skill.Medicine).Level)
 	outcome := body.RollOutcome(chance, lvl, rng.IntN)
 	removed := b.Implant(op.Part)

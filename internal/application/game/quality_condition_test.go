@@ -10,11 +10,13 @@ import (
 	"rimworld-go/internal/application/game/mind"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/building/construction"
+	"rimworld-go/internal/domain/combat/attack"
 	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/economy/quality"
 	"rimworld-go/internal/domain/pawn/health"
 	"rimworld-go/internal/domain/pawn/mood"
 	"rimworld-go/internal/domain/pawn/skill"
+	"rimworld-go/internal/domain/pawn/stat"
 	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/internal/domain/world/roof"
@@ -210,7 +212,7 @@ func TestTaintedApparelThought(t *testing.T) {
 
 // TestInspirationNoFlapInGame: an inspiration started in the game stays
 // through the hourly checks whatever the mood, until it fades, and the
-// calm keeps a new one off; the save keeps it.
+// the save preserves it and releases it at its normal expiry.
 func TestInspirationNoFlapInGame(t *testing.T) {
 	t.Parallel()
 	g, ada := dressGame(t, 10, 8, 150)
@@ -238,10 +240,8 @@ func TestInspirationNoFlapInGame(t *testing.T) {
 	if _, ok := h.mind.Inspire.Of(ada); ok {
 		t.Fatal("not faded after 8 days")
 	}
-	h.clock.Advance(mind.InspireCalm / 2)
-	h.mind.Inspire.Check(ada)
-	if _, ok := h.mind.Inspire.Of(ada); ok {
-		t.Fatal("inspired again inside the calm")
+	if got := h.mind.Export().InspireCalm; len(got) != 0 {
+		t.Fatalf("obsolete cooldown persisted after recovery: %+v", got)
 	}
 }
 
@@ -279,4 +279,81 @@ func hasThought(g *Game, id entity.EntityID, k mood.Kind, v int) bool {
 		}
 	}
 	return false
+}
+
+func TestInspiredTimedStatsReachGameLogic(t *testing.T) {
+	t.Parallel()
+	g := New(Config{Seed: 4, Width: 14, Height: 10})
+	id, _ := g.SpawnNamedPawn(5, 5, "Ada")
+	baseMove := g.statOf(id, stat.MoveSpeed)
+	baseWork := g.statOf(id, stat.WorkSpeed)
+	baseAim := g.statOf(id, stat.ShootAcc)
+	normalPerTile, normalOffset := (combatSkills{g}).ShotAim(id)
+	g.mind.Inspire.Start(id, mind.GoFrenzy)
+	if got := g.statOf(id, stat.MoveSpeed); got != baseMove*140/100 {
+		t.Fatalf("run speed %d", got)
+	}
+	if g.paceStep(id, 14) >= 14 {
+		t.Fatal("frenzy failed to shorten path step")
+	}
+	g.mind.Inspire.Start(id, mind.ShootFrenzy)
+	inspiredPerTile, inspiredOffset := (combatSkills{g}).ShotAim(id)
+	wantPerTile := attack.ShooterPerTile(int(g.skillOf(id, skill.Shooting).Level) + 8)
+	if inspiredPerTile != wantPerTile || inspiredOffset != normalOffset || inspiredPerTile <= normalPerTile {
+		t.Fatalf("shooting frenzy: %d/%d, normal %d/%d, want %d", inspiredPerTile, inspiredOffset, normalPerTile, normalOffset, wantPerTile)
+	}
+	if got := g.statOf(id, stat.ShootAcc); got != baseAim {
+		t.Fatalf("frenzy must use the per-tile skill curve: flat offset %d", got)
+	}
+	g.mind.Inspire.Start(id, mind.WorkFrenzy)
+	if got := g.statOf(id, stat.WorkSpeed); got != baseWork*180/100 {
+		t.Fatalf("work speed %d", got)
+	}
+	units := 0
+	for i := 0; i < 10; i++ {
+		units += g.workProgress(id, skill.Mining, false)
+		g.clock.Advance(1)
+	}
+	if units != 18 {
+		t.Fatalf("work frenzy advanced %d units, want 18", units)
+	}
+	g.clock.Advance(mind.InspireDuration)
+	if got := g.statOf(id, stat.WorkSpeed); got != baseWork {
+		t.Fatalf("expired frenzy left speed %d", got)
+	}
+}
+
+// TestShootFrenzyFollowsSkillCurve verifies the actual combat host across
+// three shooting levels; flat accuracy bonuses must remain unchanged.
+func TestShootFrenzyFollowsSkillCurve(t *testing.T) {
+	t.Parallel()
+	g := New(Config{Seed: 41, Width: 12, Height: 10})
+	id, _ := g.SpawnNamedPawn(2, 2, "Shooter")
+	h := combatSkills{g}
+	for _, level := range []uint8{0, 8, 20} {
+		setSkill(g, id, skill.Shooting, level)
+		before, oldOffset := h.ShotAim(id)
+		g.mind.Inspire.Start(id, mind.ShootFrenzy)
+		during, newOffset := h.ShotAim(id)
+		if during != attack.ShooterPerTile(int(level)+8) ||
+			during <= before || newOffset != oldOffset {
+			t.Fatalf("level %d: from %d/%d to %d/%d", level, before, oldOffset, during, newOffset)
+		}
+		g.mind.Inspire.Use(id, mind.ShootFrenzy)
+		after, afterOffset := h.ShotAim(id)
+		if after != before || afterOffset != oldOffset {
+			t.Fatalf("level %d: expired frenzy changed shot: %d/%d", level, after, afterOffset)
+		}
+	}
+}
+
+func TestDeadColonistHasNoSavedInspiration(t *testing.T) {
+	t.Parallel()
+	g := New(Config{Seed: 9, Width: 12, Height: 9})
+	id, _ := g.SpawnNamedPawn(3, 3, "Ada")
+	g.mind.Inspire.Start(id, mind.WorkFrenzy)
+	g.die(id, health.CauseInjury)
+	if _, ok := g.mind.Inspire.Of(id); ok || len(g.mind.Export().Inspire) != 0 {
+		t.Fatal("dead colonist keeps its temporary work-speed buff in the saved state")
+	}
 }

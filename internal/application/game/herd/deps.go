@@ -89,6 +89,7 @@ type Events interface {
 	// Tamed: handler id tamed animal aid (the animal is made tame, named,
 	// logged and may bond).
 	Tamed(id, aid entity.EntityID)
+	UseTameInspiration(id entity.EntityID) bool
 	// TameFailed: id failed to tame aid (logged; aid waits out its
 	// retry, and may go manhunter at its revenge chance).
 	TameFailed(id, aid entity.EntityID)

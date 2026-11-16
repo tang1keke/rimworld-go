@@ -215,3 +215,23 @@ func TestLive(t *testing.T) {
 		t.Fatal("the dead are no prisoners, and walk nowhere")
 	}
 }
+
+func TestInspiredRecruitmentConsumesOnSuccessfulChat(t *testing.T) {
+	t.Parallel()
+	p, f := rig(t)
+	st := p.State(rid)
+	st.Mode, st.Resistance = prisoner.Recruit, 25000
+	f.inspiredRecruit = true
+	p.Chat(warden, rid, 4)
+	if p.Is(rid) || len(f.recruited) != 1 || f.inspiredRecruit {
+		t.Fatalf("inspired recruiter did not bypass resistance once: %+v %v", st, f.recruited)
+	}
+	p, f = rig(t)
+	st = p.State(rid)
+	st.Mode, st.Resistance = prisoner.Reduce, 25000
+	f.inspiredRecruit = true
+	p.Chat(warden, rid, 4)
+	if !p.Is(rid) || len(f.recruited) != 0 || !f.inspiredRecruit {
+		t.Fatalf("reduce-resistance visit must retain the inspiration: %+v", st)
+	}
+}

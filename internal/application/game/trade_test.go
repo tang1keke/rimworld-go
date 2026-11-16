@@ -2,6 +2,7 @@ package game
 
 import (
 	"reflect"
+	"rimworld-go/internal/application/game/mind"
 	"rimworld-go/internal/application/game/visit"
 	"slices"
 	"strings"
@@ -751,5 +752,57 @@ func TestTradeStatusReportsShipAndCaravan(t *testing.T) {
 	}
 	if _, open := g.TradeView(); open {
 		t.Fatal("a session is open")
+	}
+}
+
+func TestInspiredTradeMatchesLivePriceAndSpendsOnDeal(t *testing.T) {
+	t.Parallel()
+	g, c := caravanGame(t)
+	neg := openCaravanTrade(t, g, c)
+	tradeYard(t, g, neg, 900, 10)
+	g.mind.Inspire.Start(neg, mind.Trade)
+	v, ok := g.TradeView()
+	if !ok || len(v.Rows) == 0 {
+		t.Fatal("missing inspired trade view")
+	}
+	terms := g.termsFor(neg, g.factionByID(c.Faction))
+	if !terms.Inspired || v.PriceModPct != priceModPct(terms) {
+		t.Fatalf("inspired pricing terms %+v, view=%+v", terms, v)
+	}
+	for _, row := range v.Rows {
+		kind, valid := item.ParseKind(row.Kind)
+		if !valid || kind == item.Silver {
+			continue
+		}
+		if row.BuyC != trade.Price(kind, c.Kind, trade.Buy, terms) {
+			t.Fatalf("inspired view price for %s did not match settlement", row.Kind)
+		}
+	}
+	// Gift and rejected offer are not the successful trade that spends it.
+	g.cmdProposeTrade(trade.EncodeOffer([]trade.Delta{{Kind: item.Silver, Qty: -200}}), true)
+	if !g.mind.Inspire.Has(neg, mind.Trade) {
+		t.Fatal("a gift spent the inspiration")
+	}
+	g.cmdProposeTrade(trade.EncodeOffer([]trade.Delta{{Kind: item.Rifle, Qty: 9999}}), false)
+	if !g.mind.Inspire.Has(neg, mind.Trade) {
+		t.Fatal("a rejected offer spent the inspiration")
+	}
+	buy := c.Stock.Lines[0]
+	offer := []trade.Delta{{Kind: buy.Kind, Qty: 1}, {Kind: item.Components, Qty: -4}}
+	if buy.Kind > item.Components {
+		offer[0], offer[1] = offer[1], offer[0]
+	}
+	before := g.colonyGoods(false)
+	silver0 := totalOf(g, item.Silver)
+	res := trade.Settle(offer, before.counts, c.Stock, terms, false)
+	if !res.OK() {
+		t.Fatalf("invalid inspired deal: %v", res.Reject)
+	}
+	g.cmdProposeTrade(trade.EncodeOffer(offer), false)
+	if g.mind.Inspire.Has(neg, mind.Trade) {
+		t.Fatal("successful trade did not spend inspiration")
+	}
+	if totalOf(g, item.Silver) != silver0+res.Silver {
+		t.Fatalf("trade settlement ignored the inspired price: silver=%d expected=%d", totalOf(g, item.Silver), silver0+res.Silver)
 	}
 }

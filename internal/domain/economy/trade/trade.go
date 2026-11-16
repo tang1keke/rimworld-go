@@ -93,6 +93,7 @@ type Terms struct {
 	Social   int
 	Goodwill int
 	Hostile  bool
+	Inspired bool // next completed deal gets the wiki's 18-point price improvement
 }
 
 // Delta is one line of an offer: Qty > 0 the colony buys Qty units of
@@ -289,12 +290,16 @@ func PriceOf(g Goods, k TraderKind, s Side, t Terms) int {
 	}
 	social := mathx.Clamp(t.Social, 0, 20)
 	// Rates are in hundredths of a percentage point (10000 = 100 %).
-	markup := max(BuyMarkupPct*100-SocialStepCenti*social-BuyGoodwillMilli/10*t.Goodwill, BuyFloorPct*100)
+	bonus := 0
+	if t.Inspired {
+		bonus = 1800
+	} // wiki: Mental inspiration, trade 18%
+	markup := max(BuyMarkupPct*100-SocialStepCenti*social-BuyGoodwillMilli/10*t.Goodwill-bonus, BuyFloorPct*100)
 	buy := v * (10000 + markup) / 10000
 	if s == Buy {
 		return buy
 	}
-	cut := max(SellCutPct*100-SocialStepCenti*social-SellGoodwillMilli/10*t.Goodwill, SellFloorPct*100)
+	cut := max(SellCutPct*100-SocialStepCenti*social-SellGoodwillMilli/10*t.Goodwill-bonus, SellFloorPct*100)
 	sell := v * (10000 - cut) / 10000
 	if isSpecialty(k, it) {
 		sell = sell * (100 + SpecialtyPct) / 100

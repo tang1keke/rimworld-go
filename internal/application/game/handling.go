@@ -5,6 +5,7 @@ import (
 
 	"rimworld-go/internal/application/game/evlog"
 	"rimworld-go/internal/application/game/herd"
+	"rimworld-go/internal/application/game/mind"
 	"rimworld-go/internal/application/game/rage"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
@@ -20,15 +21,8 @@ import (
 	"rimworld-go/pkg/msgfmt"
 )
 
-// Animal handling. Hunters also tame: an animal marked for taming holds
-// still while a handler coaxes it, then is tamed (or not; a botched try
-// can enrage it). Tame animals have names; livestock live in pens (pens.go)
-// and the rest around the colony; they pass through the colony's doors and
-// never spring its traps; tame ridgewolves guard the colony against
-// raiders and hostile animals. Wild animals hurt by colonists may go
-// manhunter, hunting every colonist for a day; the storyteller also sends
-// whole manhunter packs. Rage, guards, hunts, charges, flight and chase
-// warnings live in game/rage, reached through rageOf (end of this file).
+// Animal handling owns taming, names, bonds, pens and the animal AI
+// bridge to game/rage (manhunters, fleeing, guarding and hunting).
 
 const (
 	// pathRetry: after a failed path search an animal waits this long
@@ -167,6 +161,12 @@ func (h herdHost) Drop(st item.Stack) {
 		s.Animal = st.Animal
 		g.mergeOrSet(sid, s)
 	}
+}
+
+// UseTameInspiration spends one guaranteed taming attempt only after the
+// handler has fed a valid wild target.
+func (h herdHost) UseTameInspiration(id entity.EntityID) bool {
+	return h.g.mind.Inspire.Use(id, mind.Taming)
 }
 
 // Tamed: handler id tamed animal aid: it joins the colony, named, and may

@@ -109,6 +109,7 @@ type Talk interface {
 	// Negotiation is warden id's Social impact, permille.
 	Negotiation(id entity.EntityID) int32
 	SocialLevel(id entity.EntityID) int
+	UseRecruitInspiration(id entity.EntityID) bool
 	// Chat counts as a chat between a and b (memories, log).
 	Chat(a, b entity.EntityID, now uint64)
 }

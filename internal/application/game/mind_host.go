@@ -17,9 +17,11 @@ import (
 	"rimworld-go/internal/domain/pawn/needs"
 	"rimworld-go/internal/domain/pawn/skill"
 	"rimworld-go/internal/domain/pawn/social"
+	"rimworld-go/internal/domain/pawn/trait"
 	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/internal/domain/world/room"
 	"rimworld-go/pkg/msgfmt"
+	"slices"
 )
 
 // breakState is a colonist's mental break: its kind and end tick. It stays
@@ -40,8 +42,7 @@ func (g *Game) Breaking(id entity.EntityID) string { return g.breaks[id].kind.St
 // ForceBreak starts a mental break now (dev scenarios and fixtures).
 func (g *Game) ForceBreak(id entity.EntityID, k mentalbreak.Kind) { g.viewGen++; g.mind.Force(id, k) }
 
-// mindHost implements mind.Host (mind/deps.go) over the game: one small
-// adapter per role, so no method is added to Game (.agents/specs/SOLID_GO.md §10).
+// mindHost implements consumer-owned roles over the game.
 type mindHost struct {
 	mindPawns
 	mindBreaks
@@ -328,9 +329,18 @@ type mindMuses struct{ g *Game }
 func (h mindMuses) SkillLevel(id entity.EntityID, sk skill.ID) uint8 {
 	return h.g.skillOf(id, sk).Level
 }
+func (h mindMuses) Passion(id entity.EntityID, sk skill.ID) skill.Passion {
+	return h.g.skillOf(id, sk).Passion
+}
+func (h mindMuses) CanRun(id entity.EntityID) bool {
+	if fx := h.g.sk.stats[id]; fx != nil {
+		return !slices.Contains(fx.traits, trait.Plodding)
+	}
+	return true
+}
+func (h mindMuses) CanShoot(id entity.EntityID) bool { return h.g.canViolence(id) }
 func (h mindMuses) Inspired(id entity.EntityID, label string) {
-	letterf(h.g, letters.Good, "Inspiration", id, "%s has %s: the next thing %s makes or builds turns out better.",
-		h.g.personName(id), label, h.g.personName(id))
+	letterf(h.g, letters.Good, "Inspiration", id, "%s gained %s.", h.g.personName(id), label)
 }
 func (h mindMuses) InspirationEnded(id entity.EntityID, label string) {
 	p, _ := h.g.positions.Get(id)

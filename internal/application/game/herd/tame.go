@@ -104,7 +104,7 @@ func (t *Taming) Do(id entity.EntityID, j job.Record) {
 	}
 	t.feed(id, j)
 	a, _ = h.Animal(j.Target)
-	if h.Roll(1000) < Chance(h.Animals(id), a) {
+	if h.UseTameInspiration(id) || h.Roll(1000) < Chance(h.Animals(id), a) {
 		h.Tamed(id, j.Target)
 	} else {
 		h.TameFailed(id, j.Target)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"rimworld-go/internal/application/game/mind"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/building/construction"
@@ -19,15 +20,8 @@ import (
 	"rimworld-go/pkg/mathx"
 )
 
-// Trade sessions (PLAY-024, agent S2). The Trade job walks a colonist up
-// to the caravan's trader (re-pathing if it strolled), waits tradeWait
-// ticks and opens the session; the job then holds in Do until CloseTrade,
-// the trader leaves or falls, or the negotiator goes down or is pulled
-// off the job (checkSessions). The orbital session opens from the comms
-// dialog (comms.go) and is held by the UseComms job. The dialog reads
-// TradeView and proposes deals (command.ProposeTrade); cmdProposeTrade
-// settles each one against the live counts, since the sim runs while the
-// dialog is open.
+// PLAY-024: trade sessions hold the negotiator's job open and settle
+// live goods/stock when a deal is submitted or a trader departs.
 
 // Trade order refusals.
 const (
@@ -75,7 +69,7 @@ func (g *Game) party(s *tradeSession) (tradeParty, bool) {
 // termsFor are the price terms negotiator id gets from faction f (nil:
 // the orbital ship, goodwill 0).
 func (g *Game) termsFor(id entity.EntityID, f *faction.Faction) trade.Terms {
-	t := trade.Terms{Social: int(g.skillOf(id, skill.Social).Level)}
+	t := trade.Terms{Social: int(g.skillOf(id, skill.Social).Level), Inspired: g.mind.Inspire.Has(id, mind.Trade)}
 	if f != nil {
 		t.Goodwill, t.Hostile = f.Goodwill, f.Relation == faction.Hostile
 	}
@@ -86,6 +80,9 @@ func (g *Game) termsFor(id entity.EntityID, f *faction.Faction) trade.Terms {
 // (Social and goodwill), within what the floor allows.
 func priceModPct(t trade.Terms) int {
 	centi := t.Social*trade.SocialStepCenti + t.Goodwill*trade.BuyGoodwillMilli/10
+	if t.Inspired {
+		centi += 1800
+	}
 	return min(centi/100, trade.BuyMarkupPct-trade.BuyFloorPct)
 }
 
@@ -171,7 +168,11 @@ func (g *Game) cmdProposeTrade(offer string, gift bool) {
 		return
 	}
 	gd := g.colonyGoods(orbital)
-	res := trade.Settle(deltas, gd.counts, *p.stock, g.termsFor(s.negotiator, p.f), gift)
+	terms := g.termsFor(s.negotiator, p.f)
+	if gift {
+		terms.Inspired = false
+	}
+	res := trade.Settle(deltas, gd.counts, *p.stock, terms, gift)
 	if !res.OK() {
 		s.reason = res.Reject.String()
 		return
@@ -192,6 +193,7 @@ func (g *Game) cmdProposeTrade(offer string, gift bool) {
 		g.message(pos.X, pos.Y, "%s accepted the gift (%+d goodwill).", p.f.Name, res.Goodwill)
 		return
 	}
+	g.mind.Inspire.Use(s.negotiator, mind.Trade)
 	var deliver []trade.Line
 	switch {
 	case res.Silver < 0:

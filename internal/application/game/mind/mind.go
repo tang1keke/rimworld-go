@@ -49,7 +49,8 @@ type Track struct {
 type Save struct {
 	Track map[entity.EntityID]Track
 	Calm  map[entity.EntityID]uint64
-	// PRD-2 (inspiration.go): inspirations and the calm after one.
+	// InspireCalm is retained for old gob saves; Core permits the next
+	// inspiration on the next eligible hourly check.
 	Inspire     map[entity.EntityID]Inspiration
 	InspireCalm map[entity.EntityID]uint64
 }
@@ -143,6 +144,9 @@ func (m *Mind) Tick(id entity.EntityID, j job.Record) bool {
 // pawn can't act out; the dead keep no break.
 func (m *Mind) Downed(id entity.EntityID) {
 	h := m.h
+	if !h.Alive(id) {
+		m.Inspire.end(id)
+	}
 	k, until, ok := h.Break(id)
 	if !ok {
 		return
