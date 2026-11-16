@@ -266,7 +266,7 @@ saveState.Bios{}.Look.Skin uint8
 saveState.Bios{}.Look.Vest bool
 saveState.Bios{}.Look.VestCloth uint8
 saveState.Bios{}.Nick string
-saveState.Bios{}.Skills rimworld-go/internal/domain/pawn/skill.Set = [11]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.Bios{}.Skills rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
 saveState.Bios{}.Skills[] rimworld-go/internal/domain/pawn/skill.Skill
 saveState.Bios{}.Skills[].Carry int16
 saveState.Bios{}.Skills[].Level uint8
@@ -847,7 +847,7 @@ saveState.NG1.Setup.Colonists[].Look.Skin uint8
 saveState.NG1.Setup.Colonists[].Look.Vest bool
 saveState.NG1.Setup.Colonists[].Look.VestCloth uint8
 saveState.NG1.Setup.Colonists[].Nick string
-saveState.NG1.Setup.Colonists[].Skills rimworld-go/internal/domain/pawn/skill.Set = [11]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.NG1.Setup.Colonists[].Skills rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
 saveState.NG1.Setup.Colonists[].Skills[] rimworld-go/internal/domain/pawn/skill.Skill
 saveState.NG1.Setup.Colonists[].Skills[].Carry int16
 saveState.NG1.Setup.Colonists[].Skills[].Level uint8
@@ -1168,7 +1168,7 @@ saveState.People.Persons[].Bio.Look.Skin uint8
 saveState.People.Persons[].Bio.Look.Vest bool
 saveState.People.Persons[].Bio.Look.VestCloth uint8
 saveState.People.Persons[].Bio.Nick string
-saveState.People.Persons[].Bio.Skills rimworld-go/internal/domain/pawn/skill.Set = [11]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.People.Persons[].Bio.Skills rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
 saveState.People.Persons[].Bio.Skills[] rimworld-go/internal/domain/pawn/skill.Skill
 saveState.People.Persons[].Bio.Skills[].Carry int16
 saveState.People.Persons[].Bio.Skills[].Level uint8
@@ -1574,13 +1574,13 @@ saveState.SkillLive rimworld-go/internal/application/game.savedSkillLive
 saveState.SkillLive.Learned map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game.savedLearn
 saveState.SkillLive.Learned{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.SkillLive.Learned{} rimworld-go/internal/application/game.savedLearn
-saveState.SkillLive.Learned{}.Carry [11]int16
+saveState.SkillLive.Learned{}.Carry [12]int16
 saveState.SkillLive.Learned{}.Carry[] int16
 saveState.SkillLive.Learned{}.Day int32
-saveState.SkillLive.Learned{}.Today [11]int32
+saveState.SkillLive.Learned{}.Today [12]int32
 saveState.SkillLive.Learned{}.Today[] int32
-saveState.SkillLive.Learned{}.Week [7][11]int32
-saveState.SkillLive.Learned{}.Week[] [11]int32
+saveState.SkillLive.Learned{}.Week [7][12]int32
+saveState.SkillLive.Learned{}.Week[] [12]int32
 saveState.SkillLive.Learned{}.Week[][] int32
 saveState.SkillLive.NeedCarry map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game.savedNeedCarry
 saveState.SkillLive.NeedCarry{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
@@ -1596,7 +1596,7 @@ saveState.SkillLive.Working{}.Skill rimworld-go/internal/domain/pawn/skill.ID = 
 saveState.SkillLive.Working{}.Tick uint64
 saveState.Skills map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/domain/pawn/skill.Set
 saveState.Skills{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
-saveState.Skills{} rimworld-go/internal/domain/pawn/skill.Set = [11]rimworld-go/internal/domain/pawn/skill.Skill
+saveState.Skills{} rimworld-go/internal/domain/pawn/skill.Set = [12]rimworld-go/internal/domain/pawn/skill.Skill
 saveState.Skills{}[] rimworld-go/internal/domain/pawn/skill.Skill
 saveState.Skills{}[].Carry int16
 saveState.Skills{}[].Level uint8

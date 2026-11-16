@@ -137,6 +137,10 @@ type pawnFx struct {
 	gear      int32   // the worn armour's MoveSpeed offset it was built with (game/gearfacts, GEAR-009)
 }
 
+func (fx *pawnFx) hasTrait(t trait.ID) bool {
+	return fx != nil && slices.Contains(fx.traits, t)
+}
+
 // learnLog is how much each skill learned today and in the last 7 days,
 // and the hundredths of a point learning-rate factors left over.
 type learnLog struct {
@@ -558,11 +562,10 @@ const ReasonSkill = "not skilled enough"
 
 // meleeOf is id's melee numbers for the wiki's hit and dodge curves
 // (CBT-2): its Melee level (a creature has none), Sight, Manipulation and
-// Moving, the MeleeAcc stat as a points offset after the curve (original
-// tuning), downed. The game has no Brawler or Nimble trait yet.
+// Moving, Brawler's melee bonus, the MeleeAcc offset and downed state.
 func (g *Game) meleeOf(id entity.EntityID) attack.Melee {
 	k := keyOf(g.bodies[id]) // body.go: Moving, Manipulation, Sight (healthy without a body)
-	m := attack.Melee{Moving: int(k[0]), Manip: int(k[1]), Sight: int(k[2])}
+	m := attack.Melee{Moving: int(k[0]), Manip: int(k[1]), Sight: int(k[2]), Brawler: g.sk.stats[id].hasTrait(trait.Brawler)}
 	if v, ok := g.vital.Get(id); ok {
 		m.Skill, m.Skilled, m.Offset, m.Down = int(g.skillOf(id, skill.Melee).Level), true, 10*int(g.statOf(id, stat.MeleeAcc)), v.Status != health.Alive
 	}

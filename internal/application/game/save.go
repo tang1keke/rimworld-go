@@ -71,56 +71,20 @@ import (
 	"rimworld-go/internal/domain/world/weather"
 )
 
-// Saved games: the complete authoritative state, gob-encoded and
-// gzipped behind a small header. Loading restores it exactly, so a loaded
-// game continues tick for tick as the original would have (the RNG, the
-// entity allocator and every store are captured). Derived caches (room
-// stats) are rebuilt on load.
+// Saved games contain the authoritative simulation state as a gob stream
+// behind a compressed header. Only v18 and newer saves use the 12-skill
+// schema; the decoder rejects older formats before reading the body.
+// Derived caches are rebuilt after import.
 //
-// Versions (NG-1 §5.8): v1 is every save before NG-1; v2 adds the header
-// fields below and writes the blocked tiles as a bitset (BlockedBits).
-// Every other field is additive, so Load reads both: a v1 save gets the
-// legacy setup (no storyteller, difficulty or factions) and neutral bios.
-// v3 (PLAY-017) adds unclaimed map items and harvest marks on ripe zone
-// crops; a v1/v2 save is migrated on load (migrateClaims,
-// migrateHarvestMarks). v4 (PLAY-020) adds medical beds: an older save's
-// hospital beds become medical (migrateMedicalBeds). v5 (PLAY-021) adds
-// electricity (Power): lamps need power, so an older save's lamps are to
-// become torch lamps (the v < 5 step). v6 (MED-02) makes infections body
-// conditions racing immunity: an older save's per-pawn infections
-// (Wounds, now read only) become infection conditions on each pawn's
-// worst open wound (migrateWoundInfections). v7 (FOOD-1) replaces the
-// down-at-0 starvation with malnutrition: a pawn an older save has down
-// from hunger gets up (migrateStarvation). The bars keep their scale
-// (needs.Full is 1.0 nutrition), so stored hunger and animal food carry
-// over as they are. v8 (TEMP-*) makes everyday clothes real garments
-// (TEMP-4): an older save's colonists, who wore them implicitly, get a
-// T-shirt and pants where their skin slots are free (Outfit.Everyday).
-// v9 (RSCH-1) moves research to the wiki costs: each project keeps its
-// fraction of the cost, and the resized research benches keep their place
-// where they still fit or are refunded (migrateBenches). v10 (STK-BN)
-// does the same for the benches it gives the wiki footprints (game/resize).
-// v11 (AX-0) is for the AX owners' steps (A2 tables, A3 floors and carpets).
-// v12 (MAP-0) adds the extra open maps (ExtraMaps): an older binary refuses
-// a save it would read as the first map alone. v14 (GEAR-3) adds the
-// apparel policies (Outfits): an older save gets the defaults, everyone on
-// Anything. v15 (QST-1) adds the quest difficulty settings (an older save
-// gets rewards at 100 % and quest threats as its big threats) and the
-// quests. v16 (SAV-003) names the save's colony in the header
-// (savefmt.Info); an older header gets one from its name on reading. v17
-// (EAI-0) adds each map's wealth tracker (game/wealth) and the factions'
-// wars (Faction.Enemies): an older save's first map is counted once, and
-// no faction is at war with another yet.
-// v18 (MED-14): artificial body parts are represented by Replacements and
-// additive Implants. Old Fitted data is translated at the body-save
-// read boundary; nested animal bodies are migrated upon import.
-// migrateSave runs the steps a save's version is missing.
-
+// Legacy migration helpers below document earlier save formats. They
+// remain unreachable from the public loader while minSaveVersion is 18.
+//
 // SaveVersion is the version new saves are written with.
+// v18 replaces 11-skill gob arrays with the canonical 12-skill arrays.
 const SaveVersion = 18
 
 // minSaveVersion is the oldest version Load still reads.
-const minSaveVersion = 1
+const minSaveVersion = 18
 
 // SupportedSaveVersion reports whether Load can read a save of version v.
 func SupportedSaveVersion(v int) bool { return v >= minSaveVersion && v <= SaveVersion }

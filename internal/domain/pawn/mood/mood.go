@@ -161,6 +161,7 @@ const (
 	ExpectationsModerate
 	ExpectationsHigh
 	ExpectationsSkyHigh
+	BrawlerRanged // wiki: Traits, Brawler's ranged-weapon mood
 	numKinds
 )
 

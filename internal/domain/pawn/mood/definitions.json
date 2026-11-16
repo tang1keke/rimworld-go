@@ -1208,5 +1208,16 @@
     "stack_limit": 0,
     "stack_factor": 0,
     "source": "wiki: Wealth"
+  },
+  {
+    "id": 110,
+    "kind": "BrawlerRanged",
+    "label": "carrying a ranged weapon",
+    "value": -10,
+    "duration": "0",
+    "group": "groupNone",
+    "stack_limit": 0,
+    "stack_factor": 0,
+    "source": "wiki: Traits"
   }
 ]

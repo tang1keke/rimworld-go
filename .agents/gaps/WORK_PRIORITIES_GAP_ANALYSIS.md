@@ -37,7 +37,7 @@ Scope: the Work tab and how a colonist picks work: the tie-break between work ty
 | 12 | Mine | 12 | 9 | |
 | 13 | Plant cut | 11 | 10 | |
 | 14, 15 | Smith, Tailor | in Craft | in Craft | WRK-102 |
-| 16 | Art | absent | absent | No Artistic skill or art system |
+| 16 | Art | absent | absent | Artistic skill and sculpting exist (PRD-6); separate Art work priority remains absent |
 | 17 | Craft | 7 | 11 | |
 | 18 | Haul | 4 | 12 | The largest error, and the cause of "hauls before it finishes the field" |
 | 19 | Clean | 14 | 13 | |

@@ -18,8 +18,11 @@ func TestKeysLabelsParse(t *testing.T) {
 			t.Fatalf("Parse(%q) = %d,%v", k, got, ok)
 		}
 	}
-	if NumSkills.Key() != "" || NumSkills.Label() != "" {
-		t.Fatal("out of range skill has a name")
+	if NumSkills.Key() != "" || NumSkills.Label() != "" || Artistic.Key() != "artistic" {
+		t.Fatal("invalid skill keys")
+	}
+	if NumSkills != 12 || Artistic != 11 {
+		t.Fatal("Artistic must be part of the skill set, appended after old skills")
 	}
 	if _, ok := Parse("juggling"); ok {
 		t.Fatal("unknown key parsed")

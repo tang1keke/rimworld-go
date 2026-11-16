@@ -11,6 +11,7 @@ import (
 	"rimworld-go/internal/domain/pawn/health"
 	"rimworld-go/internal/domain/pawn/mood"
 	"rimworld-go/internal/domain/pawn/needs"
+	"rimworld-go/internal/domain/pawn/trait"
 	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/internal/domain/world/filth"
@@ -207,6 +208,9 @@ func (g *Game) appendThoughts(dst []mood.Thought, id entity.EntityID) []mood.Tho
 	}
 	if g.apparel[id].Naked() { // TEMP-4, craft/garment.go: no torso or leg cover (wiki: Naked)
 		states = append(states, mood.Naked)
+	}
+	if hasRanged(g, id) && g.sk.stats[id].hasTrait(trait.Brawler) {
+		states = append(states, mood.BrawlerRanged)
 	}
 	if v, _ := g.vital.Get(id); v.Status != health.Dead && g.unburiedNear(pos) {
 		states = append(states, mood.UnburiedCorpse)

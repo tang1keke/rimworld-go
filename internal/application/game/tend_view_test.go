@@ -18,6 +18,9 @@ import (
 // wrote).
 func loadAsVersionWith(t *testing.T, g *Game, v int, edit func(*saveState)) *Game {
 	t.Helper()
+	if !SupportedSaveVersion(v) {
+		t.Skipf("legacy migration fixture v%d is outside the v18+ runtime save contract", v)
+	}
 	var buf bytes.Buffer
 	if err := g.Save(&buf, "old"); err != nil {
 		t.Fatal(err)

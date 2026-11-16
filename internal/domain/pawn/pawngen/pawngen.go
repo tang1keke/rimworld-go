@@ -310,8 +310,15 @@ func rollSkills(rng *randx.Rand, p Pawn, years int) skill.Set {
 		}
 	}
 	var capable []skill.ID
+	brawler := false
+	for _, t := range p.Traits {
+		if t == trait.Brawler {
+			brawler = true
+			break
+		}
+	}
 	for id := skill.ID(0); id < skill.NumSkills; id++ {
-		if !inc.DisablesSkill(id) {
+		if !inc.DisablesSkill(id) && !(brawler && id == skill.Shooting) {
 			capable = append(capable, id)
 		}
 	}

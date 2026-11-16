@@ -116,6 +116,7 @@ func TestSavedThoughtKindIDs(t *testing.T) {
 		ExpectationsModerate,
 		ExpectationsHigh,
 		ExpectationsSkyHigh,
+		BrawlerRanged,
 	} {
 		if int(kind) != id {
 			t.Fatalf("saved thought kind %d became %d", id, kind)

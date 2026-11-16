@@ -113,7 +113,9 @@ func (n *Inspirations) eligible(id entity.EntityID, k InspirationKind) bool {
 	h := n.h
 	switch k {
 	case Creativity:
-		return h.SkillLevel(id, skill.Crafting) >= CreativityMinSkill || h.SkillLevel(id, skill.Construction) >= CreativityMinSkill
+		return h.SkillLevel(id, skill.Artistic) >= CreativityMinSkill ||
+			h.SkillLevel(id, skill.Crafting) >= CreativityMinSkill ||
+			h.SkillLevel(id, skill.Construction) >= CreativityMinSkill
 	case Recruitment, Trade:
 		return h.SkillLevel(id, skill.Social) >= FocusMinSkill
 	case Surgery:
@@ -131,10 +133,11 @@ func (n *Inspirations) eligible(id entity.EntityID, k InspirationKind) bool {
 }
 
 // Only skill-related inspirations gain additional lottery weight.
-// Creativity's Core weight is tied to Artistic, which this game lacks.
 func (n *Inspirations) weight(id entity.EntityID, k InspirationKind) int {
 	var sk skill.ID
 	switch k {
+	case Creativity:
+		sk = skill.Artistic
 	case Recruitment, Trade:
 		sk = skill.Social
 	case Surgery:

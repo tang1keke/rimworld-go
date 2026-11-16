@@ -223,4 +223,6 @@ var defs = [numKinds]Def{
 	ExpectationsHigh: {Label: "high expectations", Value: 6, Duration: 0, Group: groupNone, StackLimit: 0, StackFactor: 0},
 	// wiki: Wealth
 	ExpectationsSkyHigh: {Label: "sky-high expectations", Value: 0, Duration: 0, Group: groupNone, StackLimit: 0, StackFactor: 0},
+	// wiki: Traits
+	BrawlerRanged: {Label: "carrying a ranged weapon", Value: -10, Duration: 0, Group: groupNone, StackLimit: 0, StackFactor: 0},
 }

@@ -253,7 +253,7 @@ interchangeable workers.
 
 ## 3.4 Skills
 
--   [-] **Core skill set** (NG-1: 11 skills, no Artistic)
+-   [x] **Core skill set** (PRD-6: 12 regular skills including Artistic; v18 save schema)
     -   Shooting.
     -   Melee.
     -   Construction.
@@ -1261,7 +1261,7 @@ treatment, and surgery are major colony-management systems.
 
 ## 14.5 Art
 
--   [x] **Artistic work** (PRD-3: art bench carves small, large and grand sculptures; quality rolled from the worker's skill and inspiration (PRD-2); beauty 50/100/400 wiki times the quality factor, read by the beauty need and room stats; maker named in the generated text; `craft/art.go`)
+-   [x] **Artistic work** (PRD-3, PRD-6: the art bench makes three sculptures; skill/quality/work speed use Artistic, inspiration lifts quality; beauty 50/100/400 wiki times quality, creator named in generated art text; craft/art.go)
     -   Sculptures/art objects.
     -   quality.
     -   beauty.
