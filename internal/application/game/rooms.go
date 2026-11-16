@@ -166,18 +166,18 @@ func (g *Game) thoughts(id entity.EntityID) []mood.Thought {
 	return g.appendThoughts(nil, id)
 }
 
-// thoughtLevel is mood.Level(g.thoughts(id)), the list built in a reused
-// buffer (the mood checks run it for every working colonist).
 func (g *Game) thoughtLevel(id entity.EntityID) int {
 	g.thoughtBuf = g.appendThoughts(g.thoughtBuf[:0], id)
 	return mood.Level(g.thoughtBuf)
 }
 
-// appendThoughts appends the colonist's thoughts to dst.
 func (g *Game) appendThoughts(dst []mood.Thought, id entity.EntityID) []mood.Thought {
 	n, _ := g.need.Get(id)
 	var stateBuf [12]mood.Kind
 	states := stateBuf[:0]
+	if g.colonist(id) || g.prison.Is(id) {
+		states = append(states, mood.ExpectationsForWealth(g.wealth.MoodValue()))
+	}
 	switch n.Settle().Band { // FOOD-1, wiki: Saturation (with hysteresis)
 	case needs.Hungry:
 		states = append(states, mood.Hungry)
@@ -211,15 +211,19 @@ func (g *Game) appendThoughts(dst []mood.Thought, id entity.EntityID) []mood.Tho
 	if g.incidents.Fallout(uint64(g.clock.Now())) && !g.roofAt(pos.X, pos.Y).Roofed() { // FOOD-6, wiki: Toxic fallout
 		states = append(states, mood.ToxicFallout)
 	}
-	ts := g.traitThoughts(id, mood.AppendActive(dst, g.memories[id].Prune(uint64(g.clock.Now())), states...)) // skills.go
-	ts = append(ts, g.bodyThoughts(id)...)                                                                    // body.go
-	ts = append(ts, doseOf(g).Thoughts(id)...)                                                                // game/dose
-	return append(ts, g.socialThoughts(id)...)                                                                // social_mood.go
+	ts := g.traitThoughts(id, mood.AppendActiveAt(dst, g.memories[id], uint64(g.clock.Now()), states...)) // skills.go
+	ts = append(ts, g.bodyThoughts(id)...)                                                                // body.go
+	ts = append(ts, doseOf(g).Thoughts(id)...)                                                            // game/dose
+	return append(ts, g.socialThoughts(id)...)                                                            // social_mood.go
 }
 
-// moodOf is the colonist's mood: the level its thoughts add up to, as the
-// social layer smooths it (social_mood.go).
-func (g *Game) moodOf(id entity.EntityID) int { return g.smoothedMood(id, g.thoughtLevel(id)) }
+// moodOf reads actual mood, calculating the initial target when necessary.
+func (g *Game) moodOf(id entity.EntityID) int {
+	if m, ok := g.smoothedMood(id); ok {
+		return m
+	}
+	return g.thoughtLevel(id)
+}
 
 // afterEat records what pawn id ate from stack st (game/diet: the wiki's
 // meal thoughts) and where (no table -3; a patient or prisoner fed in bed

@@ -5,7 +5,6 @@ import (
 
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/pawn/mentalbreak"
-	"rimworld-go/internal/domain/pawn/mood"
 	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/entity"
 )
@@ -41,7 +40,7 @@ func TestOnlyTheHourlyCheckRolls(t *testing.T) {
 	for (f.now+checkStagger)%clock.TicksPerHour == 0 {
 		f.now++
 	}
-	if m.Tick(1, job.Record{}) || f.ri != 0 {
+	if m.Tick(1, job.Record{}) || f.ri != 0 || f.awakeCalls != 0 {
 		t.Fatal("a break check off the hourly tick")
 	}
 }
@@ -90,30 +89,18 @@ func TestThresholdsFollowTheTraitShift(t *testing.T) {
 	}
 }
 
-func TestCatharsisBlocksANewBreak(t *testing.T) {
+func TestInterruptedBreakDoesNotForceImmunity(t *testing.T) {
 	f := newFake(1)
 	m := New(f)
 	f.mood[1] = 0
 	m.Force(1, mentalbreak.SadWander)
 	m.End(1)
-	calm := m.calm[1]
-	if calm != f.now+mood.DefOf(mood.Catharsis).Duration {
-		t.Fatalf("calm until %d", calm)
+	if len(f.recovered) != 1 || len(f.naturalRecover) != 0 {
+		t.Fatal("forced end must not award catharsis")
 	}
-	for f.now < calm-clock.TicksPerHour {
-		toCheck(f, 1)
-		if m.Tick(1, job.Record{}) || f.ri != 0 {
-			t.Fatal("broke while still feeling catharsis")
-		}
-	}
-	for f.now < calm {
-		toCheck(f, 1)
-	}
+	toCheck(f, 1)
 	if !m.Tick(1, job.Record{}) {
-		t.Fatal("the calm is over: a zero roll breaks")
-	}
-	if _, ok := m.calm[1]; ok {
-		t.Fatal("an expired calm is dropped")
+		t.Fatal("a low mood pawn must remain susceptible to a new break")
 	}
 }
 
@@ -200,8 +187,8 @@ func TestBreakLastsItsMinimum(t *testing.T) {
 		}
 	}
 	f.now = until
-	if m.Tick(1, job.Record{}) || len(f.recovered) != 1 {
-		t.Fatal("the break ends at its time with recovery")
+	if m.Tick(1, job.Record{}) || len(f.naturalRecover) != 1 {
+		t.Fatal("the break ends naturally at its time with recovery")
 	}
 	if _, _, ok := f.Break(1); ok {
 		t.Fatal("record left behind")
@@ -225,15 +212,15 @@ func TestSaveRoundTripAndTarget(t *testing.T) {
 	if m.Target(1) != 2 || m.Target(2) != 0 {
 		t.Fatalf("targets %d %d", m.Target(1), m.Target(2))
 	}
-	m.calm[2] = 77
 	s := m.Export()
+	s.Calm = map[entity.EntityID]uint64{2: 77} // legacy save field
 	n := New(f)
 	n.Import(s)
-	if n.Target(1) != 2 || n.calm[2] != 77 {
-		t.Fatal("state lost in the save")
+	if n.Target(1) != 2 || len(n.Export().Calm) != 0 {
+		t.Fatal("legacy calm immunity must not survive load")
 	}
 	n.Import(Save{}) // an older save
-	if n.Target(1) != 0 || len(n.calm) != 0 {
+	if n.Target(1) != 0 {
 		t.Fatal("an empty save clears the state")
 	}
 	m.Force(1, mentalbreak.SadWander)
@@ -250,11 +237,47 @@ func TestEndAndEatJobKept(t *testing.T) {
 		t.Fatal("a starving berserker still eats")
 	}
 	m.End(1)
-	if _, _, ok := f.Break(1); ok || len(f.recovered) != 1 {
-		t.Fatal("End ends the break with recovery")
+	if _, _, ok := f.Break(1); ok || len(f.recovered) != 1 || len(f.naturalRecover) != 0 {
+		t.Fatal("arrest must interrupt without catharsis")
 	}
 	m.End(1) // nothing to end
 	if len(f.recovered) != 1 {
 		t.Fatal("ending twice")
+	}
+}
+
+func TestSleepingPawnSkipsBreakAndInspirationChecks(t *testing.T) {
+	f := newFake(1, 2)
+	m := New(f)
+	f.mood[1] = 0
+	f.sleeping[1] = true
+	toCheck(f, 1)
+	if m.Tick(1, job.Record{Kind: job.Sleep, State: job.Do}) {
+		t.Fatal("a sleeping pawn started a mental break")
+	}
+	if f.ri != 0 || len(f.started) != 0 {
+		t.Fatalf("sleeping pawn used break rolls: %d, %+v", f.ri, f.started)
+	}
+	f.sleeping[1] = false
+	toCheck(f, 1)
+	if !m.Tick(1, job.Record{}) || len(f.started) == 0 {
+		t.Fatal("awake pawn did not resume mental break checks")
+	}
+}
+
+func BenchmarkSleepingMentalCheck(b *testing.B) {
+	f := newFake(1)
+	m := New(f)
+	f.sleeping[1] = true
+	f.mood[1] = 0
+	f.now = clock.TicksPerHour - checkStagger
+	j := job.Record{Kind: job.Sleep, State: job.Do}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m.Tick(1, j)
+		if _, _, ok := f.Break(1); ok {
+			m.End(1)
+		}
 	}
 }

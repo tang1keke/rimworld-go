@@ -136,7 +136,10 @@ func termViews(ts []social.Term) []OpinionTermView {
 // shows (and the target it moves to) and its latest interaction bubble.
 func (g *Game) fillSocialPawn(pv *PawnView, target int) {
 	pv.MoodTarget = target
-	pv.Mood = g.smoothedMood(pv.ID, target)
+	pv.Mood = target
+	if m, ok := g.smoothedMood(pv.ID); ok {
+		pv.Mood = m
+	}
 	pv.MoodLabel = mood.Label(pv.Mood)
 	pv.Interaction, pv.InteractTick = g.lastInteraction(pv.ID)
 	pv.SocialFight = g.mind.InFight(pv.ID) // mind/fight.go (M6)

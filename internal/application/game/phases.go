@@ -61,7 +61,7 @@ func phaseSystems(g *Game) *sched.Schedule {
 		w(PhaseClimate, PhaseClimate, g.phaseClimate).At(climateInterval, 0),
 		w(PhaseMedical, PhaseMedical, g.phaseMedical).At(hour, cadence.OffMedical),
 		w(PhaseNeeds, PhaseNeeds, g.phaseNeeds), w(PhaseAI, PhaseAI, g.phaseAI), w(PhaseJobs, PhaseJobs, g.phaseJobs),
-		w("social-day", PhaseSocial, func() { g.socialDay(now()) }).ForColony().At(clock.TicksPerDay, cadence.OffSocialDay).When(talk).Then("gather"),
+		w("social-day", PhaseSocial, func() { g.socialDay(now()) }).ForColony().At(clock.TicksPerDay, cadence.OffSocialDay).When(func() bool { return talk() || len(g.memories) > 0 }).Then("gather"),
 		w("gather", PhaseSocial, func() { g.gatherTick(now()) }).ForColony().When(talk).Then(PhaseSocial), // gathering.go: weddings and parties (M5)
 		w(PhaseSocial, PhaseSocial, g.phaseSocial), w(PhaseAnimals, PhaseAnimals, g.phaseAnimals),
 		w("wealth", PhaseThreats, func() { g.wealth.Step(now()) }).At(wealth.Stride, 0).Then("arrival"),         // game/wealth (EAI-014): each map's sweep, a slice a step

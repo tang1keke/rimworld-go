@@ -32,12 +32,10 @@ const (
 	partnerRadius    = 6
 )
 
-// phaseSocial runs after phaseJobs and the colony's social day and
-// gatherings (phaseSystems): each due colonist's interaction check and
-// mood step. MAP-0: each map's colonists talk on its pass; visitors talk
-// on the colony's, the first map's pass (even with nobody on it, once a
-// second map is open).
+// phaseSocial updates due colonists' interactions and moods on each map,
+// then visitors on the primary map.
 func (g *Game) phaseSocial() {
+	g.wealth.PrimeForMood()
 	colony, now := primary(g) && (len(g.pawnIDs) > 0 || len(g.maps) > 1), uint64(g.clock.Now())
 	for _, id := range g.pawnIDs {
 		u := uint64(id)

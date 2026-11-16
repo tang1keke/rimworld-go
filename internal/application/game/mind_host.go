@@ -66,11 +66,11 @@ func (h mindPawns) Pos(id entity.EntityID) (int, int, bool) {
 	p, ok := h.g.positions.Get(id)
 	return p.X, p.Y, ok
 }
-func (h mindPawns) Alive(id entity.EntityID) bool     { return h.g.onMap(id) }
-func (h mindPawns) Standing(id entity.EntityID) bool  { return h.g.alive(id) && h.g.onMap(id) }
-func (h mindPawns) Colonists() []entity.EntityID      { return h.g.pawnIDs }
-func (h mindPawns) Mood(id entity.EntityID) int       { return h.g.moodOf(id) }
-func (h mindPawns) BreakShift(id entity.EntityID) int { return h.g.breakOffset(id) }
+func (h mindPawns) Alive(id entity.EntityID) bool    { return h.g.onMap(id) }
+func (h mindPawns) Standing(id entity.EntityID) bool { return h.g.alive(id) && h.g.onMap(id) }
+func (h mindPawns) Awake(id entity.EntityID) bool    { return !h.g.asleep(id) }
+func (h mindPawns) Colonists() []entity.EntityID     { return h.g.pawnIDs }
+func (h mindPawns) Mood(id entity.EntityID) int      { return h.g.moodOf(id) }
 
 // Prisoners is a fresh list (a murderous rage picks its target once).
 func (h mindPawns) Prisoners() []entity.EntityID {
@@ -84,6 +84,8 @@ func (h mindPawns) Prisoners() []entity.EntityID {
 }
 
 type mindBreaks struct{ g *Game }
+
+func (h mindBreaks) BreakShift(id entity.EntityID) int { return h.g.breakOffset(id) }
 
 func (h mindBreaks) Break(id entity.EntityID) (mentalbreak.Kind, uint64, bool) {
 	b, ok := h.g.breaks[id]
@@ -313,13 +315,14 @@ func (h mindEvents) Started(id entity.EntityID, k mentalbreak.Kind, target entit
 	g.post(MessageView{Tick: uint64(g.clock.Now()), Text: text, X: pos.X, Y: pos.Y, Danger: mind.Hostile(k), Focus: id,
 		Letter: true, Title: "Mental break: " + def.Label, Kind: kind})
 }
-func (h mindEvents) Recovered(id entity.EntityID, _ mentalbreak.Kind) {
-	g := h.g
-	g.logEvent(id, logEntry{Kind: evlog.Recovered})
-	g.remember(id, mood.Catharsis)
-	pos, _ := g.positions.Get(id)
-	g.message(pos.X, pos.Y, "%s has calmed down and feels a little better.", g.name(id))
-	g.interrupt(id, job.Cancelled)
+func (h mindEvents) Recovered(id entity.EntityID, _ mentalbreak.Kind, natural bool) {
+	if natural {
+		h.g.logEvent(id, logEntry{Kind: evlog.Recovered})
+		h.g.remember(id, mood.Catharsis)
+		pos, _ := h.g.positions.Get(id)
+		h.g.message(pos.X, pos.Y, "%s has calmed down and feels a little better.", h.g.name(id))
+	}
+	h.g.interrupt(id, job.Cancelled)
 }
 
 // mindMuses: inspirations' skills and news (mind/inspiration.go, PRD-2).

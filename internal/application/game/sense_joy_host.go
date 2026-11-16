@@ -51,7 +51,10 @@ type doseHabits struct{ g *Game }
 
 func (h doseHabits) Mood(id entity.EntityID) (int, int) {
 	t := h.g.thoughtLevel(id)
-	return h.g.smoothedMood(id, t), t
+	if m, ok := h.g.smoothedMood(id); ok {
+		return m, t
+	}
+	return t, t
 }
 func (h doseHabits) PotentialMood() bool { return senseOf(h.g).Rules.On(gameplay.DrugPotentialMood) }
 func (h doseHabits) PackDoses() bool     { return senseOf(h.g).Rules.On(gameplay.AnyDrugFromPack) }

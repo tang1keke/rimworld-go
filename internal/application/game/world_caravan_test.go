@@ -12,6 +12,7 @@ import (
 	"rimworld-go/internal/domain/pawn/health"
 	"rimworld-go/internal/domain/pawn/mood"
 	"rimworld-go/internal/domain/pawn/social"
+	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/command"
 	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/internal/domain/world/caravan"
@@ -378,5 +379,36 @@ func TestEveryoneGone(t *testing.T) {
 	g.ng.pods[0].Landed = true
 	if !everyoneGone(g) {
 		t.Fatal("a landed pod still counts")
+	}
+}
+
+func TestCaravanMemoryExpirySurvivesSaveLoad(t *testing.T) {
+	t.Parallel()
+	g := worldGame(t)
+	id := g.pawnIDs[0]
+	formCaravan(t, g, nearDest(t, g), id)
+	if !g.isStashed(id) {
+		t.Fatal("caravan member not stashed")
+	}
+	day := uint64(clock.TicksPerDay)
+	due := (uint64(g.clock.Now())/day+1)*day + 875
+	live := mood.Memory{Kind: mood.SleptInNiceRoom, Expires: due + day}
+	g.memories[id] = mood.Memories{{Kind: mood.AteRaw, Expires: due}, live}
+	g.clock.Advance(int(due - uint64(g.clock.Now())))
+	runPhase(g, PhaseSocial)
+	if m := g.memories[id]; len(m) != 1 || m[0] != live {
+		t.Fatalf("caravan member kept expired memory: %+v", m)
+	}
+	h := saveAndLoad(t, g)
+	if m := h.memories[id]; len(m) != 1 || m[0] != live {
+		t.Fatalf("loaded caravan memory %+v", m)
+	}
+	if g.StateHash() != h.StateHash() {
+		t.Fatal("caravan state changed during save/load")
+	}
+	g.Step(250)
+	h.Step(250)
+	if g.StateHash() != h.StateHash() {
+		t.Fatal("caravan state diverged after resuming")
 	}
 }

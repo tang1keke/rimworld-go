@@ -363,6 +363,7 @@ One row per handoff section. Open the ledger at `#<lowercased ID>`. A new task a
 | SIM-064-feeding-patients | Feeding patients, downed hunger | 2026-10-29 | [SIM.md](SIM.md#sim-064-feeding-patients) |
 | SIM-065-visit-sick-strip | Visiting the sick, strip | 2026-10-29 | [SIM.md](SIM.md#sim-065-visit-sick-strip) |
 | SIM-066-mental-breaks | Mental breaks that target others; W3 integration (SIM-063…066) | 2026-10-29 | [SIM.md](SIM.md#sim-066-mental-breaks) |
+| SIM-067-mood-lifecycle-definitions | Mood memory lifecycle and data separation | 2026-11-16 | [SIM.md](SIM.md#sim-067-mood-lifecycle-definitions) |
 | SND-001-audio-runtime | Audio runtime | 2026-10-21 | [SND.md](SND.md#snd-001-audio-runtime) |
 | SND-002-audio-asset-pipeline | Audio asset pipeline | 2026-10-21 | [SND.md](SND.md#snd-002-audio-asset-pipeline) |
 | SND-003-animal-voices | Animal voices (281 ElevenLabs clips) | 2026-10-21 | [SND.md](SND.md#snd-003-animal-voices) |

@@ -4,6 +4,7 @@ import (
 	"rimworld-go/internal/application/game/dossierview"
 	rlab "rimworld-go/internal/application/game/research"
 	"rimworld-go/internal/application/game/roster"
+	"rimworld-go/internal/application/game/wealth"
 	"strings"
 	"testing"
 
@@ -71,6 +72,7 @@ func TestNeutralPawnTimingsUnchanged(t *testing.T) {
 	g := New(Config{Seed: 3, Width: 12, Height: 8})
 	happy, _ := g.SpawnNamedPawn(2, 2, "Ada")
 	sad, _ := g.SpawnNamedPawn(5, 2, "Bo")
+	g.wealth.Import(&wealth.Save{Counted: true, Value: 308_000})
 	g.SetNeeds(sad, needs.CriticalHunger-1, needs.CriticalRest-1)
 	g.joy[sad] = 0
 	if g.moodOf(sad) >= mood.LowMood {

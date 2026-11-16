@@ -662,14 +662,15 @@ func joyOffHash(seed uint64, ticks int) (uint64, *Game) {
 // herd called against its attacker at tick 46605, saved in Wildlife.Rage),
 // manhunters lock a foe, predators may take a downed colonist.
 //
-// Re-pinned (EAI-014): the wealth tracker sweeps a slice every 25 ticks and
-// its cursor, hour and partial sum are saved state.
+// Re-pinned (EAI-014): wealth sweep cursors are saved with the partial sum.
+// Re-pinned (mood): sleep freezes mood and pauses breaks; vanilla expectations
+// contribute to each colonist's mood from colony wealth.
 func TestHabitsOffKeepTheHash(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
 		seed uint64
 		want uint64
-	}{{1, 0xe086929139a977ff}, {2, 0xaf29a560ac26f664}} {
+	}{{1, 0x9128e6719fee733b}, {2, 0xd294302f13d774d1}} {
 		h, g := joyOffHash(c.seed, 30000)
 		if h != c.want {
 			t.Errorf("seed %d: hash %#x, want %#x", c.seed, h, c.want)

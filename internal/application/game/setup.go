@@ -152,6 +152,7 @@ func (b *ColonyBuilder) runStep() {
 	default:
 		b.g.finishSetup()
 		b.g.warmIndexes(true) // jobindex.go: not on the first tick
+		b.g.wealth.PrimeForMood()
 		b.done = true
 	}
 	b.step++

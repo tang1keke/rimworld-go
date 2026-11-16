@@ -3,6 +3,7 @@ package game
 import (
 	"testing"
 
+	"rimworld-go/internal/application/game/wealth"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/pawn/mentalbreak"
@@ -72,6 +73,7 @@ func TestMiserableColonistBreaksAndRecovers(t *testing.T) {
 	t.Parallel()
 	g := New(Config{Seed: 2, Width: 20, Height: 12})
 	id, _ := g.SpawnNamedPawn(5, 5, "Ada")
+	g.wealth.Import(&wealth.Save{Counted: true, Value: 308_000})
 	for _, k := range []mood.Kind{mood.SleptOutside, mood.AteRaw, mood.AteWithoutTable, mood.SleptInAwfulRoom} {
 		g.remember(id, k)
 	}

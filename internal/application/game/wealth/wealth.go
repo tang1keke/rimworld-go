@@ -43,6 +43,10 @@ type Save struct {
 	// Value is the last full pass's count, once Counted.
 	Value   int
 	Counted bool
+	// InitialValue is the first deterministic wealth sample, used by mood
+	// until the first hourly sweep completes.
+	InitialValue   int
+	InitialCounted bool
 	// Hour is 1 + the hour of the pass in progress (0: none); Cursor the
 	// parts it has summed so far, into Partial.
 	Hour            uint64
@@ -67,6 +71,28 @@ func (t *Tracker) Value() int {
 	}
 	sum, _ := t.src.WealthOf(0, math.MaxInt)
 	return sum
+}
+
+// PrimeForMood takes the initial count once when gameplay starts.
+// Subsequent changes become visible after the first hourly sweep.
+func (t *Tracker) PrimeForMood() {
+	if t.s.Counted || t.s.InitialCounted {
+		return
+	}
+	t.s.InitialValue, _ = t.src.WealthOf(0, math.MaxInt)
+	t.s.InitialCounted = true
+}
+
+// MoodValue uses the latest sampled wealth without rescanning the map.
+// A new game uses current wealth until the first deterministic sample.
+func (t *Tracker) MoodValue() int {
+	if t.s.Counted {
+		return t.s.Value
+	}
+	if t.s.InitialCounted {
+		return t.s.InitialValue
+	}
+	return t.Value()
 }
 
 // History is the daily samples, oldest first (read only).
@@ -112,6 +138,7 @@ func (t *Tracker) Step(now uint64) {
 func (t *Tracker) finish(now uint64) {
 	rest, _ := t.src.WealthOf(t.s.Cursor, math.MaxInt)
 	t.s.Value, t.s.Counted = t.s.Partial+rest, true
+	t.s.InitialValue, t.s.InitialCounted = 0, false
 	t.s.Hour, t.s.Cursor, t.s.Partial = 0, 0, 0
 	if now < t.s.Next {
 		return
@@ -126,7 +153,7 @@ func (t *Tracker) finish(now uint64) {
 // Export is the tracker as saved; nil while it holds nothing (no pass
 // begun or finished).
 func (t *Tracker) Export() *Save {
-	if t == nil || len(t.s.History) == 0 && t.s.Next == 0 && !t.s.Counted && t.s.Hour == 0 {
+	if t == nil || len(t.s.History) == 0 && t.s.Next == 0 && !t.s.Counted && !t.s.InitialCounted && t.s.Hour == 0 {
 		return nil
 	}
 	s := t.s

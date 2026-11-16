@@ -14,16 +14,9 @@ import (
 	"rimworld-go/internal/domain/sim/entity"
 )
 
-// The social web (ENG-003, M3). Edges are sparse: a pair has one only
-// once they interacted, remember something of each other or are a couple.
-// Each edge holds both directions' opinion memories, the couple state and
-// the friend/rival flags (hysteresis), plus a derived opinion cache.
-//
-// Opinions are a pure function of saved state: traits, the sampled body
-// and drug signature (personSig, refreshed at deterministic points), the
-// family graph, the pair and the live memories. The cache is valid until
-// the next memory expiry and is dropped on every change, so a read model
-// that fills it never changes what the simulation sees.
+// Sparse social edges hold directional opinion memories and relationship
+// state. Derived opinions use traits, family ties, body and drug signatures,
+// and live memories. The cache never affects simulation state.
 
 // pairKey is an edge's canonical key (lo < hi).
 type pairKey struct{ lo, hi entity.EntityID }
@@ -444,9 +437,15 @@ func (g *Game) pruneEdge(e *edge, now uint64) {
 	}
 }
 
-// socialDay is the daily upkeep: every edge pruned, emptied ones dropped,
-// strangers forgotten.
+// socialDay prunes expired memories and social edges once per day.
 func (g *Game) socialDay(now uint64) {
+	for id, m := range g.memories {
+		if m = m.Prune(now); len(m) > 0 {
+			g.memories[id] = m
+		} else {
+			delete(g.memories, id)
+		}
+	}
 	s := g.soc
 	if s == nil {
 		return

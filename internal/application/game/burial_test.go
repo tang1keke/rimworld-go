@@ -85,12 +85,7 @@ func burRun(g *Game, limit int, done func() bool) bool {
 }
 
 func burRemembers(g *Game, id entity.EntityID, k mood.Kind) bool {
-	for _, m := range g.memories[id].Prune(uint64(g.clock.Now())) {
-		if m.Kind == k {
-			return true
-		}
-	}
-	return false
+	return g.hasMemory(id, k)
 }
 
 func burThinks(g *Game, id entity.EntityID, k mood.Kind) bool {

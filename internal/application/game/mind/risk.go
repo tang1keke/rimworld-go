@@ -13,17 +13,10 @@ func (m *Mind) Thresholds(id entity.EntityID) mentalbreak.Thresholds {
 }
 
 // maybeBreak is the hourly check: below a threshold a colonist breaks
-// with a mean time between breaks of its tier (MTBTicks), unless it still
-// feels the catharsis of its last one (the calm window). The break is
-// drawn from the tier, among the kinds that make sense where it is.
+// with a mean time between breaks of its tier (MTBTicks). Catharsis
+// affects risk through the mood itself.
 func (m *Mind) maybeBreak(id entity.EntityID) bool {
 	h := m.h
-	if until, ok := m.calm[id]; ok {
-		if h.Now() < until {
-			return false
-		}
-		delete(m.calm, id)
-	}
 	tier := mentalbreak.TierAt(h.Mood(id), m.Thresholds(id))
 	mtb := mentalbreak.MTBTicks(tier)
 	if mtb == 0 || uint64(h.Roll(int(mtb))) >= clock.TicksPerHour {
