@@ -119,3 +119,16 @@ func TestOfFieldsAppendedZeroFields(t *testing.T) {
 		}
 	}
 }
+
+func TestOfFieldsXXH3Canonical(t *testing.T) {
+	fields := map[string]any{"B": []int{2}, "A": 1}
+	want := OfFieldsXXH3(fields)
+	for i := 0; i < 10; i++ {
+		if got := OfFieldsXXH3(map[string]any{"A": 1, "B": []int{2}, "C": []byte{}}); got != want {
+			t.Fatalf("canonical hash varied: %x != %x", got, want)
+		}
+	}
+	if got := OfFieldsXXH3(map[string]any{"A": 1, "B": []int{3}}); got == want {
+		t.Fatal("a changed value had the same XXH3 hash")
+	}
+}

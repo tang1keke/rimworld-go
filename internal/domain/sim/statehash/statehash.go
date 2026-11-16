@@ -7,6 +7,8 @@ import (
 	"math"
 	"reflect"
 	"slices"
+
+	"github.com/zeebo/xxh3"
 )
 
 // Bytes is the FNV-64a hash of b.
@@ -150,7 +152,13 @@ func (e *encoder) mapValue(v reflect.Value) {
 // behaviour rather than a save format. Values are encoded sparsely
 // (ENG-003): inside them too, a struct field or trailing array slot
 // appended at its zero value leaves the hash alone.
-func OfFields(fields map[string]any) uint64 {
+func OfFields(fields map[string]any) uint64 { return Bytes(encodeFields(fields)) }
+
+// OfFieldsXXH3 hashes the same canonical bytes as OfFields with XXH3-64.
+// The result is non-cryptographic and intentionally differs from FNV golden pins.
+func OfFieldsXXH3(fields map[string]any) uint64 { return xxh3.Hash(encodeFields(fields)) }
+
+func encodeFields(fields map[string]any) []byte {
 	names := make([]string, 0, len(fields))
 	for n, v := range fields {
 		if !isZero(reflect.ValueOf(v)) {
@@ -163,7 +171,7 @@ func OfFields(fields map[string]any) uint64 {
 		e.value(reflect.ValueOf(n))
 		e.value(reflect.ValueOf(fields[n]))
 	}
-	return Bytes(e.buf)
+	return e.buf
 }
 
 func isZero(v reflect.Value) bool {

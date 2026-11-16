@@ -62,6 +62,7 @@ import (
 	"rimworld-go/internal/domain/sim/command"
 	"rimworld-go/internal/domain/sim/component"
 	"rimworld-go/internal/domain/sim/entity"
+	"rimworld-go/internal/domain/sim/statehash"
 	"rimworld-go/internal/domain/world/area"
 	"rimworld-go/internal/domain/world/geology"
 	"rimworld-go/internal/domain/world/grid"
@@ -491,6 +492,24 @@ func (g *Game) Save(w io.Writer, name string) error {
 	return zw.Close()
 }
 
+// SaveCheckpoint writes the normal compressed save and returns its XXH3
+// checksum. Both come from one exported snapshot; no gob decode is needed.
+func (g *Game) SaveCheckpoint(w io.Writer, name string) (uint64, error) {
+	info, s, err := g.snapshotForSave(savefmt.Stamp{Name: name})
+	if err != nil {
+		return 0, err
+	}
+	zw := savefmt.NewWriter(w)
+	if err := encodeSnapshot(zw, info, s); err != nil {
+		return 0, err
+	}
+	if err := zw.Close(); err != nil {
+		return 0, err
+	}
+	info.Name = "statehash" // file slot names cannot affect the checkpoint checksum
+	return statehash.OfFieldsXXH3(normalisedFieldsWith(info, s, statehash.OfFieldsXXH3)), nil
+}
+
 // EncodeSave writes Save's raw gob stream, uncompressed (savefmt.Compress
 // makes it a file), with a header naming only the save: reading it gives
 // the colony from the name (savefmt.Info.Upgrade).
@@ -505,6 +524,10 @@ func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
 	if err != nil {
 		return err
 	}
+	return encodeSnapshot(w, info, s)
+}
+
+func encodeSnapshot(w io.Writer, info SaveInfo, s *saveState) error {
 	enc := gob.NewEncoder(w)
 	if err := enc.Encode(info); err != nil {
 		return fmt.Errorf("save header: %w", err)

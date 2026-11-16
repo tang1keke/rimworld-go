@@ -12,7 +12,7 @@ import (
 )
 
 // StateHash fingerprints the complete authoritative state: everything Save
-// writes, decoded and hashed in a normalised, format-independent form
+// writes, hashed in the same normalised, format-independent form as a decoded save
 // (statehash.OfFields: fields by name, zero-valued ones skipped, map
 // entries ordered by key — Go's random map order makes raw gob bytes vary
 // run to run). Research is hashed as one progress list without trailing
@@ -27,6 +27,17 @@ func (g *Game) StateHash() uint64 {
 	return statehash.OfFields(normalisedFields(info, s))
 }
 
+// CheckpointHash returns an XXH3-64 digest of the saved state. It uses the
+// same canonical fields as StateHash, but builds them directly from the save
+// snapshot. This is a non-cryptographic integrity fingerprint.
+func (g *Game) CheckpointHash() uint64 {
+	info, s, err := g.snapshotForSave(savefmt.Stamp{Name: "statehash"})
+	if err != nil {
+		panic(fmt.Errorf("checkpoint hash: %w", err))
+	}
+	return statehash.OfFieldsXXH3(normalisedFieldsWith(info, s, statehash.OfFieldsXXH3))
+}
+
 // normalisedFields is the save as named fields, with research folded into
 // one "Research" progress list (the newest field that holds it).
 //
@@ -35,6 +46,10 @@ func (g *Game) StateHash() uint64 {
 // from state hashed below, and the version is format. The blocked tiles
 // are hashed as the v1 index list whichever field carries them.
 func normalisedFields(info SaveInfo, s *saveState) map[string]any {
+	return normalisedFieldsWith(info, s, statehash.OfFields)
+}
+
+func normalisedFieldsWith(info SaveInfo, s *saveState, digest func(map[string]any) uint64) map[string]any {
 	f := map[string]any{"Info": infoV1{1, info.Name, info.Date, info.Day, info.Colonists}}
 	v, t := reflect.ValueOf(s).Elem(), reflect.TypeOf(s).Elem()
 	for i := 0; i < t.NumField(); i++ {
@@ -81,7 +96,7 @@ func normalisedFields(info SaveInfo, s *saveState) map[string]any {
 		hs := make([]extraHash, len(s.ExtraMaps))
 		for i := range s.ExtraMaps {
 			m := &s.ExtraMaps[i]
-			hs[i] = extraHash{m.ID, m.Tile, m.Climate, statehash.OfFields(normalisedFields(SaveInfo{}, &m.State))}
+			hs[i] = extraHash{m.ID, m.Tile, m.Climate, digest(normalisedFieldsWith(SaveInfo{}, &m.State, digest))}
 		}
 		f["ExtraMaps"] = hs
 	}
