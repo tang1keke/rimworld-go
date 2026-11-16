@@ -195,6 +195,7 @@ One row per handoff section. Open the ledger at `#<lowercased ID>`. A new task a
 | MED-12-downed-animals | Downed animals | 2026-10-26 | [MED.md](MED.md#med-12-downed-animals) |
 | MED-13-animal-anatomy | Per-archetype animal anatomy | 2026-10-26 | [MED.md](MED.md#med-13-animal-anatomy) |
 | MOD-000-mods-programme | RimHUD, Neat Storage and Common Sense programme | 2026-11-03 | [MOD.md](MOD.md#mod-000-mods-programme) |
+| MOD-038-behavior-api | Trusted behavior-provider host (Phase 38 initial slice) | 2026-11-16 | [MOD.md](MOD.md#mod-038-behavior-api) |
 | MOD-W0-P-budget | Room in package `game` | 2026-11-03 | [MOD.md](MOD.md#mod-w0-p-budget) |
 | NG1_NEW_GAME_PLAN | NG-1: complete new-game flow, big maps at 60 fps, generated colonists, factions, water | 2026-10-22 | [NG.md](NG.md#ng1_new_game_plan) |
 | NST-A-kinds | Neat Storage kinds (domain) | 2026-11-03 | [STORAGE.md](STORAGE.md#nst-a-kinds) |
