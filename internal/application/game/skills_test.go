@@ -61,11 +61,9 @@ func backstoryWith(t *testing.T, b backstory.Bits) backstory.Def {
 	return backstory.Def{}
 }
 
-// TestNeutralPawnTimingsUnchanged: a neutral pawn (SpawnNamedPawn) works
-// exactly as the old boolean workTick did — 1 unit on every tick it
-// allowed, 0 on the low-mood ticks it skipped — skilled or not, and every
-// other skill/trait hook is the identity for it. Plant work has its own speed
-// curve (HRV-009, TestPlantWorkProgress).
+// TestNeutralPawnTimingsUnchanged: neutral pawns (SpawnNamedPawn) progress
+// one unit per tick irrespective of mood. Other skill/trait hooks remain
+// the identity; plant work has its own curve (HRV-009).
 func TestNeutralPawnTimingsUnchanged(t *testing.T) {
 	t.Parallel()
 	g := New(Config{Seed: 3, Width: 12, Height: 8})
@@ -76,28 +74,17 @@ func TestNeutralPawnTimingsUnchanged(t *testing.T) {
 	if g.moodOf(sad) >= mood.LowMood {
 		t.Fatalf("fixture: sad mood %d", g.moodOf(sad))
 	}
-	skipped := 0
 	for i := 0; i < 4000; i++ {
 		for _, id := range []entity.EntityID{happy, sad} {
-			want := 0
-			if g.workTick(id) {
-				want = 1
-			}
 			sk := skill.ID(i % int(skill.NumSkills))
 			if sk == skill.Plants {
 				sk = skill.Mining
 			}
-			if got := g.workProgress(id, sk, i%3 != 0); got != want {
-				t.Fatalf("tick %d pawn %d: progress %d, workTick %d", i, id, got, want)
-			}
-			if want == 0 {
-				skipped++
+			if got := g.workProgress(id, sk, i%3 != 0); got != 1 {
+				t.Fatalf("tick %d pawn %d: progress %d, want 1", i, id, got)
 			}
 		}
 		g.clock.Advance(1)
-	}
-	if skipped == 0 {
-		t.Fatal("the low-mood skip never happened")
 	}
 	n := needs.Pair{Hunger: 5000, Rest: 5000}
 	for now := uint64(0); now < 200; now++ {

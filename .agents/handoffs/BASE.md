@@ -207,3 +207,8 @@ Work order and harvesting · 2026-11-04 · d707f6131
 - Proof: year probe (`RIMWORLD_PROBE=1 ... TestYearProofColonyFeedsItself`) before and after: 4 alive, 0 malnourished, 440 meals + 40 survival; food at day 60: 666 vs 632; more potatoes, less rice.
 - Limits: `game` stays at ceiling (175 files, 52928 lines); budget unchanged. `planDelivery` runs twice per assign for Construct+Haul colonists when nothing can be delivered (cost unmeasured). Feeding a downed animal (`AssignTame`) now comes after slaughter and collecting. amd64 hashes checked for application/domain only.
 - Open: rows WRK-101..107, HRV-101..103; work tab look never captured (`bin/game -capture-ui work` on native monitor mode; wider header hint unseen); not checked in a real game: ripe field with a cook's bill, building sites moving with Haul at 3.
+
+## WRK-002-low-mood-work-speed
+Remove direct low-mood work penalty · 2026-11-16 · local PR
+- Remove the every-fourth-tick skip for pawns below mood 30 in research and regular work. Mental breaks still impose consequences; body, gear, trait, and skill speed factors still apply.
+- Save schema unchanged; neutral and low-mood actual work-progress tests, research regressions, race and architecture checks pass.
