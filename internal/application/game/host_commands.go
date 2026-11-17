@@ -116,6 +116,6 @@ func (g *Game) applyHostCommand(c command.Command) {
 	case command.CloseComms:
 		g.cmdCloseComms() // comms.go
 	case command.DismissVisitorGroup:
-		dismissVisitorCommand(g, pawn, target)
+		visitsOf(g).Dismiss(pawn, target)
 	}
 }

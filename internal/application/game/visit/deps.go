@@ -28,6 +28,7 @@ type Host interface {
 
 // Leaving is how a visit ends early or with company.
 type Leaving interface {
+	Conversation
 	Turning  // turn.go
 	Carrying // carry.go
 	Escaping // escape.go
@@ -76,7 +77,7 @@ type Records interface {
 	GroupID() uint64
 	MemberGone(id entity.EntityID, animal bool) (gone, harmed bool)
 	GroupDanger(id entity.EntityID) bool
-	PackStep(id entity.EntityID, group Group, now uint64)
+	PackSupport
 	GroupGift(group Group)
 	GroupClosed(id uint64)
 }
@@ -93,6 +94,12 @@ type Movers interface {
 	// Free reports dry walkable ground no colonist stands on.
 	Free(x, y int) bool
 	Size() (w, h int)
+}
+
+// Conversation is what a colonist needs to ask a party leader to leave.
+type Conversation interface {
+	CanAsk(id entity.EntityID) bool
+	Interrupt(id entity.EntityID)
 }
 
 // Ground is where visitors come from and stroll to, and the trader

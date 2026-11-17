@@ -50,3 +50,59 @@ func LoseCargo(st *trade.Stock, cargo []Cargo, owner entity.EntityID) (remaining
 	}
 	return cargo, nil, 0
 }
+
+// Caravans returns active and parked groups in their saved arrival order.
+func Caravans[T any](current *T, others []*T) []*T {
+	if current == nil {
+		return others
+	}
+	out := make([]*T, 0, 1+len(others))
+	out = append(out, current)
+	return append(out, others...)
+}
+
+// FindCaravan checks the current seller first, then the parked groups.
+func FindCaravan[T any](current *T, others []*T, match func(*T) bool) *T {
+	if current != nil && match(current) {
+		return current
+	}
+	for _, c := range others {
+		if match(c) {
+			return c
+		}
+	}
+	return nil
+}
+
+func RemoveCaravan[T any](current **T, others *[]*T, c *T) {
+	if *current == c {
+		*current = nil
+		if len(*others) > 0 {
+			*current, *others = (*others)[0], slices.Delete(*others, 0, 1)
+		}
+		return
+	}
+	for i, other := range *others {
+		if other == c {
+			*others = slices.Delete(*others, i, i+1)
+			return
+		}
+	}
+}
+
+// RetireCaravan stops selling while keeping the party's physical carriers
+// accountable for their stock until the group is fully off-map.
+func RetireCaravan[T any](current **T, others *[]*T, c *T, nextOK func(*T) bool) {
+	if *current != c {
+		return
+	}
+	*current = nil
+	for i, next := range *others {
+		if nextOK(next) {
+			*current = next
+			*others = slices.Delete(*others, i, i+1)
+			break
+		}
+	}
+	*others = append(*others, c)
+}

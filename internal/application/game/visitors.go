@@ -394,6 +394,12 @@ func (h visitMovers) StartJob(id entity.EntityID, rec job.Record) bool { return 
 func (h visitMovers) Free(x, y int) bool                               { return h.g.dryWalkable(x, y) && !h.g.pawnOn(x, y) }
 func (h visitMovers) Size() (int, int)                                 { return h.g.grid.Width(), h.g.grid.Height() }
 
+func (h visitMovers) CanAsk(id entity.EntityID) bool {
+	g := h.g
+	return g.isPawn(id) && g.alive(id) && !g.drafted(id) && g.capacity(id, body.Talking) > 0
+}
+func (h visitMovers) Interrupt(id entity.EntityID) { h.g.interrupt(id, job.Cancelled) }
+
 type visitGround struct{ g *Game }
 
 func (h visitGround) Home() (int, int)                   { return h.g.home() }
@@ -636,106 +642,25 @@ func (h visitGround) GroupGift(gr visit.Group) {
 	g.message(gr.CampX, gr.CampY, "The visitors left a parting gift.")
 }
 
-// PackStep runs a caravan animal's actual movement after the normal
-// animal survival/flee phase. Animals outside visiting groups use their
-// existing AI without new work.
-func (h visitGround) PackStep(id entity.EntityID, group visit.Group, now uint64) {
+func (h visitGround) PackState(id entity.EntityID, now uint64) (x, y int, ready, ok bool) {
 	g := h.g
 	a, ok := g.animals.Get(id)
 	if !ok || a.Downed {
+		return 0, 0, false, false
+	}
+	p, _ := g.positions.Get(id)
+	return p.X, p.Y, a.PathI >= len(a.Path) && now >= a.RetryAt, true
+}
+func (h visitGround) PackMove(id entity.EntityID, tx, ty int, move bool, now uint64) {
+	g := h.g
+	a, ok := g.animals.Get(id)
+	if !ok {
 		return
 	}
-	pos, _ := g.positions.Get(id)
-	if group.Phase == visit.PhaseLeaving {
-		if max(pos.X-group.ExitX, group.ExitX-pos.X, pos.Y-group.ExitY, group.ExitY-pos.Y) <= 1 {
-			for i := range g.worldS().visitGroups {
-				if gr := &g.worldSt.visitGroups[i]; gr.ID == group.ID {
-					for j := range gr.Members {
-						if gr.Members[j].ID == id {
-							gr.Members[j].Departed = true
-						}
-					}
-				}
-			}
-			g.leaveMap(id)
-			return
-		}
-		if a.PathI >= len(a.Path) && now >= a.RetryAt {
-			g.animalGoTo(id, &a, group.ExitX, group.ExitY)
-		}
-	} else {
-		tx, ty := group.CampX, group.CampY
-		if g.onMap(group.Leader) {
-			p, _ := g.positions.Get(group.Leader)
-			tx, ty = p.X, p.Y
-		}
-		if max(pos.X-tx, tx-pos.X, pos.Y-ty, ty-pos.Y) > 4 &&
-			a.PathI >= len(a.Path) && now >= a.RetryAt {
-			g.animalGoTo(id, &a, tx, ty)
-		}
+	if move {
+		g.animalGoTo(id, &a, tx, ty)
 	}
-	a.Mode = animal.Wander
-	a.NextDecide = now + 180
+	a.Mode, a.NextDecide = animal.Wander, now+180
 	g.animals.Set(id, a)
 }
-
-// dismissVisitorCommand orders an actual conversation with the group's
-// leader; walking and interruption use the existing forced-job system.
-func dismissVisitorCommand(g *Game, pawn, target entity.EntityID) {
-	if !g.isPawn(pawn) || !g.alive(pawn) || g.drafted(pawn) || g.capacity(pawn, body.Talking) <= 0 {
-		return
-	}
-	gr, ok := visitsOf(g).GroupOf(target)
-	if !ok || gr.Leader != target || gr.Phase == visit.PhaseLeaving ||
-		(gr.Kind != visit.KindVisitor && gr.Kind != visit.KindCaravan && gr.Kind != visit.KindSmallTrader) ||
-		!g.alive(target) || !g.visitor(target) {
-		return
-	}
-	pos, ok := g.positions.Get(target)
-	if !ok {
-		return
-	}
-	tx, ty, ok := g.besideSpot(pawn, pos.X, pos.Y)
-	if !ok {
-		return
-	}
-	g.interrupt(pawn, job.Cancelled)
-	g.startJob(pawn, job.Record{Kind: job.DismissVisitorGroup, Target: target,
-		TX: tx, TY: ty, WorkLeft: 30, Forced: true})
-}
-
-func dismissVisitorJob(g *Game, pawn entity.EntityID, j job.Record) {
-	gr, ok := visitsOf(g).GroupOf(j.Target)
-	if !ok || gr.Leader != j.Target || gr.Phase == visit.PhaseLeaving || !g.alive(j.Target) {
-		j.State = job.Fail
-		g.jobs.Set(pawn, j)
-		return
-	}
-	p, ok := g.positions.Get(j.Target)
-	me, _ := g.positions.Get(pawn)
-	if !ok {
-		j.State = job.Fail
-		g.jobs.Set(pawn, j)
-		return
-	}
-	if max(p.X-me.X, me.X-p.X, p.Y-me.Y, me.Y-p.Y) > 1 {
-		if tx, ty, ok := g.besideSpot(pawn, p.X, p.Y); ok {
-			if tx != j.TX || ty != j.TY {
-				g.startJob(pawn, job.Record{Kind: j.Kind, Target: j.Target,
-					TX: tx, TY: ty, WorkLeft: j.WorkLeft, Forced: true})
-				return
-			}
-		}
-		j.State = job.Fail
-		g.jobs.Set(pawn, j)
-		return
-	}
-	if j.WorkLeft > 1 {
-		j.WorkLeft--
-		g.jobs.Set(pawn, j)
-		return
-	}
-	visitsOf(g).LeaveGroup(gr.ID, visit.LeaveDismissed, uint64(g.clock.Now()))
-	j.State = job.Complete
-	g.jobs.Set(pawn, j)
-}
+func (h visitGround) PackLeave(id entity.EntityID) { h.g.leaveMap(id) }

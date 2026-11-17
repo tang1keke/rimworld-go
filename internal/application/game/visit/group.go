@@ -217,7 +217,7 @@ func (v Visits) TickGroups(now uint64) {
 			if !m.Departed {
 				present++
 				if m.Role == RolePackAnimal {
-					v.h.PackStep(m.ID, *g, now)
+					v.packStep(g, m, now)
 				}
 			}
 		}

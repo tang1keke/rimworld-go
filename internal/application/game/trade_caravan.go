@@ -261,86 +261,28 @@ func (g *Game) requestPending(id int) bool {
 	return false
 }
 
-// caravansOf is for infrequent arrival, departure and order views.
-func caravansOf(t *tradeState) []*traderCaravan {
-	if t.caravan == nil {
-		return t.others
-	}
-	out := make([]*traderCaravan, 0, 1+len(t.others))
-	out = append(out, t.caravan)
-	return append(out, t.others...)
-}
+// caravansOf combines active and parked caravans in their arrival order.
+func caravansOf(t *tradeState) []*traderCaravan { return visit.Caravans(t.caravan, t.others) }
 
 func caravanByTrader(t *tradeState, id entity.EntityID) *traderCaravan {
-	if t.caravan != nil && t.caravan.Trader == id {
-		return t.caravan
-	}
-	for _, c := range t.others {
-		if c.Trader == id {
-			return c
-		}
-	}
-	return nil
+	return visit.FindCaravan(t.caravan, t.others, func(c *traderCaravan) bool { return c.Trader == id })
 }
-
 func caravanByMember(t *tradeState, id entity.EntityID) *traderCaravan {
-	if c := t.caravan; c != nil {
-		if _, found := slices.BinarySearch(c.Members, id); found {
-			return c
-		}
-	}
-	for _, c := range t.others {
-		if _, found := slices.BinarySearch(c.Members, id); found {
-			return c
-		}
-	}
-	return nil
+	return visit.FindCaravan(t.caravan, t.others, func(c *traderCaravan) bool {
+		_, found := slices.BinarySearch(c.Members, id)
+		return found
+	})
 }
-
 func caravanByGroup(t *tradeState, group uint64) *traderCaravan {
-	if t.caravan != nil && t.caravan.GroupID == group {
-		return t.caravan
-	}
-	for _, c := range t.others {
-		if c.GroupID == group {
-			return c
-		}
-	}
-	return nil
+	return visit.FindCaravan(t.caravan, t.others, func(c *traderCaravan) bool { return c.GroupID == group })
 }
-
 func removeCaravan(t *tradeState, c *traderCaravan) {
-	if t.caravan == c {
-		t.caravan = nil
-		if len(t.others) > 0 {
-			t.caravan, t.others = t.others[0], slices.Delete(t.others, 0, 1)
-		}
-		return
-	}
-	for i, other := range t.others {
-		if other == c {
-			t.others = slices.Delete(t.others, i, i+1)
-			return
-		}
-	}
+	visit.RemoveCaravan(&t.caravan, &t.others, c)
 }
-
-// A departed or dead trader closes the sale side of the caravan. The
-// underlying cargo ledger remains until its surviving pack animals exit.
 func retireCaravan(t *tradeState, c *traderCaravan) {
-	if t.caravan != c {
-		return // already kept among inactive or independent caravans
-	}
-	t.caravan = nil
-	for i, next := range t.others {
-		if next.Trader == c.Trader || next.LeaveAt == 0 {
-			continue
-		}
-		t.caravan = next
-		t.others = slices.Delete(t.others, i, i+1)
-		break
-	}
-	t.others = append(t.others, c)
+	visit.RetireCaravan(&t.caravan, &t.others, c, func(next *traderCaravan) bool {
+		return next.Trader != c.Trader && next.LeaveAt != 0
+	})
 }
 
 // Every cargo owner is an actual living group member.

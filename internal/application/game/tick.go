@@ -1230,7 +1230,7 @@ func (g *Game) phaseJobs() {
 		case job.Trade:
 			g.doTrade(id, j) // trade_session.go (PLAY-024)
 		case job.DismissVisitorGroup:
-			dismissVisitorJob(g, id, j)
+			visitsOf(g).DismissJob(id, j, now)
 		case job.UseComms:
 			g.doUseComms(id, j) // comms.go (PLAY-024)
 		case job.DispensePaste:
