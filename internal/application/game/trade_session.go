@@ -1,10 +1,9 @@
 package game
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 
+	"rimworld-go/internal/application/game/tradeview"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/building/construction"
@@ -82,13 +81,6 @@ func (g *Game) termsFor(id entity.EntityID, f *faction.Faction) trade.Terms {
 	return t
 }
 
-// priceModPct is the percent the terms take off the base buy markup
-// (Social and goodwill), within what the floor allows.
-func priceModPct(t trade.Terms) int {
-	centi := t.Social*trade.SocialStepCenti + t.Goodwill*trade.BuyGoodwillMilli/10
-	return min(centi/100, trade.BuyMarkupPct-trade.BuyFloorPct)
-}
-
 // TradeView is the open trade session (ok false while none is open).
 func (g *Game) TradeView() (TradeView, bool) {
 	s := g.trade.session
@@ -107,44 +99,10 @@ func (g *Game) TradeView() (TradeView, bool) {
 		v.Faction, v.FactionID, v.Goodwill = p.f.Name, p.f.ID, p.f.Goodwill
 	}
 	v.HoursLeft = hoursLeft(p.until, uint64(g.clock.Now()))
-	v.Social, v.PriceModPct = terms.Social, priceModPct(terms)
+	v.Social, v.PriceModPct = terms.Social, tradeview.PriceModPct(terms)
 	gd := g.colonyGoods(v.Orbital)
 	v.ColonySilver, v.TraderSilver = gd.counts[item.Silver], p.stock.Silver
-	theirs := map[trade.Goods]int{} // AX-1: a crated building is goods of its own
-	keys := make([]trade.Goods, 0, len(gd.counts)+len(p.stock.Lines))
-	for _, l := range p.stock.Lines {
-		theirs[l.Goods()] += l.Qty
-		keys = append(keys, l.Goods())
-	}
-	for k := range gd.counts {
-		if k != item.Silver && k.Value() > 0 && theirs[trade.Goods{Kind: k}] == 0 {
-			keys = append(keys, trade.Goods{Kind: k})
-		}
-	}
-	slices.SortFunc(keys, trade.Goods.Compare)
-	keys = slices.Compact(keys)
-	for _, gk := range keys {
-		k, colony := gk.Kind, gd.counts[gk.Kind]
-		if gk.Building != 0 {
-			colony = 0 // the colony's own crates are not on offer
-		}
-		v.Rows = append(v.Rows, TradeRowView{Kind: gk.Name(), Label: cmp.Or(gk.Label(), itemLabel(k)), Category: k.Category(),
-			ColonyQty: colony, TraderQty: theirs[gk],
-			BuyC: trade.PriceOf(gk, p.kind, trade.Buy, terms), SellC: trade.PriceOf(gk, p.kind, trade.Sell, terms),
-			WillBuy: theirs[gk] > 0, WillSell: gk.Building == 0 && trade.Wants(p.kind, k)})
-	}
-	slices.SortStableFunc(v.Rows, func(a, b TradeRowView) int {
-		if ra, rb := item.CategoryRank(a.Category), item.CategoryRank(b.Category); ra != rb {
-			return ra - rb
-		}
-		switch {
-		case a.Label < b.Label:
-			return -1
-		case a.Label > b.Label:
-			return 1
-		}
-		return 0
-	})
+	v.Rows = tradeview.LocalRows(*p.stock, gd.counts, terms, itemLabel)
 	return v, true
 }
 

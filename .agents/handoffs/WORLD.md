@@ -142,3 +142,15 @@ The last open quest rows: offer help, site threats, reachability, rare rewards �
 - Limits: relief 509620cf9 (`idindex`, `actionview`, `mapview` buckets, `forage.Rings`); game lines 52,084 → 51,873 and the ceiling lowered to match; files 174; `Game` unchanged.
 - Kept out: the far ancient-ship ending site (decision 3, QST-180..184, the ship gap) and the crashed-pod refugee, which is an incident, not a quest (decision 5, QST-175..179).
 - Open: none in the QST rows. One follow-up: `SiteRuler` folded into `maps.Quester` once it has room.
+
+## WORLD-ECON-01-faction-base-market
+Persistent faction-base stock and physical caravan trading · 2026-11-17 · pr/vanilla-world-economy (local)
+- Changed: Neolithic, industrial and spacer settlements generate one deterministic, shared stock per tile. It persists across visits and saves; revisiting on or after the 30-day stock epoch restocks without advancing the colony RNG.
+- Changed: A caravan visiting a live nonhostile base can buy, sell and gift from its physically carried inventory. Server-authoritative commands validate the caravan, negotiator, stock, silver and carrying mass before combined commit; a second caravan sees the depleted stock.
+- Changed: The caravan carries purchased goods home, preserving book identity, quality, provenance, minified-building kind, animal egg incubation and other stack metadata. Repeated transactions coalesce identical sale and payment stacks to keep saves bounded; return pace updates with cargo weight.
+- Changed: The World read model projects available stock and negotiated prices; the World view opens a native Trade dialog with quantity steps, gifts and an explicit confirmation. Market display closes when the visit or faction eligibility ends.
+- Decisions: `trade` owns price, seed-based stock pools and normalized offers; `maps` owns the indexed market and lifecycle; `travel` owns cargo; `tradeview` and `tabview` own read-only projections. The faction-base price improvement is 2 percent (wiki: Trade/Faction base); unsourced stock quantities are original tuning.
+- Save: `worldSave.SettlementStocks` is an additive v2 field; legacy v12 fixture hash remains stable. The new `item.Stack.TradeBought` flag defaults to false on old saves. Command kind appended at the enum tail.
+- Limits: `marketOps` separates settlement methods from `maps.Fleet`; `worldview.marketUI` separates trade widgets from World view methods. `game/tradeview` and `game/tabview` hold the world projection; `make arch` passes with the existing SOLID ratchet ceilings.
+- Tests: deterministic seeded-stock golden, shared last unit, real native caravan round trip, inventory conservation, physical attributes, repeated trades, save/load, rejected offers and two UI command/gift paths. Targeted `-race` and `go vet` passed in the local port.
+- Open: the travelling-caravan meeting encounter remains deferred (MAP-08). Animals/prisoners as merchandise and the separate s1-mini browser UI are integration scope beyond this vanilla World UI. Remote push and PR submission remain owner-controlled.

@@ -43,6 +43,8 @@ func (g *Game) applyHostCommand(c command.Command) {
 		fleetOf(g).Form(c.Name, c.Count) // game/maps
 	case command.CaravanReturn:
 		fleetOf(g).Return(target) // game/maps
+	case command.WorldCaravanTrade:
+		fleetOf(g).Trade(c.Target, pawn, c.Name, c.Enabled) // game/maps/market.go
 	case command.EnterMap, command.AttackSettlement, command.CaravanReform, command.AbandonMap, command.SettleHere, command.EncounterAnswer, command.CaravanTravel:
 		mapsApply(g, c) // world_state.go: game/maps (MAP-01..04)
 	case command.SetColonyCap:

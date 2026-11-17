@@ -129,6 +129,26 @@ type Prisoner struct {
 type WorldMap struct {
 	Tile     int
 	Caravans []travel.CaravanView
+	Markets  []MarketView // open faction-base markets at visiting caravans
+}
+
+// MarketView is a snapshot of one visited settlement and its physical
+// caravan stock. The UI sends WorldCaravanTrade through the command queue.
+type MarketView struct {
+	CaravanID, Negotiator       uint64
+	Tile, FactionID             int
+	Epoch, RestockAt            uint64
+	CaravanSilver, TraderSilver int
+	Rows                        []MarketRow
+}
+
+// MarketRow holds quantities and prices in hundredths of a silver.
+type MarketRow struct {
+	Kind, Category, Label string
+	Building              uint8
+	CargoQty, StockQty    int
+	BuyC, SellC           int
+	WillBuy, WillSell     bool
 }
 
 // Area is one allowed area.

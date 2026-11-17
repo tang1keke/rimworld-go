@@ -652,8 +652,9 @@ type Stack struct {
 	// colony (ruin loot, stone chunks, a predator's kill): haulers leave
 	// them where they lie unless HaulMarked. Picking one up or storing it
 	// claims it (PLAY-017).
-	Unclaimed  bool
-	HaulMarked bool
+	Unclaimed   bool
+	TradeBought bool // preserves provenance of goods brought home from settlement trading
+	HaulMarked  bool
 	// Poison is a cooked meal's chance to give food poisoning, permille
 	// per meal eaten (set by the cook from skill and kitchen, WS-M); 0
 	// for everything else and for stacks from older saves.
@@ -804,7 +805,7 @@ func CanMerge(a, b Stack) bool {
 // CanMerge without the place, carrier and mark checks.
 func SameLoad(a, b Stack) bool {
 	return a.Kind == b.Kind && a.Rotten() == b.Rotten() && a.Dried == b.Dried && a.Of == b.Of &&
-		a.Animal == b.Animal && a.Tame == b.Tame && a.Quality == b.Quality && a.Stuff == b.Stuff && (a.Wear == b.Wear || a.Kind.IsFood()) &&
+		a.Animal == b.Animal && a.Tame == b.Tame && a.TradeBought == b.TradeBought && a.Quality == b.Quality && a.Stuff == b.Stuff && (a.Wear == b.Wear || a.Kind.IsFood()) &&
 		a.Yield == b.Yield && a.Book == b.Book // A7: two books are never one load
 }
 

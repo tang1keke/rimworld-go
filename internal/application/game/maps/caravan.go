@@ -65,14 +65,27 @@ func (c Caravan) Clone() Caravan {
 
 // Fleet is the caravans (ascending id, the caller's slice) and the open
 // maps' atlas over the host.
-type Fleet struct {
-	list *[]Caravan
-	a    *Atlas
-	h    Host
+type Fleet struct{ marketOps }
+
+// marketOps keeps market-only methods separate from the caravan lifecycle
+// while sharing its host and authoritative caravan state.
+type marketOps struct {
+	list   *[]Caravan
+	a      *Atlas
+	h      Host
+	market *[]SettlementStock
 }
 
 // Of is the fleet in list with atlas a.
-func Of(list *[]Caravan, a *Atlas, h Host) Fleet { return Fleet{list, a, h} }
+func Of(list *[]Caravan, a *Atlas, h Host) Fleet {
+	return Fleet{marketOps: marketOps{list: list, a: a, h: h}}
+}
+
+// WithMarket binds the authoritative, tile-sorted base inventories.
+func (m marketOps) WithMarket(stock *[]SettlementStock) Fleet {
+	m.market = stock
+	return Fleet{marketOps: m}
+}
 
 // At is caravan id (nil: none).
 func (f Fleet) At(id entity.EntityID) *Caravan {

@@ -243,6 +243,13 @@ func (v inspector) inspectCaravan(o *Object) (string, []line, []gizmo) {
 	case c.State != caravan.Arrived.Label():
 		enterWhy = "Only a caravan waiting at its destination can enter."
 	}
+	tradeWhy := "Visit a friendly settlement to trade."
+	if m, ok := (marketUI{v.View}).marketFor(id); ok {
+		tradeWhy = ""
+		if m.Negotiator == 0 {
+			tradeWhy = "No healthy caravan member can negotiate."
+		}
+	}
 	attackWhy := ""
 	switch {
 	case forming:
@@ -265,6 +272,8 @@ func (v inspector) inspectCaravan(o *Object) (string, []line, []gizmo) {
 			run: func() { v.send(command.Command{Kind: command.EnterMap, Target: id}) }},
 		{name: "attack", label: "Attack", why: attackWhy, tip: "Attack\nAttack the settlement here. Attacking a settlement that is not hostile costs its faction " + strconv.Itoa(attackGoodwill) + " goodwill and turns them hostile until it recovers.",
 			run: func() { v.attackSettlement(id, site, settled) }},
+		{name: "trade", label: "Trade", why: tradeWhy, tip: "Trade\nBuy or sell physical cargo with the settlement's shared stock.",
+			run: func() { (marketUI{v.View}).openMarket(id) }},
 		{name: "split", label: "Split", why: notYet, tip: "Split\nSplitting a caravan in two."},
 	}
 	return o.Label, lines, append(gizmos, v.questGizmos(c)...)

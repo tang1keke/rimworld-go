@@ -14,6 +14,7 @@ import (
 	"rimworld-go/internal/adapters/inbound/ebiten/uikit"
 	"rimworld-go/internal/adapters/inbound/ebiten/worldinfo"
 	"rimworld-go/internal/application/game"
+	"rimworld-go/internal/application/game/tabview"
 	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/command"
 	"rimworld-go/internal/domain/world/caravan"
@@ -73,26 +74,28 @@ type toolState struct {
 // their markers, the selection and the modes (route, pod targeting, the
 // pick-spot cursor).
 type View struct {
-	sh     Shell
-	open   bool
-	chart  chart
-	g      *globe.View
-	objs   []Object
-	live   []int // the tiles of the simulation's settlements, sorted
-	marks  []mark
-	tiles  []int // onTile scratch
-	read   readStamp
-	sel    selState
-	route  routeState
-	pods   podState
-	spot   spotState
-	tools  toolState
-	card   card     // the tile card of the bare tile shown
-	etaC   etaCache // the selected caravan's travel time and distance
-	frame  uint64   // Updates seen (the double-click window)
-	hops   planet.HopScratch
-	quests []game.QuestView // the quests read with the objects (the caravan's request and talks gizmos)
-	game   Reader           // the colony the state above belongs to
+	sh      Shell
+	open    bool
+	chart   chart
+	g       *globe.View
+	objs    []Object
+	live    []int // the tiles of the simulation's settlements, sorted
+	marks   []mark
+	tiles   []int // onTile scratch
+	read    readStamp
+	sel     selState
+	route   routeState
+	pods    podState
+	spot    spotState
+	tools   toolState
+	card    card     // the tile card of the bare tile shown
+	etaC    etaCache // the selected caravan's travel time and distance
+	frame   uint64   // Updates seen (the double-click window)
+	hops    planet.HopScratch
+	quests  []game.QuestView     // the quests read with the objects (the caravan's request and talks gizmos)
+	markets []tabview.MarketView // live, read-only markets of visiting caravans
+	market  *marketDraft         // one pending player's trade; only the UI owns it
+	game    Reader               // the colony the state above belongs to
 }
 
 // New builds the view over its shell (closed).
@@ -149,12 +152,18 @@ func (v *View) follow(env Env) {
 	if env.Game == v.game {
 		return
 	}
+	if v.market != nil {
+		(marketUI{v}).closeMarket()
+	}
 	*v = View{sh: v.sh, sel: selState{pick: -1}, frame: v.frame, game: env.Game}
 }
 
 // Close returns to the map; the selection is kept for the next open, the
 // route and pod modes are dropped.
 func (v *View) Close() {
+	if v.market != nil {
+		(marketUI{v}).closeMarket()
+	}
 	v.open = false
 	v.route = routeState{}
 	v.pods = podState{}
@@ -170,6 +179,10 @@ func (v *View) Escape() bool {
 	}
 	if !v.open {
 		return false
+	}
+	if v.market != nil {
+		(marketUI{v}).closeMarket()
+		return true
 	}
 	switch {
 	case v.pods.menu:
@@ -271,7 +284,8 @@ func (v *View) refresh(env Env, p *planet.Planet) {
 	}
 	v.read = readStamp{tick: now, frame: v.frame, ok: true}
 	r := readModels{maps: env.Game.Maps(), world: env.Game.WorldMap(), ax: v.sh.World().AX, quests: v.sh.World().Quests, tiles: p.TileCount()}
-	v.quests = r.quests
+	v.quests, v.markets = r.quests, r.world.Markets
+	(marketUI{v}).syncMarket()
 	if src, ok := env.Game.(WorldSource); ok {
 		r.sites = src.WorldSites()
 	}

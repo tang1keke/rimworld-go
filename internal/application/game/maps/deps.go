@@ -1,9 +1,11 @@
 package maps
 
 import (
+	"rimworld-go/internal/application/game/travel"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/animal"
 	"rimworld-go/internal/domain/economy/item"
+	"rimworld-go/internal/domain/economy/trade"
 	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/pawn/body"
 	"rimworld-go/internal/domain/pawn/social"
@@ -19,6 +21,20 @@ type Host interface {
 	Travellers
 	Surroundings
 	Cartography
+	MarketActors
+}
+
+// MarketActors supplies settlement negotiations through small, owner-bound ports.
+type MarketActors interface {
+	SocialLevel(id entity.EntityID) int
+	MarketCargo() MarketFreight
+}
+
+// MarketFreight changes caravan cargo only after full price and capacity checks.
+type MarketFreight interface {
+	TradeCounts(cid uint64) map[item.Kind]int
+	PlanTrade(cid uint64, members int, result trade.Result, incoming []item.Stack) (travel.TradePlan, string)
+	CommitTrade(cid uint64, plan travel.TradePlan)
 }
 
 // Travellers is the people on the road.

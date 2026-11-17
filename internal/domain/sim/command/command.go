@@ -452,6 +452,9 @@ const (
 	// AnswerLetter (EAI-0 contract; ignored until it lands) picks answer
 	// Mode (an index into the letter's Choices) of letter Target.
 	AnswerLetter
+	// WorldCaravanTrade makes a bid from visiting caravan Target at its current
+	// faction base; Pawn is the negotiator and Name the encoded offer.
+	WorldCaravanTrade
 )
 
 // EditApparelPolicy modes (Command.Mode), GEAR-3 contract.

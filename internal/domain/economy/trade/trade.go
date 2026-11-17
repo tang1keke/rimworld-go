@@ -22,6 +22,10 @@ const (
 	Quartermaster
 	// CurioMerchant: an orbital ship of rare and costly goods.
 	CurioMerchant
+	// Base traders use the same pricing and settlement rules as visitors.
+	TribalSettlement
+	IndustrialSettlement
+	SpacerSettlement
 	NumKinds
 )
 
@@ -90,9 +94,10 @@ type Stock struct {
 // faction's goodwill, and whether the faction is hostile (hostile
 // factions don't trade).
 type Terms struct {
-	Social   int
-	Goodwill int
-	Hostile  bool
+	Social       int
+	Goodwill     int
+	Hostile      bool
+	ImproveCenti int // price improvement in hundredths of a percentage point
 }
 
 // Delta is one line of an offer: Qty > 0 the colony buys Qty units of
@@ -157,6 +162,10 @@ var defs = [NumKinds]Def{
 	BulkHauler:    {Kind: BulkHauler, Key: "bulk_hauler", Label: "Bulk hauler", SilverMin: 900, SilverMax: 1500, Specialty: []string{"Food", "Materials"}},
 	Quartermaster: {Kind: Quartermaster, Key: "quartermaster", Label: "Quartermaster", SilverMin: 1200, SilverMax: 2000, Specialty: []string{"Weapons", "Apparel"}},
 	CurioMerchant: {Kind: CurioMerchant, Key: "curio_merchant", Label: "Curio merchant", Orbital: true, SilverMin: 1600, SilverMax: 2600, Specialty: []string{"Manufactured"}},
+	// wiki: Trade, Faction bases (silver); other stock is in settlement.go.
+	TribalSettlement:     {Kind: TribalSettlement, Key: "tribal_settlement", Label: "Tribal settlement", SilverMin: 400, SilverMax: 1500}, // original tuning
+	IndustrialSettlement: {Kind: IndustrialSettlement, Key: "industrial_settlement", Label: "Industrial settlement", SilverMin: 800, SilverMax: 3000},
+	SpacerSettlement:     {Kind: SpacerSettlement, Key: "spacer_settlement", Label: "Spacer settlement", SilverMin: 800, SilverMax: 3000}, // original tuning
 }
 
 // DefOf is trader kind k's definition (the zero Def for an unknown kind).
@@ -221,6 +230,9 @@ func Generate(k TraderKind, tech faction.Tech, rng *randx.Rand) Stock {
 	if k >= NumKinds {
 		return st
 	}
+	if k >= TribalSettlement {
+		return generateSettlement(tech, k, rng)
+	}
 	st.Silver = d.SilverMin + rng.IntN(d.SilverMax-d.SilverMin+1)
 	for _, e := range pools[k] {
 		// Draw for every entry, banned or not, so the stream does not
@@ -251,6 +263,8 @@ func Wants(k TraderKind, it item.Kind) bool {
 	}
 	c := it.Category()
 	switch k {
+	case TribalSettlement, IndustrialSettlement, SpacerSettlement:
+		return true // wiki: Trade, faction bases buy most valued non-crated goods
 	case BulkHauler:
 		return c == "Food" || c == "Materials" || it == item.HerbalMedicine || it == item.IndustrialMedicine || it == item.Components
 	case Quartermaster:
@@ -291,11 +305,15 @@ func PriceOf(g Goods, k TraderKind, s Side, t Terms) int {
 	// Rates are in hundredths of a percentage point (10000 = 100 %).
 	markup := max(BuyMarkupPct*100-SocialStepCenti*social-BuyGoodwillMilli/10*t.Goodwill, BuyFloorPct*100)
 	buy := v * (10000 + markup) / 10000
+	// At faction bases the 2% improvement multiplies the negotiated price.
+	improvement := mathx.Clamp(t.ImproveCenti, 0, 200)
+	buy = buy * (10000 - improvement) / 10000
 	if s == Buy {
 		return buy
 	}
 	cut := max(SellCutPct*100-SocialStepCenti*social-SellGoodwillMilli/10*t.Goodwill, SellFloorPct*100)
 	sell := v * (10000 - cut) / 10000
+	sell = sell * (10000 + improvement) / 10000
 	if isSpecialty(k, it) {
 		sell = sell * (100 + SpecialtyPct) / 100
 	}
@@ -310,56 +328,69 @@ func Settle(offer []Delta, colony map[item.Kind]int, st Stock, t Terms, gift boo
 	if t.Hostile {
 		return Result{Reject: RejectHostile}
 	}
-	net := map[Goods]int{}
-	for _, d := range offer {
-		net[Goods{d.Kind, d.Building}] += d.Qty
-	}
-	keys := make([]Goods, 0, len(net))
-	for g, q := range net {
-		if q != 0 {
-			keys = append(keys, g)
-		}
-	}
-	if len(keys) == 0 {
-		return Result{Reject: RejectEmpty}
-	}
-	slices.SortFunc(keys, Goods.Compare)
-	stock := map[Goods]int{}
-	for _, l := range st.Lines {
-		stock[l.Goods()] += l.Qty
+	ordered := offer
+	if len(offer) > 1 {
+		ordered = slices.Clone(offer)
+		slices.SortFunc(ordered, func(a, b Delta) int {
+			return (Goods{a.Kind, a.Building}).Compare(Goods{b.Kind, b.Building})
+		})
 	}
 	var res Result
-	var buyC, sellC int // hundredths
-	for _, g := range keys {
-		q, it := net[g], g.Kind
-		switch {
-		case q > 0:
+	var buyC, sellC, giftValue int // silver in hundredths, gift in whole silver
+	maxInt := int(^uint(0) >> 1)
+	minInt := -maxInt - 1
+	for i := 0; i < len(ordered); {
+		g := Goods{ordered[i].Kind, ordered[i].Building}
+		q := 0
+		for i < len(ordered) && ordered[i].Kind == g.Kind && ordered[i].Building == g.Building {
+			n := ordered[i].Qty
+			if n > 0 && q > maxInt-n || n < 0 && q < minInt-n {
+				return Result{Reject: RejectOverStock}
+			}
+			q += n
+			i++
+		}
+		if q == 0 {
+			continue
+		}
+		it := g.Kind
+		if q > 0 {
 			if gift || it == item.Silver {
 				return Result{Reject: RejectUnwanted}
 			}
-			if stock[g] < q {
+			index, found := slices.BinarySearchFunc(st.Lines, g, func(l Line, g Goods) int {
+				return l.Goods().Compare(g)
+			})
+			if !found || st.Lines[index].Qty < q {
 				return Result{Reject: RejectOverStock}
 			}
 			buyC += q * PriceOf(g, st.Kind, Buy, t)
 			res.Buy = append(res.Buy, Line{Kind: it, Qty: q, Building: g.Building})
-		default:
-			q = -q
-			if g.Building != 0 || colony[it] < q { // the colony sells plain goods only
-				return Result{Reject: RejectOverStock}
-			}
-			if gift {
-				if it.Value() <= 0 {
-					return Result{Reject: RejectUnwanted}
-				}
-			} else if !Wants(st.Kind, it) {
+			continue
+		}
+		if q == minInt {
+			return Result{Reject: RejectOverStock}
+		}
+		q = -q
+		if g.Building != 0 || colony[it] < q {
+			return Result{Reject: RejectOverStock}
+		}
+		if gift {
+			if it.Value() <= 0 {
 				return Result{Reject: RejectUnwanted}
 			}
-			sellC += q * Price(it, st.Kind, Sell, t)
-			res.Sell = append(res.Sell, Line{Kind: it, Qty: q})
+			giftValue += q * it.Value()
+		} else if !Wants(st.Kind, it) {
+			return Result{Reject: RejectUnwanted}
 		}
+		sellC += q * Price(it, st.Kind, Sell, t)
+		res.Sell = append(res.Sell, Line{Kind: it, Qty: q})
+	}
+	if len(res.Buy) == 0 && len(res.Sell) == 0 {
+		return Result{Reject: RejectEmpty}
 	}
 	if gift {
-		res.Goodwill = faction.GiftGoodwill(GiftValue(offer))
+		res.Goodwill = faction.GiftGoodwill(giftValue)
 		return res
 	}
 	res.SilverCenti = sellC - buyC

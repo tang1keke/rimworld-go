@@ -4,7 +4,7 @@
 The colony's full-screen world view (MAP-2, MAIN_UI_SCREENS §33, §35, §36): the planet on the globe with every world object marked, picking, the world inspector with its gizmos, the caravan route preview, the transport pods' range ring and landing menu, and the pick-spot cursor. It replaced the modal World tab (`windows/world*.go`). The simulation ticks under it and the HUD stays up; the root skips the map draw, the map keys and the map mouse while it is open.
 
 ## Owns
-- `View`: open state, chart (the planet, a slice per Update when it must be rebuilt), the globe, the objects (`Object`, `Kind`) and their markers (`mark`), the selection (`selState`, keys as in `ports.OpenWorld`), the modes (`routeState`, `podState`, `spotState`), the toolbar's toggles, the inspector's caches (`card`, `etaCache`).
+- `View`: open state, chart (the planet, a slice per Update when it must be rebuilt), the globe, the objects (`Object`, `Kind`) and their markers (`mark`), the selection (`selState`, keys as in `ports.OpenWorld`), the modes (`routeState`, `podState`, `spotState`), the toolbar's toggles, the inspector's caches (`card`, `etaCache`), and a single `marketUI` modal draft derived from read-only visiting settlement inventories.
 - `Reader` (`WorldMap`, `Maps`, `ViewedMap`, `Factions`) with optional type assertions `WorldSource`, `Estimator`, `Launcher`, `Attacker`.
 - `Host` (`Env`, `Layout`, `ChromeHit`, `FormCaravan`, `TileAt`, `TilePx`, `WorldToScreen`, `SettleReason`); `Shell` = `Sizer + Commands + World + Settings + Panels + Widgets + Dispatcher + Host`.
 
@@ -18,7 +18,7 @@ The colony's full-screen world view (MAP-2, MAIN_UI_SCREENS §33, §35, §36): t
 
 ## Contracts
 - Root calls: `Show`, `Toggle`, `Close`, `Open`, `Escape` (pick spot, pod menu, targeting or route, selection, then the view), `LaunchFor`, `Declare` (once per Update, in `colonyUI`, before the HUD's widgets), `DrawGlobe` (in the map's place), `HandleSpot`, `Spotting`, `DrawSpot`.
-- Widget ids: `world.obj.<map|caravan|settlement|quest|site|pod>.<id>`, `world.act.<jump|form|abandon|reform|travel|return|settle|enter|attack|split|quest|fulfil|negotiate|confirm|cancel>` (`quest`: View quest on a quest site; `fulfil` and `negotiate`: a caravan standing on an open request or talks), `world.pod.<drop|dropcentre|attackedge|attackcentre|found|gift|visit|spot|cancel>`, `world.pod.target.<tile>`, `world.search`, `world.search.field`, `world.legend`, `world.grid`, `world.close`, modals `world.abandon` and `world.attack` (a non-hostile base asks first, MAP-15).
+- Widget ids: `world.obj.<map|caravan|settlement|quest|site|pod>.<id>`, `world.act.<jump|form|abandon|reform|travel|return|settle|enter|attack|trade|split|quest|fulfil|negotiate|confirm|cancel>` (`quest`: View quest on a quest site; `fulfil` and `negotiate`: a caravan standing on an open request or talks), `world.pod.<drop|dropcentre|attackedge|attackcentre|found|gift|visit|spot|cancel>`, `world.pod.target.<tile>`, `world.search`, `world.search.field`, `world.legend`, `world.grid`, `world.close`, modals `world.abandon`, `world.attack` (a non-hostile base asks first, MAP-15), and `world.market` (a visiting caravan's shared settlement stock).
 - Everything leaves as `command.Command` (`ports.Commands`) or `ports.Intent`; a launch names the pods' own map (`MapSet`), so a switch to the target map does not move the command.
 
 ## Invariants
@@ -28,7 +28,7 @@ The colony's full-screen world view (MAP-2, MAIN_UI_SCREENS §33, §35, §36): t
 - Another tab or the Architect opening closes the view; a new game resets it (`follow`).
 
 ## Tests
-- `view_test.go`, headless over a fake shell and a small real planet.
+- `view_test.go` and `market_dialog_test.go`, headless over a fake shell and a small real planet; trade modal tests exercise real uikit buttons, quantity bounds, gifts and typed commands.
 
 ## Notes
 - Settlement emblems are the globe's own marks; the view adds only their click widgets and selection ring.

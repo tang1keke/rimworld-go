@@ -119,6 +119,7 @@ func (f Fleet) Arrived(c *Caravan, now uint64) {
 	if fa != nil && fa.Type.Human() && fa.Relation != faction.Hostile && !fa.Defeated {
 		c.C.State = caravan.Visiting
 		c.C.VisitUntil = now + visitTicks
+		f.VisitMarket(c.C.Tile, fa, now)
 		c.C.FoodDays = FoodDays
 		f.h.Letter(false, "Caravan arrived", 0, "The caravan reached %s and stays a day as their guests.", f.h.TileName(c.C.Tile))
 		return

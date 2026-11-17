@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/pkg/mathx"
@@ -165,6 +166,7 @@ func ExitBeside(cells [][2]int, open, busy func(x, y int) bool) (int, int, bool)
 type CaravanView struct {
 	ID      uint64
 	Members []string
+	Cargo   []item.Stack // physical cargo, copied from the travel owner
 	// Health is each member's short health note, parallel to Members
 	// ("bleeding", "flu", "food poisoning"; "" when well; WS-M).
 	Health     []string

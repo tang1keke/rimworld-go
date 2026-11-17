@@ -1,7 +1,13 @@
 package game
 
 import (
+	"rimworld-go/internal/application/game/maps"
 	"rimworld-go/internal/application/game/travel"
+	"rimworld-go/internal/domain/economy/item"
+	"rimworld-go/internal/domain/economy/trade"
+	"rimworld-go/internal/domain/faction"
+	"rimworld-go/internal/domain/pawn/body"
+	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/internal/domain/world/planet"
 )
 
@@ -33,4 +39,25 @@ func (g *Game) WorldSites() []WorldSiteView {
 		}
 		return ""
 	})
+}
+
+type marketWorldSource struct{ g *Game }
+
+func (s marketWorldSource) MarketAt(t int) (maps.SettlementStock, bool) {
+	return fleetOf(s.g).MarketAt(t)
+}
+func (s marketWorldSource) FactionAt(t int) *faction.Faction {
+	return s.g.factionOf(s.g.settlementFaction(t))
+}
+func (s marketWorldSource) Eligible(id entity.EntityID) bool {
+	return s.g.standingPawn(id) && s.g.capacity(id, body.Talking) > 0 && !s.g.breaking(id)
+}
+func (s marketWorldSource) Terms(id entity.EntityID, fa *faction.Faction) trade.Terms {
+	return s.g.termsFor(id, fa)
+}
+func (s marketWorldSource) Cargo(cid uint64) map[item.Kind]int {
+	if s.g.worldSt.ax9 == nil {
+		return nil
+	}
+	return travelOf(s.g).TradeCounts(cid)
 }

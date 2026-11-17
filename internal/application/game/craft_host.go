@@ -75,12 +75,15 @@ func (g *Game) dropStackOf(st item.Stack, x, y int) {
 	if err != nil {
 		return
 	}
-	if s, ok := g.stacks.Get(sid); ok {
-		s.Rot, s.Dried = st.Rot, st.Dried
-		s.Unclaimed, s.HaulMarked, s.Forbidden = st.Unclaimed, st.HaulMarked, st.Forbidden
-		s.Quality, s.Wear, s.Stuff, s.Of, s.Animal = st.Quality, st.Wear, st.Stuff, st.Of, st.Animal
-		s.Poison, s.Ingredients, s.IngredientSpecies = st.Poison, st.Ingredients, st.IngredientSpecies // FOOD-4
-		g.mergeOrSet(sid, s)
+	if spawned, ok := g.stacks.Get(sid); ok {
+		st.X, st.Y, st.Carrier = x, y, 0
+		if st.Kind.IsBook() && st.Book == 0 {
+			st.Book = spawned.Book
+			if st.Quality == 0 {
+				st.Quality = spawned.Quality
+			}
+		}
+		g.mergeOrSet(sid, st)
 	}
 }
 

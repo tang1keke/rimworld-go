@@ -238,6 +238,7 @@ func (l Lifecycle) destroy(fi, t int) string {
 			fa.SettlementNames = slices.Delete(slices.Clone(fa.SettlementNames), k, k+1)
 		}
 	}
+	f.clearMarket(t)
 	if p := f.h.Planet(); p != nil && t >= 0 && t < len(p.Settlement) && p.Settlement[t] >= 0 {
 		p.Settlement[t] = -1
 	}

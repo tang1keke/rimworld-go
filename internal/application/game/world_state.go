@@ -13,6 +13,8 @@ import (
 	"rimworld-go/internal/application/game/raid"
 	"rimworld-go/internal/application/game/sense"
 	"rimworld-go/internal/application/game/ship"
+	"rimworld-go/internal/application/game/tabview"
+	"rimworld-go/internal/application/game/tradeview"
 	"rimworld-go/internal/application/game/travel"
 	"rimworld-go/internal/application/game/visit"
 	"rimworld-go/internal/domain/ai/job"
@@ -25,6 +27,7 @@ import (
 	"rimworld-go/internal/domain/pawn/health"
 	"rimworld-go/internal/domain/pawn/needs"
 	"rimworld-go/internal/domain/pawn/recreation"
+	"rimworld-go/internal/domain/pawn/skill"
 	"rimworld-go/internal/domain/pawn/social"
 	"rimworld-go/internal/domain/sim/clock"
 	"rimworld-go/internal/domain/sim/command"
@@ -64,9 +67,10 @@ type worldState struct {
 	// saved); planetTried: the build was attempted (nil: no world).
 	planet      *planet.Planet
 	planetTried bool
-	caravans    []maps.Caravan // ascending ID (game/maps)
-	stashed     []stashRec     // ascending ID (world_stash.go)
-	visitors    []visitorRec   // ascending ID (visitors.go)
+	caravans    []maps.Caravan         // ascending ID (game/maps)
+	market      []maps.SettlementStock // tile-sorted faction-base inventory (game/maps)
+	stashed     []stashRec             // ascending ID (world_stash.go)
+	visitors    []visitorRec           // ascending ID (visitors.go)
 	// areaOf is each restricted colonist's or tame animal's allowed area
 	// ref (areas.go): an area id, or command.AreaHome; absent means
 	// unrestricted. Looked up only, never iterated for output unsorted.
@@ -102,14 +106,16 @@ type worldSave struct {
 	Visitors []visitorRec
 	// AreaOf is the allowed-area assignments: Version 1 saves hold area
 	// positions (index i is id i+1 now), Version 2 area refs (PLAY-015).
-	AreaOf  []areaAssign
-	HuntOut []huntOutRec // area_dest.go
-	AX9     *travel.Save // game/travel (AX-9): absent in older saves
-	Atlas   *maps.Atlas  // game/maps (MAP-01): absent while one map was ever open
-	Quests  *quest.Save  // game/quest (QST-1): absent before the first quest or in a legacy colony
+	AreaOf           []areaAssign
+	HuntOut          []huntOutRec           // area_dest.go
+	AX9              *travel.Save           // game/travel (AX-9): absent in older saves
+	Atlas            *maps.Atlas            // game/maps (MAP-01): absent while one map was ever open
+	Quests           *quest.Save            // game/quest (QST-1): absent before the first quest or in a legacy colony
+	SettlementStocks []maps.SettlementStock // world market: nil in older saves
 }
 
-// worldSaveVersion is the format exportWorld writes (2: area refs).
+// worldSaveVersion is the format exportWorld writes. Base stock is an
+// additive field on v2; old saves decode it as nil without migration.
 const worldSaveVersion = 2
 
 // areaAssign is one pawn's allowed area in a save.
@@ -279,13 +285,14 @@ func (g *Game) exportWorld() *worldSave {
 	if w != nil && w.quests != nil {
 		qs = w.quests.Export() // nil while it holds nothing
 	}
-	if w == nil || len(w.caravans) == 0 && len(w.stashed) == 0 && len(w.visitors) == 0 && len(w.areaOf) == 0 && len(w.huntOut) == 0 && w.ax9.Empty() && w.atlas.Empty() && qs == nil {
+	if w == nil || len(w.caravans) == 0 && len(w.market) == 0 && len(w.stashed) == 0 && len(w.visitors) == 0 && len(w.areaOf) == 0 && len(w.huntOut) == 0 && w.ax9.Empty() && w.atlas.Empty() && qs == nil {
 		return nil
 	}
 	s := &worldSave{Version: worldSaveVersion, Stashed: slices.Clone(w.stashed), Visitors: slices.Clone(w.visitors), Quests: qs}
 	for _, c := range w.caravans {
 		s.Caravans = append(s.Caravans, c.Clone())
 	}
+	s.SettlementStocks = maps.CloneMarkets(w.market)
 	for id, a := range w.areaOf {
 		s.AreaOf = append(s.AreaOf, areaAssign{Pawn: id, Area: a})
 	}
@@ -307,6 +314,7 @@ func (g *Game) importWorld(s *worldSave) {
 	for _, c := range s.Caravans {
 		w.caravans = append(w.caravans, c.Clone())
 	}
+	w.market = maps.CloneMarkets(s.SettlementStocks)
 	w.stashed = slices.Clone(s.Stashed)
 	w.visitors = slices.Clone(s.Visitors)
 	for _, a := range s.AreaOf {
@@ -324,25 +332,22 @@ func (g *Game) importWorld(s *worldSave) {
 	}
 }
 
-// worldMapView builds the World tab: the colony tile and every caravan.
+// worldMapView builds the World tab from copies of the caravan state.
 func (g *Game) worldMapView() WorldMapView {
-	v := WorldMapView{Tile: g.colonyTile()}
 	if g.worldSt == nil {
-		return v
+		return WorldMapView{Tile: g.colonyTile()}
 	}
-	for i := range g.worldSt.caravans {
-		c := &g.worldSt.caravans[i]
-		cv := CaravanView{ID: c.C.ID, Tile: c.C.Tile, Dest: c.C.Dest, Progress: c.C.Progress / 10, State: c.C.State.Label()}
-		if c.Back {
-			cv.Dest = c.Home
-		}
-		for _, m := range c.C.Members {
-			cv.Members = append(cv.Members, g.personName(entity.EntityID(m)))
-			cv.Health = append(cv.Health, g.caravanMemberStatus(entity.EntityID(m))) // caravan_medical.go
-		}
-		v.Caravans = append(v.Caravans, cv)
-	}
-	return v
+	return tabview.BuildWorldMap(g.colonyTile(), g.worldSt.caravans,
+		g.personName, g.caravanMemberStatus,
+		func(id uint64) []item.Stack {
+			if g.worldSt.ax9 == nil {
+				return nil
+			}
+			return travelOf(g).Goods(id)
+		},
+		func(c *maps.Caravan) (tabview.MarketView, bool) {
+			return tradeview.Visiting(uint64(g.clock.Now()), c, marketWorldSource{g})
+		})
 }
 
 // travelOf is game/travel over the game (AX-9): stasis caskets, transport
@@ -434,7 +439,7 @@ func fleetOf(g *Game) maps.Fleet {
 	if w.mapsH == nil {
 		w.mapsH = mapsHost{mapsCrew{g}, mapsWalk{g}, mapsGround{g}, mapsGlobe{g}, mapsRoad{g}, mapsOpen{g}, mapsPop{g}, mapsSettle{g}, mapsFound{g}, mapsWaylay{g}, mapsQuests{g}} // built once
 	}
-	return maps.Of(&w.caravans, &w.atlas, w.mapsH)
+	return maps.Of(&w.caravans, &w.atlas, w.mapsH).WithMarket(&w.market)
 }
 
 // mapsHost is game/maps' roles (maps/deps.go) over small adapters.
@@ -567,8 +572,13 @@ func (h mapsGlobe) Faction(t int) *faction.Faction {
 func (h mapsGlobe) NewID() uint64       { return uint64(h.g.entities.Next()) }
 func (h mapsGlobe) Now() uint64         { return uint64(h.g.clock.Now()) }
 func (h mapsGlobe) Cargo() maps.Freight { return travelOf(h.g) }
+func (h mapsGlobe) SocialLevel(id entity.EntityID) int {
+	return int(h.g.skillOf(id, skill.Social).Level)
+}
 
 type mapsRoad struct{ g *Game }
+
+func (h mapsRoad) MarketCargo() maps.MarketFreight { return travelOf(h.g) }
 
 func (h mapsRoad) Starve(id entity.EntityID) { // FOOD-1: at 0 % malnutrition sets in
 	n, _ := h.g.need.Get(id)

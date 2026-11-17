@@ -280,3 +280,11 @@ Load rows, sort and filter, Save & Quit, unsaved progress · 2026-11-09 · f4eac
 - Changed: two-line Load rows with tags for older, newer and damaged saves (SAV-011, 021, 022); Sort Newest/Name and a colony filter (SAV-012); Save & Quit to Menu and to Desktop in the pause menu, leaving only after the file is written (SAV-005); an "Unsaved progress" confirm and a "Saved N in-game hours ago" line in the pause panel (SAV-013).
 - Decisions: a colony is unsaved from a save's encode tick until that save succeeds; Load and `NewColony` reset it. A commitment colony's Save row is shown off (the game saves itself).
 - Open: the commitment daily save is written with `Autosave:false` (`Book.SaveNow`), harmless while that colony has one slot. The `Book` struct comment still says its fields are "declared for the named-saves work".
+
+## UI-ECON-01-world-market-trade
+Caravan trade on the World tab · 2026-11-17 · pr/vanilla-world-economy (local)
+- Changed: the visited, eligible caravan shows a Trade gizmo in the F8 World inspector; it opens `world.market` with stock, caravan cargo, negotiated prices, silver balances, search and 1/10/All purchase/sale controls. Gift mode shows expected goodwill and removes pending purchases.
+- Changed: Accept sends `command.WorldCaravanTrade` with the selected pawn and encoded offer; final quantities, affordability and cargo mass remain authoritative in the sim. Reset clears a draft, and loss of the visit clears the modal. The identical-tick double-click is guarded.
+- Decisions: `worldview.marketUI` owns UI state and modal events, `tradeview` and `tabview` provide read-only projection, and `uikit` owns all controls. Existing `worldview` shell/intent boundary and art rules are unchanged.
+- Tests: a real `uikit` frame and modal fixture verifies the gizmo, steppers, typed offer, gift, bounds, expiration and false negotiator. `make arch` preserves the existing file/method/line budgets.
+- Open: screenshots in a graphical game window and the separate web client are integration checks; caravan splitting and meeting encounters remain deferred.

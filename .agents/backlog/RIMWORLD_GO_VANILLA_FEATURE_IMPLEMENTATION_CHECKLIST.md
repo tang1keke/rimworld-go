@@ -1803,7 +1803,7 @@ SIM-023: all twelve exist as `world/biome` data. NG-1 now classifies them on the
 
 -   [x] **Settlement placement** (NG-1: Poisson-disc over land, capitals first, density by type and population setting)
 -   [-] **Faction territory distribution** (preferred biomes and clustering near the capital; no territory ownership)
--   [ ] **Settlement trade inventory**
+-   [x] **Settlement trade inventory** (WORLD-ECON-01: seed-stable faction-tech stock, shared per settlement tile, persisted and renewed after 30 in-game days; real caravan cargo and silver, saved sold-item attributes)
 -   [x] **Hostile settlement attack map** (MAP-2, MAP-13: a generated compound with loot, walls and defenders who hold, engage and flee at 50 % losses; its turrets fire on us and stay hostile; compound doors are held open)
 -   [x] **Settlement destruction** (MAP-2: defeated once no defender stands; -200 goodwill and hostile on attack, +20 from the faction's enemies, the settlement leaves the planet and the map; no bases left means the faction is gone)
     -   Destroying all settlements can eliminate a faction's world
@@ -2223,9 +2223,9 @@ Use aggregated/analytical updates rather than simulating local-map jobs.
 
 ## 28.4 Caravan interactions
 
--   [-] **Visit friendly settlement** (SIM-046: one day; no trade or gifts)
-    -   Trade.
-    -   gifts.
+-   [x] **Visit friendly settlement** (WORLD-ECON-01: one-day visit, World inspector trade modal; stock, negotiator, goodwill gifts and paid transactions committed from actual caravan cargo)
+    -   [x] Trade using persistent faction-base stock, settlement silver and caravan capacity.
+    -   [x] Gifts transfer physical cargo and adjust faction goodwill.
 -   [x] **Attack hostile settlement** (MAP-2, MAP-15: `AttackSettlement` from the caravan inspector or by pod, any human base, with -200 goodwill and the faction turning hostile; a non-hostile base asks for a confirmation)
 -   [x] **Enter event/quest map** (MAP-1: arrival opens a site map; mineral sites; MAP-3: encounter maps; no quests)
 -   [x] **Ambush encounter** (MAP-3: ambush, manhunter ambush and demand with Give and Refuse; the meeting encounter is deferred, no caravan trading)
