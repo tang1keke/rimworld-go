@@ -277,6 +277,23 @@ func TestReviewTraderLossExactlyOnceAfterPartialTrade(t *testing.T) {
 	for _, how := range []string{"killed", "captured"} {
 		t.Run(how, func(t *testing.T) {
 			g, c := caravanGame(t)
+			neg := openCaravanTrade(t, g, c)
+			tradeYard(t, g, neg, 300000, 10)
+			stock := cargoOf(c, c.Trader)
+			if len(stock.Lines) == 0 {
+				t.Fatal("trader lacks sale stock")
+			}
+			line := stock.Lines[0]
+			g.Enqueue(command.Command{Kind: command.ProposeTrade, Name: trade.EncodeOffer([]trade.Delta{{
+				Kind: line.Kind, Building: line.Building, Qty: 1,
+			}})})
+			g.ApplyPending()
+			if v, ok := g.TradeView(); !ok || v.Reason != "" {
+				t.Fatalf("trader sale before loss refused: %+v", v)
+			}
+			g.Enqueue(command.Command{Kind: command.CloseTrade})
+			g.ApplyPending()
+			cargoBalance(t, c)
 			held := cargoOf(c, c.Trader)
 			before := forbiddenCaravanGoods(g)
 			goodwill := g.factionByID(c.Faction).Goodwill
