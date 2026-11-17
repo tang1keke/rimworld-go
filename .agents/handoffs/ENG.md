@@ -84,9 +84,13 @@ Vanilla visitors and trader caravans breach enclosed exits · 2026-11-17 · fdfb
 
 
 ## ENG-011-vanilla-visitor-system
-Vanilla visitors, travelers, and trade caravan groups · 2026-11-17 · in progress
+Vanilla visitors, travelers, and trade caravan groups · 2026-11-17 · cccc91ef7 / 7bd4b4d65 / a0836683b
 - Source: user design hb-pc:/tmp/rimworld-go-vanilla-visitor-system-design-20261117.md, on top of ENG-010 visitor structural breach.
 - Changed: saved visit.Group/roles, cross-map traveler incident, concurrent visitor parties/caravans, armed guards, real donkey pack animals with sale-stock cargo assignment and idempotent loss, small traders, group threat/dismissal, guest rest/rations, healthy-departure goodwill, read-only WorldView.VisitorGroups, legacy save import.
 - Integration: existing job/path/combat/care/animal/trade/faction/social adapters. No S1 account or ColonyManager logic in upstream. Upstream save version 18, world visit version 3, trade version 2. S1 keeps its own version and guest policies.
 - Focused verification: new group/traveler/cargo/save/dismissal/pack-completion tests; hostile trader, old save fixture, race-enabled game/visit/care tests pass, vet pass.
-- Open: upstream make arch exceeds fixed game-package line budget 51644; extract additional consumer-owned policies into subpackages before PR. Full broad regression, S1 hosted and sponsored caravan end-to-end and 160/500-map performance measurements remain. No remote PR or deployment.
+- Architecture: visit owns dismissal dialogue, cargo accounting, pack movement and group state. game/spatial owns the transient occupancy index and bounded route searches. Game package 51,635 non-test lines / fixed 51,644 budget; `make arch` PASS with unchanged budget.
+- Final verification: full `go test -count=1 ./internal/application/game/...` PASS, visitor/trader/occupancy/old-save/golden focused `-race` PASS, `go build ./...`, related `go vet` and diff check PASS.
+- S1 integration: hosted guest rest and care, sponsored caravan behavior and optimized occupancy batching retained. Corrected duplicate hosted-guest need decay and legacy v19 map save migration via `worldSaveVersion` check. Focused S1 race tests PASS. S1 whole game -short compared with old PR10 baseline: 27 pre-existing failures, 26 remaining, 0 new; save schema test now PASS.
+- Performance: AMD Ryzen 7 9700X, 160x160 and 500x500 benchmarked in both forks. Upstream 500x500 visit+caravan 1,500 tick x3 median 5.551 to 5.431 ms/tick (-2.2%), allocations 46,161 to 54,420 B/tick (+17.9%). S1 500x500 300 tick x2 median 5.922 to 5.999 ms/tick (+1.3%). Short-run variance and raw commands documented in S1 `docs/perf/rimworld-go-visitor-lifecycle-20261117.md`.
+- Boundaries: upstream save v18/world v3/trade v2; S1 independent save version. PR11 is stacked after PR10. No remote push/PR, main merge or production deployment.
