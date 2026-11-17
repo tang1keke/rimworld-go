@@ -492,10 +492,13 @@ func (g *Game) Save(w io.Writer, name string) error {
 	return zw.Close()
 }
 
-// SaveCheckpoint writes the normal compressed save and returns its XXH3
-// checksum. Both come from one exported snapshot; no gob decode is needed.
-func (g *Game) SaveCheckpoint(w io.Writer, name string) (uint64, error) {
-	info, s, err := g.snapshotForSave(savefmt.Stamp{Name: name})
+// SaveCheckpoint writes the normal compressed save and returns the supplied
+// digest of that same exported snapshot; no gob decode is needed.
+func SaveCheckpoint(g *Game, w io.Writer, name string, digest CheckpointDigest) (uint64, error) {
+	if digest == nil {
+		return 0, errors.New("checkpoint digest is required")
+	}
+	info, s, err := snapshotForSave(g, savefmt.Stamp{Name: name})
 	if err != nil {
 		return 0, err
 	}
@@ -507,7 +510,7 @@ func (g *Game) SaveCheckpoint(w io.Writer, name string) (uint64, error) {
 		return 0, err
 	}
 	info.Name = "statehash" // file slot names cannot affect the checkpoint checksum
-	return statehash.OfFieldsXXH3(normalisedFieldsWith(info, s, statehash.OfFieldsXXH3)), nil
+	return statehash.OfFieldsWith(normalisedFieldsWith(info, s, digest), digest), nil
 }
 
 // EncodeSave writes Save's raw gob stream, uncompressed (savefmt.Compress
@@ -520,7 +523,7 @@ func EncodeSave(g *Game, w io.Writer, name string) error {
 // EncodeSaveAs is EncodeSave with the client's stamp in the header: the
 // slot, the colony and the build (SAV-003).
 func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
-	info, s, err := g.snapshotForSave(stamp)
+	info, s, err := snapshotForSave(g, stamp)
 	if err != nil {
 		return err
 	}
@@ -540,7 +543,7 @@ func encodeSnapshot(w io.Writer, info SaveInfo, s *saveState) error {
 
 // snapshotForSave gathers the same authoritative snapshot for saving and hashing.
 // Hashing reads these fields directly, avoiding the gob encode/decode round trip.
-func (g *Game) snapshotForSave(stamp savefmt.Stamp) (SaveInfo, *saveState, error) {
+func snapshotForSave(g *Game, stamp savefmt.Stamp) (SaveInfo, *saveState, error) {
 	cur := g.mapState
 	defer func() { g.mapState = cur }()
 	g.mapState = g.maps[0]

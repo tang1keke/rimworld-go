@@ -120,15 +120,20 @@ func TestOfFieldsAppendedZeroFields(t *testing.T) {
 	}
 }
 
-func TestOfFieldsXXH3Canonical(t *testing.T) {
+func TestOfFieldsWithUsesCanonicalEncoding(t *testing.T) {
 	fields := map[string]any{"B": []int{2}, "A": 1}
-	want := OfFieldsXXH3(fields)
-	for i := 0; i < 10; i++ {
-		if got := OfFieldsXXH3(map[string]any{"A": 1, "B": []int{2}, "C": []byte{}}); got != want {
-			t.Fatalf("canonical hash varied: %x != %x", got, want)
-		}
+	var encoded string
+	got := OfFieldsWith(fields, func(b []byte) uint64 {
+		encoded = string(b)
+		return 17
+	})
+	if got != 17 {
+		t.Fatalf("digest result = %d, want 17", got)
 	}
-	if got := OfFieldsXXH3(map[string]any{"A": 1, "B": []int{3}}); got == want {
-		t.Fatal("a changed value had the same XXH3 hash")
+	if encoded != string(encodeFields(fields)) {
+		t.Fatal("digest did not receive the canonical field encoding")
+	}
+	if OfFieldsWith(fields, Bytes) != OfFields(fields) {
+		t.Fatal("injected FNV digest differs from OfFields")
 	}
 }

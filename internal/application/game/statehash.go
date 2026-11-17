@@ -3,13 +3,15 @@ package game
 import (
 	"fmt"
 	"maps"
-	"reflect"
-	"slices"
 
 	"rimworld-go/internal/application/game/savefmt"
+	"rimworld-go/internal/application/game/savehash"
 	"rimworld-go/internal/domain/sim/statehash"
-	"rimworld-go/internal/domain/world/temperature"
 )
+
+// CheckpointDigest is the application-owned port for hashing checkpoint bytes.
+// Platform adapters supply the algorithm so the deterministic core stays dependency-free.
+type CheckpointDigest func([]byte) uint64
 
 // StateHash fingerprints the complete authoritative state: everything Save
 // writes, hashed in the same normalised, format-independent form as a decoded save
@@ -20,22 +22,24 @@ import (
 // zero value) or a re-encoding does not move a golden pin; a change of
 // behaviour does. It reads the state only.
 func (g *Game) StateHash() uint64 {
-	info, s, err := g.snapshotForSave(savefmt.Stamp{Name: "statehash"})
+	info, s, err := snapshotForSave(g, savefmt.Stamp{Name: "statehash"})
 	if err != nil {
 		panic(fmt.Errorf("state hash: %w", err))
 	}
 	return statehash.OfFields(normalisedFields(info, s))
 }
 
-// CheckpointHash returns an XXH3-64 digest of the saved state. It uses the
-// same canonical fields as StateHash, but builds them directly from the save
-// snapshot. This is a non-cryptographic integrity fingerprint.
-func (g *Game) CheckpointHash() uint64 {
-	info, s, err := g.snapshotForSave(savefmt.Stamp{Name: "statehash"})
+// CheckpointHash returns the digest of the saved state using the supplied
+// non-cryptographic algorithm. It uses the same canonical fields as StateHash.
+func CheckpointHash(g *Game, digest CheckpointDigest) uint64 {
+	if digest == nil {
+		panic("checkpoint hash: digest is required")
+	}
+	info, s, err := snapshotForSave(g, savefmt.Stamp{Name: "statehash"})
 	if err != nil {
 		panic(fmt.Errorf("checkpoint hash: %w", err))
 	}
-	return statehash.OfFieldsXXH3(normalisedFieldsWith(info, s, statehash.OfFieldsXXH3))
+	return statehash.OfFieldsWith(normalisedFieldsWith(info, s, digest), digest)
 }
 
 // normalisedFields is the save as named fields, with research folded into
@@ -46,88 +50,27 @@ func (g *Game) CheckpointHash() uint64 {
 // from state hashed below, and the version is format. The blocked tiles
 // are hashed as the v1 index list whichever field carries them.
 func normalisedFields(info SaveInfo, s *saveState) map[string]any {
-	return normalisedFieldsWith(info, s, statehash.OfFields)
+	return normalisedFieldsWith(info, s, statehash.Bytes)
 }
 
-func normalisedFieldsWith(info SaveInfo, s *saveState, digest func(map[string]any) uint64) map[string]any {
-	f := map[string]any{"Info": infoV1{1, info.Name, info.Date, info.Day, info.Colonists}}
-	v, t := reflect.ValueOf(s).Elem(), reflect.TypeOf(s).Elem()
-	for i := 0; i < t.NumField(); i++ {
-		if t.Field(i).IsExported() {
-			f[t.Field(i).Name] = v.Field(i).Interface()
-		}
+func normalisedFieldsWith(info SaveInfo, s *saveState, digest CheckpointDigest) map[string]any {
+	opts := savehash.Options{Blocked: s.blockedTiles()}
+	if s.PrioList != nil {
+		opts.ReplacePrios, opts.Prios = true, importPrios(s.PrioList)
 	}
-	research := ints(f["ResearchAll"])
-	if research == nil {
-		research = ints(f["Research"])
+	if streams := maps.Clone(s.RNGStreams); streams != nil {
+		delete(streams, streamSeedKey)
+		opts.RNGStreams = streams
 	}
-	delete(f, "ResearchAll")
-	for len(research) > 0 && research[len(research)-1] == 0 {
-		research = research[:len(research)-1]
-	}
-	f["Research"] = research
-	f["Blocked"] = s.blockedTiles()
-	delete(f, "BlockedBits")
-	// Bookkeeping first saved in v2 (it existed before, unsaved): hashed
-	// through its effects on the state above, so the pins taken before v2
-	// still hold. TestSaveV2RoundTripSetup checks it survives a save.
-	for _, k := range [...]string{"SkillLive", "StainDrip", "PostSweep"} {
-		delete(f, k)
-	}
-	// DoorsOriented (PLAY-011) only marks the save format: door facings
-	// are hashed through the buildings themselves.
-	delete(f, "DoorsOriented")
-	// ENG-003: priorities are saved as slices (PrioList) now; they are
-	// hashed as the fixed-size arrays they were (a new work type at its
-	// zero value leaves the sparse encoding alone). The streams' base seed
-	// is configuration: the streams themselves are hashed once used.
-	if l := s.PrioList; l != nil {
-		delete(f, "PrioList")
-		f["Prios"] = importPrios(l)
-	}
-	if st := maps.Clone(s.RNGStreams); st != nil {
-		delete(st, streamSeedKey)
-		f["RNGStreams"] = st
-	}
-	// MAP-0: each extra map's state hashed the same way (none: nothing
-	// added); the viewed map is presentation.
-	delete(f, "View")
 	if len(s.ExtraMaps) > 0 {
-		hs := make([]extraHash, len(s.ExtraMaps))
+		opts.ExtraMaps = make([]savehash.ExtraMap, len(s.ExtraMaps))
 		for i := range s.ExtraMaps {
 			m := &s.ExtraMaps[i]
-			hs[i] = extraHash{m.ID, m.Tile, m.Climate, digest(normalisedFieldsWith(SaveInfo{}, &m.State, digest))}
+			opts.ExtraMaps[i] = savehash.ExtraMap{
+				ID: m.ID, Tile: m.Tile, Climate: m.Climate, State: &m.State,
+				Options: savehash.Options{Blocked: m.State.blockedTiles()},
+			}
 		}
-		f["ExtraMaps"] = hs
 	}
-	return f
-}
-
-// extraHash is an extra map in the hash: its fields' hash beside its id,
-// tile and climate.
-type extraHash struct {
-	ID      uint32
-	Tile    int
-	Climate temperature.Climate
-	State   uint64
-}
-
-// infoV1 is SaveInfo as version 1 wrote it (the hashed header).
-type infoV1 struct {
-	Version        int
-	Name, Date     string
-	Day, Colonists int
-}
-
-// ints is an int array or slice as a fresh []int (nil for anything else).
-func ints(x any) []int {
-	v := reflect.ValueOf(x)
-	if !v.IsValid() || (v.Kind() != reflect.Array && v.Kind() != reflect.Slice) || v.Type().Elem().Kind() != reflect.Int {
-		return nil
-	}
-	out := make([]int, v.Len())
-	for i := range out {
-		out[i] = int(v.Index(i).Int())
-	}
-	return slices.Clip(out)
+	return savehash.Fields(info, s, opts, digest)
 }

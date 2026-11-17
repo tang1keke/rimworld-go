@@ -8,16 +8,17 @@ import (
 
 	"rimworld-go/internal/application/game/savefmt"
 	"rimworld-go/internal/domain/sim/statehash"
+	"rimworld-go/internal/platform/digest"
 )
 
 func TestCheckpointHashMatchesWrittenSave(t *testing.T) {
 	check := func(t *testing.T, g *Game, stepped bool) {
 		t.Helper()
 		before := g.mapState
-		expected := g.CheckpointHash()
+		expected := CheckpointHash(g, digest.XXH3)
 		for _, slot := range []string{"colony", "autosave-2"} {
 			var buf bytes.Buffer
-			recorded, err := g.SaveCheckpoint(&buf, slot)
+			recorded, err := SaveCheckpoint(g, &buf, slot, digest.XXH3)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -41,7 +42,7 @@ func TestCheckpointHashMatchesWrittenSave(t *testing.T) {
 				t.Fatal(err)
 			}
 			info.Name = "statehash"
-			decoded := statehash.OfFieldsXXH3(normalisedFieldsWith(info, &saved, statehash.OfFieldsXXH3))
+			decoded := statehash.OfFieldsWith(normalisedFieldsWith(info, &saved, digest.XXH3), digest.XXH3)
 			if recorded != decoded {
 				t.Fatalf("slot %s: saved hash %x != decoded hash %x", slot, recorded, decoded)
 			}
@@ -52,7 +53,7 @@ func TestCheckpointHashMatchesWrittenSave(t *testing.T) {
 			// NewColony has no roof/room initialization until its first tick.
 			// The original FNV StateHash also changes across a tick-zero load.
 			if stepped {
-				if got := loaded.CheckpointHash(); got != recorded {
+				if got := CheckpointHash(loaded, digest.XXH3); got != recorded {
 					t.Fatalf("slot %s: loaded hash %x != stored %x", slot, got, recorded)
 				}
 				if a, b := loaded.StateHash(), g.StateHash(); a != b {
@@ -97,7 +98,7 @@ func BenchmarkCheckpointHash(b *testing.B) {
 			b.Run("xxh3", func(b *testing.B) {
 				b.ReportAllocs()
 				for i := 0; i < b.N; i++ {
-					_ = g.CheckpointHash()
+					_ = CheckpointHash(g, digest.XXH3)
 				}
 			})
 		})
