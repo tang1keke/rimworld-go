@@ -3,7 +3,6 @@ package visit
 import (
 	"slices"
 
-	"rimworld-go/internal/application/game/raid"
 	"rimworld-go/internal/application/game/travel"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/faction"
@@ -31,8 +30,8 @@ const (
 	StrollRange = 10
 	// retry: a walk that failed is tried again this much later.
 	retry = 250
-	// giveUp: a leaving visitor still on the map this long after its
-	// leave time slips away where it stands.
+	// giveUp: an irrecoverably trapped visitor ends its visit after this
+	// long; a visitor that can still break out keeps working.
 	giveUp = clock.TicksPerDay / 2
 	// Inset keeps visitors this far in from the border (the
 	// released-prisoner rule takes anyone standing on it off the map).
@@ -279,10 +278,8 @@ func (v Visits) step(a Aid, r *Rec, now uint64) bool {
 		return true
 	}
 	j = h.Job(r.ID)
-	w, ht := h.Size()
-	if r.Leaving && (min(x, y, w-1-x, ht-1-y) <= Inset || j.Kind == job.Move && j.State == job.Complete || now >= r.LeaveAt+giveUp) {
-		v.goHome(r.ID) // carry.go
-		return false
+	if r.Leaving {
+		return v.escape(r, x, y, j, now) // escape.go: walk or breach to the edge
 	}
 	if r.Ally && !r.Leaving {
 		return a.step(r, x, y, j, now) // aid.go: fight, else stroll
@@ -293,20 +290,6 @@ func (v Visits) step(a Aid, r *Rec, now uint64) bool {
 		h.Release(r.ID)
 		j = job.Record{}
 		h.SetJob(r.ID, j)
-	}
-	if r.Leaving { // walk to the nearest edge band; the check above sends it home there
-		if j.Active() || now < r.RetryAt {
-			return true
-		}
-		ex, ey := raid.NearestEdge(x, y, w, ht)
-		tx, ty, ok := v.InsetLand(ex, ey, nil)
-		if !ok {
-			tx, ty, ok = h.WalkableNear(ex, ey, spotR) // a wet edge: any way out
-		}
-		if !ok || !h.StartJob(r.ID, job.Record{Kind: job.Move, TX: tx, TY: ty}) {
-			r.RetryAt = now + retry
-		}
-		return true
 	}
 	v.wander(r, j, now, true)
 	return true

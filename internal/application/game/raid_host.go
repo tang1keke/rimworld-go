@@ -127,6 +127,10 @@ func (h raidFight) Breach(id entity.EntityID, j job.Record) { h.g.combat.Breach.
 func (h raidFight) StartBreach(id entity.EntityID, tx, ty int) bool {
 	return h.g.combat.Breach.Start(id, tx, ty)
 }
+func (h raidFight) BreachRoute(id entity.EntityID, tx, ty int) bool {
+	_, ok := (combatBreach{h.g}).BreachRoute(id, tx, ty)
+	return ok
+}
 func (h raidFight) TurretFor(x, y, cd, sight int) (entity.EntityID, int, int, bool) {
 	return h.g.combat.Turrets.ForRaider(x, y, cd, sight)
 }

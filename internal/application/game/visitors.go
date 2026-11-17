@@ -259,10 +259,11 @@ type visitHost struct {
 	visitDiplomacy
 	visitTurning
 	visitCarrying
+	raidFight // shared walk, strike, and breach paths
 }
 
 func newVisitHost(g *Game) visitHost {
-	return visitHost{visitBodies{g}, visitMovers{g}, visitGround{g}, visitArrivals{g}, visitFighters{g}, visitDiplomacy{g}, visitTurning{g}, visitCarrying{g}}
+	return visitHost{visitBodies{g}, visitMovers{g}, visitGround{g}, visitArrivals{g}, visitFighters{g}, visitDiplomacy{g}, visitTurning{g}, visitCarrying{g}, raidFight{g}}
 }
 
 type visitBodies struct{ g *Game }
@@ -301,11 +302,8 @@ func (h visitMovers) Job(id entity.EntityID) job.Record                { j, _ :=
 func (h visitMovers) SetJob(id entity.EntityID, rec job.Record)        { h.g.jobs.Set(id, rec) }
 func (h visitMovers) Release(id entity.EntityID)                       { h.g.reserve.ReleaseOwner(id) }
 func (h visitMovers) StartJob(id entity.EntityID, rec job.Record) bool { return h.g.startJob(id, rec) }
-func (h visitMovers) WalkableNear(x, y, r int) (int, int, bool) {
-	return h.g.combat.Tiles.WalkableNear(x, y, r)
-}
-func (h visitMovers) Free(x, y int) bool { return h.g.dryWalkable(x, y) && !h.g.pawnOn(x, y) }
-func (h visitMovers) Size() (int, int)   { return h.g.grid.Width(), h.g.grid.Height() }
+func (h visitMovers) Free(x, y int) bool                               { return h.g.dryWalkable(x, y) && !h.g.pawnOn(x, y) }
+func (h visitMovers) Size() (int, int)                                 { return h.g.grid.Width(), h.g.grid.Height() }
 
 type visitGround struct{ g *Game }
 
@@ -360,9 +358,6 @@ type visitFighters struct{ g *Game }
 func (h visitFighters) RaiderIDs() []entity.EntityID           { return h.g.raiderIDs }
 func (h visitFighters) StandingRaider(id entity.EntityID) bool { return h.g.standingRaider(id) }
 func (h visitFighters) Arm(id entity.EntityID, k item.Kind)    { h.g.equip[id] = k }
-func (h visitFighters) Strike(id entity.EntityID, j job.Record, now uint64) {
-	h.g.combat.Strikes.Do(id, j, now)
-}
 func (h visitFighters) NearestColonist(x, y int) (entity.EntityID, int, int, bool) {
 	id, p, ok := h.g.nearestColonist(Position{X: x, Y: y})
 	return id, p.X, p.Y, ok

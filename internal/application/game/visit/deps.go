@@ -30,6 +30,15 @@ type Host interface {
 type Leaving interface {
 	Turning  // turn.go
 	Carrying // carry.go
+	Escaping // escape.go
+}
+
+// Escaping runs the existing breach job and checks whether a structural
+// path to an edge remains possible when ordinary walking has failed.
+type Escaping interface {
+	Breach(id entity.EntityID, j job.Record)
+	StartBreach(id entity.EntityID, tx, ty int) bool
+	BreachRoute(id entity.EntityID, tx, ty int) bool
 }
 
 // Bodies is a visitor as a person on the map.
