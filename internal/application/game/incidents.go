@@ -7,6 +7,7 @@ import (
 	"rimworld-go/internal/application/game/farm"
 	"rimworld-go/internal/application/game/letters"
 	"rimworld-go/internal/application/game/raid"
+	"rimworld-go/internal/application/game/visit"
 	"rimworld-go/internal/domain/animal"
 	"rimworld-go/internal/domain/combat/weapon"
 	"rimworld-go/internal/domain/incident"
@@ -177,7 +178,7 @@ func (g *Game) pickNature(now uint64) (incident.ID, bool) {
 // visitors, traders, colony-wide climate events) fit only on the first map.
 func (g *Game) incidentFits(id incident.ID, now uint64) bool {
 	switch id {
-	case incident.Party, incident.VisitorGroup, incident.WandererJoins, incident.TraderCaravan, incident.OrbitalTrader,
+	case incident.Party, incident.VisitorGroup, incident.TravelerGroup, incident.WandererJoins, incident.TraderCaravan, incident.OrbitalTrader,
 		incident.HeatWave, incident.ColdSnap, incident.VolcanicWinter:
 		if !primary(g) {
 			return false
@@ -198,7 +199,7 @@ func (g *Game) incidentFits(id incident.ID, now uint64) bool {
 		return len(g.madCandidates(now)) > 0
 	case incident.Party:
 		return g.partyFits(now) // gathering.go (M5)
-	case incident.VisitorGroup:
+	case incident.VisitorGroup, incident.TravelerGroup:
 		return g.visitorsFit(now) // visitors.go (M9)
 	case incident.WandererJoins:
 		return g.wandererFits(now) // visitors.go (M9)
@@ -232,7 +233,9 @@ func (g *Game) fireIncident(id incident.ID, now uint64) bool {
 	case incident.Party:
 		return g.throwParty(now) // gathering.go (M5)
 	case incident.VisitorGroup:
-		return g.visitorsArrive(now) // visitors.go (M9)
+		return visitorIncidentArrive(g, now) // visitors.go (M9)
+	case incident.TravelerGroup:
+		return visitsOf(g).ArriveKind(visit.KindTraveler, now)
 	case incident.WandererJoins:
 		return g.wandererJoins(now) // visitors.go (M9)
 	case incident.HerdCrossing:

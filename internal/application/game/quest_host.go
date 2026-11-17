@@ -12,6 +12,7 @@ import (
 	"rimworld-go/internal/application/game/maps"
 	"rimworld-go/internal/application/game/quest"
 	"rimworld-go/internal/application/game/quest/kinds"
+	"rimworld-go/internal/application/game/visit"
 	"rimworld-go/internal/domain/economy/trade"
 	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/incident"
@@ -445,7 +446,10 @@ func (h questSite) guest(seed uint64, f, x, y int) (entity.EntityID, bool) {
 	id := g.entities.Next()
 	g.peopleReg().add(&person{ID: id, Bio: quest.PawnOf(seed), HasBio: true, Faction: f, Where: whereVisitor})
 	g.socState().sig[id] = personSig{}
-	visitsOf(g).Place(id, f, cx, cy, uint64(g.clock.Now()))
+	now := uint64(g.clock.Now())
+	visitsOf(g).Place(id, f, cx, cy, now)
+	visitsOf(g).SetStay(id, math.MaxUint64)
+	visitsOf(g).NewGroup(visit.KindQuest, f, []visit.Member{{ID: id, Role: visit.RoleVisitor}}, now, math.MaxUint64)
 	return id, true
 }
 

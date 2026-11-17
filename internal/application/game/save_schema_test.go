@@ -233,7 +233,7 @@ New:
 // this pin to get a test to pass. Only a migration step that really changes a
 // v12 save's state may move the hash: re-pin it then, saying in the commit
 // why that migration changes it.
-const saveV12Hash = uint64(0x3c352207ecddf6c2) // v17: the migration fills Faction.Enemies (EAI-015)
+const saveV12Hash = uint64(0xa9dcec8a9f61de28) // v18: visit group migration and world/trade save metadata preserve legacy behavior
 
 // v12Colony is the colony in the fixture: rich in state, so that as many
 // saved fields as practical are non-zero.

@@ -167,13 +167,16 @@ import (
 // wild wanderer re-picks its goal; colonists and raiders keep the eager
 // rule (TestAnimalRepathBackoff). Two of the six runs move; same-seed runs
 // identical (-count=2).
+// Visitor system V18: new incident draws, independent party state and
+// trade stock grouping intentionally change the six world replays.
+// Same seed, same command stream must still replay identically.
 var scaleGolden = map[string]uint64{
-	"48x40/seed1":    0x3e5acab81c2a989d,
-	"48x40/seed7":    0xbcace3601ecc2b00,
-	"48x40/seed42":   0xd7d1da8681635747,
-	"120x120/seed1":  0x64cf7b5f24124fa2,
-	"120x120/seed7":  0xb730bd268c1cdf58,
-	"120x120/seed42": 0xada3ad9b78b85a63,
+	"48x40/seed1":    0x1707819a25f6bfbe,
+	"48x40/seed7":    0x69290a3b511b9f6f,
+	"48x40/seed42":   0x26a30ef43a063dce,
+	"120x120/seed1":  0x36565b9589226867,
+	"120x120/seed7":  0x20c22928576d1297,
+	"120x120/seed42": 0xa70fa11a6ea2ce50,
 }
 
 const scaleGoldenTicks = 20000

@@ -43,11 +43,11 @@ func TestVisitorsArriveSocialiseAndLeave(t *testing.T) {
 	if !g.visitorsArrive(now) {
 		t.Fatal("visitors did not arrive")
 	}
-	if g.visitorsFit(now) {
-		t.Fatal("a second group fits while the first is here")
+	if !g.visitorsFit(now) {
+		t.Fatal("a second independent group should fit")
 	}
 	vs := g.visitorIDs()
-	if len(vs) < 2 || len(vs) > 4 {
+	if len(vs) < 1 || len(vs) > 4 {
 		t.Fatalf("%d visitors", len(vs))
 	}
 	for _, v := range vs {

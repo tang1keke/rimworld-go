@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"slices"
 
+	"rimworld-go/internal/application/game/visit"
 	"rimworld-go/internal/domain/building/construction"
 	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/economy/trade"
@@ -23,7 +24,7 @@ import (
 // while there is nothing to do.
 
 const (
-	tradeSaveVersion = 1
+	tradeSaveVersion = 2
 	// tradeWait is how long a negotiator or radio operator stands at the
 	// trader or console before the session opens.
 	tradeWait = 60
@@ -46,6 +47,7 @@ const (
 // tradeState is the colony's trade.
 type tradeState struct {
 	caravan   *traderCaravan
+	others    []*traderCaravan // additional independent visiting caravans
 	orbital   *orbitalShip
 	pods      []tradePod        // by landing tick, then position
 	cooldowns []factionCooldown // ascending faction id
@@ -55,11 +57,7 @@ type tradeState struct {
 	comms     *commsSession
 }
 
-// traderCaravan is a trader caravan on the map (saved). Trader is the
-// visitor carrying the goods, Members the whole group (ascending),
-// Faction the faction id (faction.Faction.ID). Turned: its faction turned
-// hostile while it was here (MAP-18); it trades no more, even if they calm
-// down.
+// traderCaravan retains its original saved type for older Gob saves.
 type traderCaravan struct {
 	Trader  entity.EntityID
 	Members []entity.EntityID
@@ -68,6 +66,8 @@ type traderCaravan struct {
 	Stock   trade.Stock
 	LeaveAt uint64
 	Turned  bool
+	GroupID uint64
+	Cargo   []visit.Cargo
 }
 
 // orbitalShip is an orbital trader in radio range until Until (saved).
@@ -121,7 +121,8 @@ type commsSession struct {
 // before.
 type tradeSave struct {
 	Version   int
-	Caravan   *traderCaravan
+	Caravan   *traderCaravan   // input for existing saves, primary live caravan
+	Caravans  []*traderCaravan // other simultaneous caravans
 	Orbital   *orbitalShip
 	Pods      []tradePod
 	Cooldowns []factionCooldown
@@ -132,11 +133,15 @@ type tradeSave struct {
 // exportTrade is the Trade save field (nil: nothing to keep).
 func (g *Game) exportTrade() *tradeSave {
 	t := &g.trade
-	if t.caravan == nil && t.orbital == nil && len(t.pods) == 0 && len(t.cooldowns) == 0 && len(t.requests) == 0 && len(t.aid) == 0 {
+	if t.caravan == nil && len(t.others) == 0 && t.orbital == nil && len(t.pods) == 0 && len(t.cooldowns) == 0 && len(t.requests) == 0 && len(t.aid) == 0 {
 		return nil
 	}
-	return &tradeSave{Version: tradeSaveVersion, Caravan: cloneCaravan(t.caravan), Orbital: cloneShip(t.orbital),
+	s := &tradeSave{Version: tradeSaveVersion, Caravan: cloneCaravan(t.caravan), Orbital: cloneShip(t.orbital),
 		Pods: clonePodsT(t.pods), Cooldowns: slices.Clone(t.cooldowns), Requests: slices.Clone(t.requests), Aid: slices.Clone(t.aid)}
+	for _, c := range t.others {
+		s.Caravans = append(s.Caravans, cloneCaravan(c))
+	}
+	return s
 }
 
 // importTrade restores exportTrade's state (nil: none); open sessions
@@ -148,6 +153,9 @@ func (g *Game) importTrade(s *tradeSave) {
 	}
 	g.trade = tradeState{caravan: cloneCaravan(s.Caravan), orbital: cloneShip(s.Orbital), pods: clonePodsT(s.Pods),
 		cooldowns: slices.Clone(s.Cooldowns), requests: slices.Clone(s.Requests), aid: slices.Clone(s.Aid)}
+	for _, c := range s.Caravans {
+		g.trade.others = append(g.trade.others, cloneCaravan(c))
+	}
 }
 
 func cloneStock(s trade.Stock) trade.Stock {
@@ -162,6 +170,10 @@ func cloneCaravan(c *traderCaravan) *traderCaravan {
 	out := *c
 	out.Members = slices.Clone(c.Members)
 	out.Stock = cloneStock(c.Stock)
+	out.Cargo = slices.Clone(c.Cargo)
+	for i := range out.Cargo {
+		out.Cargo[i].Lines = slices.Clone(c.Cargo[i].Lines)
+	}
 	return &out
 }
 
@@ -188,7 +200,7 @@ func clonePodsT(ps []tradePod) []tradePod {
 func (g *Game) tradeTick(now uint64) {
 	wanderersTick(g, now) // world_stash.go (MAP-19)
 	t := &g.trade
-	if t.caravan == nil && t.orbital == nil && len(t.pods) == 0 && len(t.requests) == 0 && len(t.aid) == 0 && t.session == nil && t.comms == nil {
+	if t.caravan == nil && len(t.others) == 0 && t.orbital == nil && len(t.pods) == 0 && len(t.requests) == 0 && len(t.aid) == 0 && t.session == nil && t.comms == nil {
 		return
 	}
 	if len(t.aid) > 0 {

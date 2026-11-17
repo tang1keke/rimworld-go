@@ -110,11 +110,13 @@ import (
 // (savefmt.Info); an older header gets one from its name on reading. v17
 // (EAI-0) adds each map's wealth tracker (game/wealth) and the factions'
 // wars (Faction.Enemies): an older save's first map is counted once, and
-// no faction is at war with another yet.
+// no faction is at war with another yet. v18 adds saved visitor groups,
+// cargo ownership and independent caravans, reconstructing legacy visitors
+// from their original records without changing their jobs.
 // migrateSave runs the steps a save's version is missing.
 
 // SaveVersion is the version new saves are written with.
-const SaveVersion = 17
+const SaveVersion = 18
 
 // minSaveVersion is the oldest version Load still reads.
 const minSaveVersion = 1
@@ -771,7 +773,10 @@ func Load(r io.Reader) (*Game, SaveInfo, error) {
 	g.care.Policy.Import(s.Care) // care/policy.go (MED-03)
 	g.med.animalIdxOK = false    // animal_health.go: rebuilt on first use
 	g.importTrade(s.Trade)       // trade.go (PLAY-024): sessions close on load
-	g.sk.diet.Import(s.Diet)     // game/diet (FOOD-4)
+	if info.Version < 18 {
+		rebuildVisitGroups(g) // restore legacy parties without replacing any active jobs
+	}
+	g.sk.diet.Import(s.Diet) // game/diet (FOOD-4)
 	g.importDrugs(s.Drugs)
 	g.importPrisoners(s.Prisoners)
 	senseOf(g).Import(s.Sense)      // game/sense (CSE)

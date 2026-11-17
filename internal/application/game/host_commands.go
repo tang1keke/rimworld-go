@@ -115,5 +115,7 @@ func (g *Game) applyHostCommand(c command.Command) {
 		g.cmdCommsRequestAid(c.Index) // comms.go
 	case command.CloseComms:
 		g.cmdCloseComms() // comms.go
+	case command.DismissVisitorGroup:
+		dismissVisitorCommand(g, pawn, target)
 	}
 }

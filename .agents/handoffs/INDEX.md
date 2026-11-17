@@ -153,6 +153,7 @@ One row per handoff section. Open the ledger at `#<lowercased ID>`. A new task a
 | ENG-008-plans-include-parallel-work | Every plan includes its parallel work | 2026-10-29 | [ENG.md](ENG.md#eng-008-plans-include-parallel-work) |
 | ENG-009-agent-cleanup | Parallel work reuses and cleans up agents | 2026-10-30 | [ENG.md](ENG.md#eng-009-agent-cleanup) |
 | ENG-010-vanilla-visitor-escape | Vanilla visitors and trader caravans breach enclosed exits | 2026-11-17 | [ENG.md](ENG.md#eng-010-vanilla-visitor-escape) |
+| ENG-011-vanilla-visitor-system | Vanilla visitors, travelers, and trade caravan groups | 2026-11-17 | [ENG.md](ENG.md#eng-011-vanilla-visitor-system) |
 | FEED-001-tame-animal-food | Hungry tame animals reach the food the colony has | 2026-10-30 | [FOOD.md](FOOD.md#feed-001-tame-animal-food) |
 | FISH-tanks | Fish tanks | 2026-11-02 | [FOOD.md](FOOD.md#fish-tanks) |
 | FISH_TANK_PLAN | Fish tanks and the MAP-5 fixes: gap analysis and plan (FISH-*, MAP-5, STK-AL 2) | 2026-11-02 | [FOOD.md](FOOD.md#fish_tank_plan) |

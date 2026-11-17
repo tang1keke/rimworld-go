@@ -30,7 +30,17 @@ const (
 func (v Visits) escape(r *Rec, x, y int, j job.Record, now uint64) bool {
 	h := v.h
 	w, ht := h.Size()
-	if min(x, y, w-1-x, ht-1-y) <= Inset || j.Kind == job.Move && j.State == job.Complete {
+	traveler := false
+	var gx, gy int
+	if gr, ok := v.GroupOf(r.ID); ok && gr.Kind == KindTraveler {
+		traveler, gx, gy = true, gr.ExitX, gr.ExitY
+	}
+	atExit := min(x, y, w-1-x, ht-1-y) <= Inset
+	if traveler {
+		atExit = (gx <= Inset && x <= Inset) || (gx >= w-1-Inset && x >= w-1-Inset) ||
+			(gy <= Inset && y <= Inset) || (gy >= ht-1-Inset && y >= ht-1-Inset)
+	}
+	if atExit || j.Kind == job.Move && j.State == job.Complete && !traveler {
 		v.goHome(r.ID)
 		return false
 	}
@@ -49,6 +59,17 @@ func (v Visits) escape(r *Rec, x, y int, j job.Record, now uint64) bool {
 	slices.SortStableFunc(sides[:], func(a, b edgeSide) int {
 		return cmp.Compare(a.distance, b.distance)
 	})
+
+	if traveler {
+		if h.StartJob(r.ID, job.Record{Kind: job.Move, TX: gx, TY: gy}) {
+			return true
+		}
+		if h.StartBreach(r.ID, gx, gy) {
+			return true
+		}
+		r.RetryAt = now + retry
+		return true
+	}
 
 	var goals [4]edgeGoal
 	for i, side := range sides {

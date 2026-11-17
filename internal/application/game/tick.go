@@ -94,7 +94,7 @@ func (g *Game) applyOne(c command.Command) {
 		command.EmergencyTend, command.ReorderOperation, // care package, surgery.go
 		command.SetZonePriority, // haul_priority.go (PLAY-023)
 		command.ProposeTrade, command.CloseTrade, command.CommsCallTrader, command.CommsGift,
-		command.CommsRequestCaravan, command.CommsRequestAid, command.CloseComms, // trade_session.go, comms.go (PLAY-024)
+		command.CommsRequestCaravan, command.CommsRequestAid, command.CloseComms, command.DismissVisitorGroup, // trade_session.go, comms.go (PLAY-024)
 		command.AcceptQuest, command.DismissQuest, command.RestoreQuest, command.FulfilRequest, command.Negotiate, command.SetRewardPref, command.DevOfferQuest: // quest_host.go (QST-1)
 		g.applyHostCommand(c) // host_commands.go (ENG-003)
 	case command.SetGameplayToggle, command.SetGameplayLimit, command.SetBenchClean, command.MarkUnload, command.DropGear, command.ConsumeFromPack, command.SetApparelForced:
@@ -1229,6 +1229,8 @@ func (g *Game) phaseJobs() {
 			g.care.Doctor.DoEmergencyTend(id, j) // care package (MED-03)
 		case job.Trade:
 			g.doTrade(id, j) // trade_session.go (PLAY-024)
+		case job.DismissVisitorGroup:
+			dismissVisitorJob(g, id, j)
 		case job.UseComms:
 			g.doUseComms(id, j) // comms.go (PLAY-024)
 		case job.DispensePaste:

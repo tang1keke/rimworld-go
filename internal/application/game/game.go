@@ -22,6 +22,7 @@ import (
 	"rimworld-go/internal/application/game/rest"
 	"rimworld-go/internal/application/game/sched"
 	"rimworld-go/internal/application/game/thermo"
+	"rimworld-go/internal/application/game/visit"
 	"rimworld-go/internal/application/game/wealth"
 	"rimworld-go/internal/domain/gameplay"
 	"rimworld-go/internal/domain/incident"
@@ -636,9 +637,10 @@ type WorldView struct {
 	Messages []MessageView
 	// Letters (PLAY-018) are the letter stack, newest last: kept and saved
 	// until the player dismisses one (command.DismissLetter), at most 40.
-	Letters    []LetterView
-	Quests     []QuestView // QST-1: every quest, ids ascending (memoized; quest_host.go)
-	NoGoodwill []int       // QST-083: faction refs whose goodwill the player declines as a reward
+	Letters       []LetterView
+	Quests        []QuestView  // QST-1: every quest, ids ascending (memoized; quest_host.go)
+	NoGoodwill    []int        // QST-083: faction refs whose goodwill the player declines as a reward
+	VisitorGroups []visit.View // current visitor parties and their purposes
 	// Stored (PLAY-018) is what the colony holds in its stockpiles, one row
 	// per item kind, for the resource list (the Food/Wood/... totals above
 	// still count every loose stack).
@@ -1515,6 +1517,12 @@ func (g *Game) world() WorldView {
 		NoGoodwill:  questOf(g).NoGoodwill(),
 		Zones:       g.zoneViews(),
 		Schedule:    g.scheduleView(),
+	}
+	if g.worldSt != nil {
+		now := uint64(g.clock.Now())
+		for _, gr := range g.worldSt.visitGroups {
+			w.VisitorGroups = append(w.VisitorGroups, gr.View(now))
+		}
 	}
 	w.Research, w.Locked = g.lab.Lists(g.views.on) // game/research
 	w.Gameplay = senseOf(g).Rules                  // game/sense (CSE)

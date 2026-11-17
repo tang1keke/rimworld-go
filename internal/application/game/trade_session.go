@@ -1,9 +1,9 @@
 package game
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
+	"rimworld-go/internal/application/game/tradeview"
+	"rimworld-go/internal/application/game/visit"
 
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
@@ -65,8 +65,8 @@ func (g *Game) party(s *tradeSession) (tradeParty, bool) {
 		}
 		return tradeParty{stock: &o.Stock, name: o.Name, kind: o.Kind, until: o.Until}, true
 	}
-	c := g.trade.caravan
-	if c == nil || c.Trader != s.trader {
+	c := caravanByTrader(&g.trade, s.trader)
+	if c == nil {
 		return tradeParty{}, false
 	}
 	return tradeParty{stock: &c.Stock, name: g.name(c.Trader), kind: c.Kind, f: g.factionByID(c.Faction), until: c.LeaveAt}, true
@@ -82,70 +82,29 @@ func (g *Game) termsFor(id entity.EntityID, f *faction.Faction) trade.Terms {
 	return t
 }
 
-// priceModPct is the percent the terms take off the base buy markup
-// (Social and goodwill), within what the floor allows.
-func priceModPct(t trade.Terms) int {
-	centi := t.Social*trade.SocialStepCenti + t.Goodwill*trade.BuyGoodwillMilli/10
-	return min(centi/100, trade.BuyMarkupPct-trade.BuyFloorPct)
-}
-
-// TradeView is the open trade session (ok false while none is open).
+// TradeView returns the current trade read model, composed from the
+// sale ledger and eligible colony stacks.
 func (g *Game) TradeView() (TradeView, bool) {
 	s := g.trade.session
 	if s == nil {
 		return TradeView{}, false
 	}
-	v := TradeView{Negotiator: s.negotiator, NegotiatorName: g.name(s.negotiator), Reason: s.reason, Orbital: s.trader == 0}
+	v := TradeView{Negotiator: s.negotiator, NegotiatorName: g.name(s.negotiator),
+		Reason: s.reason, Orbital: s.trader == 0}
 	p, ok := g.party(s)
 	if !ok {
 		return v, true
 	}
-	terms := g.termsFor(s.negotiator, p.f)
-	v.Trader, v.TraderKind = p.name, lower(trade.DefOf(p.kind).Label)
-	v.FactionID = -1
+	factionID, factionName := -1, ""
 	if p.f != nil {
-		v.Faction, v.FactionID, v.Goodwill = p.f.Name, p.f.ID, p.f.Goodwill
+		factionID, factionName = p.f.ID, p.f.Name
 	}
-	v.HoursLeft = hoursLeft(p.until, uint64(g.clock.Now()))
-	v.Social, v.PriceModPct = terms.Social, priceModPct(terms)
-	gd := g.colonyGoods(v.Orbital)
-	v.ColonySilver, v.TraderSilver = gd.counts[item.Silver], p.stock.Silver
-	theirs := map[trade.Goods]int{} // AX-1: a crated building is goods of its own
-	keys := make([]trade.Goods, 0, len(gd.counts)+len(p.stock.Lines))
-	for _, l := range p.stock.Lines {
-		theirs[l.Goods()] += l.Qty
-		keys = append(keys, l.Goods())
-	}
-	for k := range gd.counts {
-		if k != item.Silver && k.Value() > 0 && theirs[trade.Goods{Kind: k}] == 0 {
-			keys = append(keys, trade.Goods{Kind: k})
-		}
-	}
-	slices.SortFunc(keys, trade.Goods.Compare)
-	keys = slices.Compact(keys)
-	for _, gk := range keys {
-		k, colony := gk.Kind, gd.counts[gk.Kind]
-		if gk.Building != 0 {
-			colony = 0 // the colony's own crates are not on offer
-		}
-		v.Rows = append(v.Rows, TradeRowView{Kind: gk.Name(), Label: cmp.Or(gk.Label(), itemLabel(k)), Category: k.Category(),
-			ColonyQty: colony, TraderQty: theirs[gk],
-			BuyC: trade.PriceOf(gk, p.kind, trade.Buy, terms), SellC: trade.PriceOf(gk, p.kind, trade.Sell, terms),
-			WillBuy: theirs[gk] > 0, WillSell: gk.Building == 0 && trade.Wants(p.kind, k)})
-	}
-	slices.SortStableFunc(v.Rows, func(a, b TradeRowView) int {
-		if ra, rb := item.CategoryRank(a.Category), item.CategoryRank(b.Category); ra != rb {
-			return ra - rb
-		}
-		switch {
-		case a.Label < b.Label:
-			return -1
-		case a.Label > b.Label:
-			return 1
-		}
-		return 0
-	})
-	return v, true
+	return tradeview.Compose(v, tradeview.Market{
+		Kind: p.kind, Stock: *p.stock, Terms: g.termsFor(s.negotiator, p.f),
+		Colony: g.colonyGoods(v.Orbital).counts, TraderName: p.name,
+		FactionName: factionName, FactionID: factionID,
+		HoursLeft: hoursLeft(p.until, uint64(g.clock.Now())),
+	}), true
 }
 
 // cmdProposeTrade settles the offer encoded in offer (trade.EncodeOffer),
@@ -210,6 +169,11 @@ func (g *Game) cmdProposeTrade(offer string, gift bool) {
 	} else {
 		for _, l := range deliver {
 			g.dropGoods(l, pos.X, pos.Y, false)
+		}
+	}
+	if !orbital {
+		if c := caravanByTrader(&g.trade, s.trader); c != nil {
+			c.Cargo = visit.AssignCargo(c.Stock, caravanCargoOwners(g, c))
 		}
 	}
 	g.message(pos.X, pos.Y, "%s traded with %s.", g.name(s.negotiator), p.name)
@@ -300,7 +264,11 @@ func (g *Game) tradeJob(id entity.EntityID, x, y int) (job.Record, string) {
 	if g.capacity(id, body.Talking) <= 0 {
 		return job.Record{}, ReasonCantTalk
 	}
-	if f := g.factionByID(g.trade.caravan.Faction); f == nil || f.Relation == faction.Hostile {
+	c := caravanByTrader(&g.trade, tid)
+	if c == nil {
+		return job.Record{}, ReasonNoTrade
+	}
+	if f := g.factionByID(c.Faction); f == nil || f.Relation == faction.Hostile {
 		return job.Record{}, ReasonNoTrade
 	}
 	if !g.traderOpen(tid) {

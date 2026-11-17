@@ -1803,7 +1803,17 @@ saveState.Trade.Aid[].Here bool
 saveState.Trade.Aid[].LeaveAt uint64
 saveState.Trade.Aid[].Leaving bool
 saveState.Trade.Caravan rimworld-go/internal/application/game.traderCaravan
+saveState.Trade.Caravan.Cargo []rimworld-go/internal/application/game/visit.Cargo
+saveState.Trade.Caravan.Cargo[] rimworld-go/internal/application/game/visit.Cargo
+saveState.Trade.Caravan.Cargo[].Lines []rimworld-go/internal/domain/economy/trade.Line
+saveState.Trade.Caravan.Cargo[].Lines[] rimworld-go/internal/domain/economy/trade.Line
+saveState.Trade.Caravan.Cargo[].Lines[].Building uint8
+saveState.Trade.Caravan.Cargo[].Lines[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.Trade.Caravan.Cargo[].Lines[].Qty int
+saveState.Trade.Caravan.Cargo[].Owner rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.Trade.Caravan.Cargo[].Silver int
 saveState.Trade.Caravan.Faction int
+saveState.Trade.Caravan.GroupID uint64
 saveState.Trade.Caravan.Kind rimworld-go/internal/domain/economy/trade.TraderKind = uint8
 saveState.Trade.Caravan.LeaveAt uint64
 saveState.Trade.Caravan.Members []rimworld-go/internal/domain/sim/entity.EntityID
@@ -1818,6 +1828,33 @@ saveState.Trade.Caravan.Stock.Lines[].Qty int
 saveState.Trade.Caravan.Stock.Silver int
 saveState.Trade.Caravan.Trader rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.Trade.Caravan.Turned bool
+saveState.Trade.Caravans []rimworld-go/internal/application/game.traderCaravan
+saveState.Trade.Caravans[] rimworld-go/internal/application/game.traderCaravan
+saveState.Trade.Caravans[].Cargo []rimworld-go/internal/application/game/visit.Cargo
+saveState.Trade.Caravans[].Cargo[] rimworld-go/internal/application/game/visit.Cargo
+saveState.Trade.Caravans[].Cargo[].Lines []rimworld-go/internal/domain/economy/trade.Line
+saveState.Trade.Caravans[].Cargo[].Lines[] rimworld-go/internal/domain/economy/trade.Line
+saveState.Trade.Caravans[].Cargo[].Lines[].Building uint8
+saveState.Trade.Caravans[].Cargo[].Lines[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.Trade.Caravans[].Cargo[].Lines[].Qty int
+saveState.Trade.Caravans[].Cargo[].Owner rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.Trade.Caravans[].Cargo[].Silver int
+saveState.Trade.Caravans[].Faction int
+saveState.Trade.Caravans[].GroupID uint64
+saveState.Trade.Caravans[].Kind rimworld-go/internal/domain/economy/trade.TraderKind = uint8
+saveState.Trade.Caravans[].LeaveAt uint64
+saveState.Trade.Caravans[].Members []rimworld-go/internal/domain/sim/entity.EntityID
+saveState.Trade.Caravans[].Members[] rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.Trade.Caravans[].Stock rimworld-go/internal/domain/economy/trade.Stock
+saveState.Trade.Caravans[].Stock.Kind rimworld-go/internal/domain/economy/trade.TraderKind = uint8
+saveState.Trade.Caravans[].Stock.Lines []rimworld-go/internal/domain/economy/trade.Line
+saveState.Trade.Caravans[].Stock.Lines[] rimworld-go/internal/domain/economy/trade.Line
+saveState.Trade.Caravans[].Stock.Lines[].Building uint8
+saveState.Trade.Caravans[].Stock.Lines[].Kind rimworld-go/internal/domain/economy/item.Kind = uint8
+saveState.Trade.Caravans[].Stock.Lines[].Qty int
+saveState.Trade.Caravans[].Stock.Silver int
+saveState.Trade.Caravans[].Trader rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.Trade.Caravans[].Turned bool
 saveState.Trade.Cooldowns []rimworld-go/internal/application/game.factionCooldown
 saveState.Trade.Cooldowns[] rimworld-go/internal/application/game.factionCooldown
 saveState.Trade.Cooldowns[].CD rimworld-go/internal/domain/faction.Cooldowns
@@ -2804,6 +2841,7 @@ saveState.World.HuntOut[] rimworld-go/internal/application/game.huntOutRec
 saveState.World.HuntOut[].Pawn rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.World.HuntOut[].Prey rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.World.HuntOut[].Since uint64
+saveState.World.NextVisitGroup uint64
 saveState.World.Quests rimworld-go/internal/application/game/quest.Save
 saveState.World.Quests.Cadence rimworld-go/internal/application/game/quest.Cadence
 saveState.World.Quests.Cadence.At uint64
@@ -2998,6 +3036,28 @@ saveState.World.Stashed[].Raider.Warden rimworld-go/internal/domain/sim/entity.E
 saveState.World.Stashed[].X int
 saveState.World.Stashed[].Y int
 saveState.World.Version uint8
+saveState.World.VisitGroups []rimworld-go/internal/application/game/visit.Group
+saveState.World.VisitGroups[] rimworld-go/internal/application/game/visit.Group
+saveState.World.VisitGroups[].ArrivedAt uint64
+saveState.World.VisitGroups[].CampX int
+saveState.World.VisitGroups[].CampY int
+saveState.World.VisitGroups[].DefenseUntil uint64
+saveState.World.VisitGroups[].ExitX int
+saveState.World.VisitGroups[].ExitY int
+saveState.World.VisitGroups[].Faction int
+saveState.World.VisitGroups[].GiftDone bool
+saveState.World.VisitGroups[].ID uint64
+saveState.World.VisitGroups[].Kind rimworld-go/internal/application/game/visit.Kind = uint8
+saveState.World.VisitGroups[].Leader rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.World.VisitGroups[].LeaveAt uint64
+saveState.World.VisitGroups[].Members []rimworld-go/internal/application/game/visit.Member
+saveState.World.VisitGroups[].Members[] rimworld-go/internal/application/game/visit.Member
+saveState.World.VisitGroups[].Members[].Departed bool
+saveState.World.VisitGroups[].Members[].ID rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.World.VisitGroups[].Members[].Lost bool
+saveState.World.VisitGroups[].Members[].Role rimworld-go/internal/application/game/visit.Role = uint8
+saveState.World.VisitGroups[].Phase rimworld-go/internal/application/game/visit.Phase = uint8
+saveState.World.VisitGroups[].Reason rimworld-go/internal/application/game/visit.LeaveReason = uint8
 saveState.World.Visitors []rimworld-go/internal/application/game/visit.Rec
 saveState.World.Visitors[] rimworld-go/internal/application/game/visit.Rec
 saveState.World.Visitors[].Ally bool
@@ -3005,10 +3065,13 @@ saveState.World.Visitors[].Defend uint64
 saveState.World.Visitors[].Down bool
 saveState.World.Visitors[].Faction int
 saveState.World.Visitors[].Fetch rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.World.Visitors[].GroupID uint64
+saveState.World.Visitors[].Healed bool
 saveState.World.Visitors[].ID rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.World.Visitors[].LeaveAt uint64
 saveState.World.Visitors[].Leaving bool
 saveState.World.Visitors[].NoCarry bool
+saveState.World.Visitors[].Rations uint8
 saveState.World.Visitors[].RetryAt uint64
 saveState.World.Visitors[].Turned bool
 saveState.Worn map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game/craft.OutfitSave

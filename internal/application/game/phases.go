@@ -71,7 +71,7 @@ func phaseSystems(g *Game) *sched.Schedule {
 		w("story", PhaseThreats, func() { storyHour(g, now()) }).ForColony().At(hour, cadence.OffStory).When(g.hasSetup).Then("storyteller"),
 		w("storyteller", PhaseThreats, func() { fireStoryteller(g, now()) }).ForColony().When(func() bool { return g.threatsOn && now() >= g.nextThreat }).Then(PhaseThreats),
 		w(PhaseThreats, PhaseThreats, g.phaseThreats), w(PhaseIncidents, PhaseIncidents, g.phaseIncidents),
-		w("visitors", PhaseWorld, func() { visitsOf(g).Tick(aidOf(g), now()) }).ForColony().When(func() bool { return world() && len(g.worldSt.visitors) > 0 }).Then(PhaseWorld), // game/visit
+		w("visitors", PhaseWorld, func() { visitsOf(g).Tick(aidOf(g), now()) }).ForColony().When(func() bool { return world() && len(g.worldSt.visitors) > 0 || len(g.worldSt.visitGroups) > 0 }).Then(PhaseWorld), // game/visit
 		w(PhaseWorld, PhaseWorld, g.phaseWorld).When(world).Then("world-upkeep"),
 		w("world-upkeep", PhaseWorld, func() { worldUpkeep(g, now()) }).ForColony().At(worldStep, 0).When(world),
 		w(PhaseWeather, PhaseWeather, g.phaseWeather), w(PhaseMovement, PhaseMovement, g.phaseMovement),

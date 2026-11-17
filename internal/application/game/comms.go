@@ -89,8 +89,10 @@ func (g *Game) caravanRequestOK(f faction.Faction, now uint64) (bool, string) {
 	if g.requestPending(f.ID) {
 		return false, ReasonOnTheWay
 	}
-	if c := g.trade.caravan; c != nil && c.Faction == f.ID {
-		return false, ReasonCaravanHere
+	for _, c := range caravansOf(&g.trade) {
+		if c.Faction == f.ID {
+			return false, ReasonCaravanHere
+		}
 	}
 	return true, ""
 }

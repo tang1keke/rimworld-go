@@ -393,7 +393,7 @@ func (g *Game) cmdAssignArea(pawn entity.EntityID, r int) {
 // importAreaRef is a saved assignment as an area ref: a Version 1 save
 // held area positions, which import as ids 1..n (area.Import).
 func importAreaRef(version uint8, v int) int {
-	if version < worldSaveVersion && v >= 0 {
+	if version < 2 && v >= 0 {
 		return v + 1
 	}
 	return v

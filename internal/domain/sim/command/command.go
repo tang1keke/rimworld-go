@@ -452,6 +452,9 @@ const (
 	// AnswerLetter (EAI-0 contract; ignored until it lands) picks answer
 	// Mode (an index into the letter's Choices) of letter Target.
 	AnswerLetter
+	// DismissVisitorGroup sends a standing visitor party home after a
+	// selected colonist speaks to its leader (Pawn, Target).
+	DismissVisitorGroup
 )
 
 // EditApparelPolicy modes (Command.Mode), GEAR-3 contract.

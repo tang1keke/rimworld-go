@@ -73,6 +73,7 @@ const (
 	// RivalRaid (EAI-030, in no pool): a raid the story queued for a later
 	// tick (State.Queue): a rival faction's, or the refugee's pursuers'.
 	RivalRaid
+	TravelerGroup
 	NumIDs
 )
 
@@ -124,6 +125,7 @@ var defs = [NumIDs]Def{
 		Biomes: biome.Of(biome.BorealForest, biome.Tundra, biome.ColdBog, biome.TemperateForest)},
 	MadAnimal:     {Key: "mad_animal", Name: "Mad animal", Category: Threat, Weight: 1, Cooldown: 10, MinDay: 6},
 	VisitorGroup:  {Key: "visitor_group", Name: "Visitors", Category: Nature, Weight: 12, Cooldown: 8, MinDay: 4},
+	TravelerGroup: {Key: "traveler_group", Name: "Travelers", Category: Nature, Weight: 5, Cooldown: 6, MinDay: 4},
 	WandererJoins: {Key: "wanderer_joins", Name: "Wanderer joins", Category: Nature, Helpful: true, Weight: 6, Cooldown: 20, MinDay: 8},
 	Party:         {Key: "party", Name: "Party", Category: Nature, Helpful: true, Weight: 8, Cooldown: 10, MinDay: 6},
 	SolarFlare:    {Key: "solar_flare", Name: "Solar flare", Category: Nature, Weight: 6, Cooldown: 12, MinDay: 12},

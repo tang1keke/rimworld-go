@@ -100,14 +100,17 @@ func TestDownedVisitorRescuedTendedAndLeaves(t *testing.T) {
 	if !left() || g.inBed(vis) {
 		t.Fatalf("recovered, it leaves and gives the bed back (in bed %v)", g.inBed(vis))
 	}
-	if !hasEvent(g, fac, care.ReasonHealed) {
-		t.Fatalf("its faction thanks the colony: %q", g.factionOf(fac).Events)
+	if g.visitor(vis) && hasEvent(g, fac, care.ReasonHealed) {
+		t.Fatal("recovery alone has not yet earned the safe-return goodwill")
 	}
 	for i := 0; i < 50 && g.visitor(vis); i++ {
 		g.Step(250)
 	}
 	if g.visitor(vis) || g.personOf(vis).Where != whereOffMap {
 		t.Fatal("it walks home")
+	}
+	if !hasEvent(g, fac, care.ReasonHealed) {
+		t.Fatalf("healthy departure earns goodwill once: %q", g.factionOf(fac).Events)
 	}
 }
 

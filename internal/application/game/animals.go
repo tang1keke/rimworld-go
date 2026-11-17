@@ -415,6 +415,7 @@ func (g *Game) killAnimal(id, by entity.EntityID) {
 }
 
 func (g *Game) removeAnimal(id entity.EntityID) {
+	packCargoLost(g, id)
 	if a := g.animals.Ref(id); a != nil && a.FeedClaim != 0 {
 		g.reserve.ReleaseEntity(id, a.FeedClaim) // an eater's stack is free again
 	}

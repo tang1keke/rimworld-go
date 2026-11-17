@@ -109,9 +109,8 @@ func TestGuestStaysInBedWhileHealing(t *testing.T) {
 	if hos.Step(visiting) {
 		t.Fatal("well again: it leaves")
 	}
-	if !slices.Equal(gu.goodwill, []int{GoodwillHealed}) || gu.reasons[0] != ReasonHealed ||
-		!slices.Equal(gu.left, []entity.EntityID{visiting}) || len(gu.offers) != 0 {
-		t.Fatalf("goodwill %v reasons %v left %v offers %v", gu.goodwill, gu.reasons, gu.left, gu.offers)
+	if len(gu.goodwill) != 0 || !slices.Equal(gu.left, []entity.EntityID{visiting}) || len(gu.offers) != 0 {
+		t.Fatalf("recovery must schedule departure before goodwill: goodwill %v left %v offers %v", gu.goodwill, gu.left, gu.offers)
 	}
 	if h.jobs[visiting].Kind == job.Sleep || h.BedUnder(visiting) != 0 || c.Rest.HeldBed(visiting) != 0 {
 		t.Fatalf("it gets up and gives the bed back: job %+v bed %d", h.jobs[visiting], h.BedUnder(visiting))
@@ -201,7 +200,7 @@ func TestGuestDoesNotFlap(t *testing.T) {
 			leaves = len(gu.left)
 		}
 	}
-	if len(gu.left) != 1 || leaves != 1 || len(gu.goodwill) != 1 {
+	if len(gu.left) != 1 || leaves != 1 || len(gu.goodwill) != 0 {
 		t.Fatalf("left %d times (goodwill %v), stayed %d ticks", len(gu.left), gu.goodwill, stays)
 	}
 	if stays == 0 || stays > 7 {

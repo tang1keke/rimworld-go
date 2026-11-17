@@ -62,11 +62,13 @@ const worldStep = 250
 type worldState struct {
 	// planet is rebuilt from the setup's World params on first use (never
 	// saved); planetTried: the build was attempted (nil: no world).
-	planet      *planet.Planet
-	planetTried bool
-	caravans    []maps.Caravan // ascending ID (game/maps)
-	stashed     []stashRec     // ascending ID (world_stash.go)
-	visitors    []visitorRec   // ascending ID (visitors.go)
+	planet         *planet.Planet
+	planetTried    bool
+	caravans       []maps.Caravan // ascending ID (game/maps)
+	stashed        []stashRec     // ascending ID (world_stash.go)
+	visitors       []visitorRec   // ascending ID (visitors.go)
+	visitGroups    []visit.Group
+	nextVisitGroup uint64
 	// areaOf is each restricted colonist's or tame animal's allowed area
 	// ref (areas.go): an area id, or command.AreaHome; absent means
 	// unrestricted. Looked up only, never iterated for output unsorted.
@@ -96,10 +98,12 @@ type worldState struct {
 
 // worldSave is worldState as saved.
 type worldSave struct {
-	Version  uint8 // format of this block; 0 = empty
-	Caravans []maps.Caravan
-	Stashed  []stashRec
-	Visitors []visitorRec
+	Version        uint8 // format of this block; 0 = empty
+	Caravans       []maps.Caravan
+	Stashed        []stashRec
+	Visitors       []visitorRec
+	VisitGroups    []visit.Group
+	NextVisitGroup uint64
 	// AreaOf is the allowed-area assignments: Version 1 saves hold area
 	// positions (index i is id i+1 now), Version 2 area refs (PLAY-015).
 	AreaOf  []areaAssign
@@ -109,8 +113,8 @@ type worldSave struct {
 	Quests  *quest.Save  // game/quest (QST-1): absent before the first quest or in a legacy colony
 }
 
-// worldSaveVersion is the format exportWorld writes (2: area refs).
-const worldSaveVersion = 2
+// worldSaveVersion is the format exportWorld writes (3: visit groups).
+const worldSaveVersion = 3
 
 // areaAssign is one pawn's allowed area in a save.
 type areaAssign struct {
@@ -279,10 +283,14 @@ func (g *Game) exportWorld() *worldSave {
 	if w != nil && w.quests != nil {
 		qs = w.quests.Export() // nil while it holds nothing
 	}
-	if w == nil || len(w.caravans) == 0 && len(w.stashed) == 0 && len(w.visitors) == 0 && len(w.areaOf) == 0 && len(w.huntOut) == 0 && w.ax9.Empty() && w.atlas.Empty() && qs == nil {
+	if w == nil || len(w.caravans) == 0 && len(w.stashed) == 0 && len(w.visitors) == 0 && len(w.visitGroups) == 0 && len(w.areaOf) == 0 && len(w.huntOut) == 0 && w.ax9.Empty() && w.atlas.Empty() && qs == nil {
 		return nil
 	}
-	s := &worldSave{Version: worldSaveVersion, Stashed: slices.Clone(w.stashed), Visitors: slices.Clone(w.visitors), Quests: qs}
+	s := &worldSave{Version: worldSaveVersion, Stashed: slices.Clone(w.stashed), Visitors: slices.Clone(w.visitors),
+		NextVisitGroup: w.nextVisitGroup, Quests: qs}
+	for _, gr := range w.visitGroups {
+		s.VisitGroups = append(s.VisitGroups, gr.Clone())
+	}
 	for _, c := range w.caravans {
 		s.Caravans = append(s.Caravans, c.Clone())
 	}
@@ -309,6 +317,13 @@ func (g *Game) importWorld(s *worldSave) {
 	}
 	w.stashed = slices.Clone(s.Stashed)
 	w.visitors = slices.Clone(s.Visitors)
+	w.nextVisitGroup = s.NextVisitGroup
+	for _, gr := range s.VisitGroups {
+		w.visitGroups = append(w.visitGroups, gr.Clone())
+		if gr.ID > w.nextVisitGroup {
+			w.nextVisitGroup = gr.ID
+		}
+	}
 	for _, a := range s.AreaOf {
 		if w.areaOf == nil {
 			w.areaOf = map[entity.EntityID]int{}

@@ -191,6 +191,9 @@ const (
 	PackIngredients
 	UnloadPack
 	TakeSpare
+	// DismissVisitorGroup: a colonist approaches the visiting leader
+	// and asks the group to leave without a parting gift.
+	DismissVisitorGroup
 )
 
 // Hauls reports a haul job: a plain haul, or FOOD-4's hopper fill, a
@@ -317,6 +320,8 @@ func (k Kind) String() string {
 		return "tend animal"
 	case Visit:
 		return "visit"
+	case DismissVisitorGroup:
+		return "ask visitors to leave"
 	case Rope:
 		return "rope animal"
 	case FightFire:

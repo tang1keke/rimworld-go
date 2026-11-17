@@ -97,8 +97,8 @@ func TestTraderCaravanArrivesStaysLeaves(t *testing.T) {
 	if !reflect.DeepEqual(g.visitorIDs(), c.Members) {
 		t.Fatalf("visitors %v, members %v", g.visitorIDs(), c.Members)
 	}
-	if g.caravanFits(now) || g.visitorsFit(now) {
-		t.Fatal("another group fits while the caravan is here")
+	if !g.caravanFits(now) || !g.visitorsFit(now) {
+		t.Fatal("independent visitors and caravans should fit")
 	}
 	if st, ok := g.TradeStatus(); !ok || !st.CaravanVisiting || st.CaravanFaction != g.factionByID(c.Faction).Name || st.CaravanHoursLeft != 18 {
 		t.Fatalf("trade status %+v %v", st, ok)
@@ -123,6 +123,11 @@ func TestTraderCaravanArrivesStaysLeaves(t *testing.T) {
 	items := len(g.itemIDs)
 	// the stay ends: they walk out and the caravan is over
 	c.LeaveAt = uint64(g.clock.Now()) + 10
+	for i := range g.worldSt.visitGroups {
+		if g.worldSt.visitGroups[i].ID == c.GroupID {
+			g.worldSt.visitGroups[i].LeaveAt = c.LeaveAt
+		}
+	}
 	for i := range g.worldSt.visitors {
 		g.worldSt.visitors[i].LeaveAt = c.LeaveAt
 	}
@@ -153,6 +158,7 @@ func TestKillingTraderDropsGoodsAndCostsGoodwill(t *testing.T) {
 			f := g.factionByID(c.Faction)
 			f.Goodwill = 20
 			stock := cloneStock(c.Stock)
+			manifest := slices.Clone(c.Cargo)
 			tid := c.Trader
 			if how == "killed" {
 				g.die(tid, health.CauseInjury)
@@ -166,9 +172,18 @@ func TestKillingTraderDropsGoodsAndCostsGoodwill(t *testing.T) {
 			if f.Goodwill != 20-traderLostGoodwill {
 				t.Fatalf("goodwill %d, want %d", f.Goodwill, 20-traderLostGoodwill)
 			}
-			want := map[item.Kind]int{item.Silver: stock.Silver}
-			for _, l := range stock.Lines {
-				want[l.Kind] += l.Qty
+			want := map[item.Kind]int{}
+			for _, hold := range manifest {
+				if hold.Owner != tid {
+					continue
+				}
+				want[item.Silver] += hold.Silver
+				for _, l := range hold.Lines {
+					want[l.Kind] += l.Qty
+				}
+			}
+			if c.Stock.Silver != stock.Silver-want[item.Silver] {
+				t.Fatalf("goods assigned to surviving pack animals disappeared")
 			}
 			got := map[item.Kind]int{}
 			for _, iid := range g.itemIDs {
@@ -236,8 +251,8 @@ func TestTradeJobOpensSession(t *testing.T) {
 	}
 }
 
-// TestSessionClosesWhenTraderLeaves: the session closes when the
-// negotiator goes down, and when the caravan's stay ends.
+// TestSessionClosesWhenTraderLeaves: downing the negotiator closes the
+// session; the trader stays tradable on its way to the map edge.
 func TestSessionClosesWhenTraderLeaves(t *testing.T) {
 	t.Parallel()
 	g, c := caravanGame(t)
@@ -254,17 +269,35 @@ func TestSessionClosesWhenTraderLeaves(t *testing.T) {
 	g.Step(5)
 	neg = openCaravanTrade(t, g, c)
 	c.LeaveAt = uint64(g.clock.Now()) + 5
-	g.Step(10)
-	if _, ok := g.TradeView(); ok {
-		t.Fatal("the session stayed open after the trader's stay ended")
-	}
-	if j, _ := g.jobs.Get(neg); j.Kind == job.Trade && j.Active() {
-		t.Fatalf("the trade job outlived the session: %+v", j)
-	}
-	if tp, _ := g.positions.Get(c.Trader); optionAt(g, neg, tp.X, tp.Y, "Trade with ") != nil {
-		if o := optionAt(g, neg, tp.X, tp.Y, "Trade with "); !o.Disabled || o.Reason != ReasonNotTrading {
-			t.Fatalf("order on a leaving trader %+v", o)
+	for i := range g.worldSt.visitGroups {
+		if g.worldSt.visitGroups[i].ID == c.GroupID {
+			g.worldSt.visitGroups[i].LeaveAt = c.LeaveAt
 		}
+	}
+	for i := range g.worldSt.visitors {
+		if g.worldSt.visitors[i].GroupID == c.GroupID {
+			g.worldSt.visitors[i].LeaveAt = c.LeaveAt
+		}
+	}
+	g.Step(10)
+	if !g.visitor(c.Trader) {
+		t.Fatal("the trader departed before reaching the edge")
+	}
+	if !g.traderOpen(c.Trader) {
+		t.Fatal("the departing trader should remain open to trade")
+	}
+	for i := 0; i < 15000 && g.visitor(c.Trader); i++ {
+		g.Step(1)
+	}
+	if g.visitor(c.Trader) {
+		t.Fatal("departing trader stayed on the map")
+	}
+	if _, ok := g.TradeView(); ok {
+		t.Fatal("trade session remained after actual departure")
+	}
+	g.Step(2)
+	if j, _ := g.jobs.Get(neg); j.Kind == job.Trade && j.Active() {
+		t.Fatalf("trade job remained after departure: %+v", j)
 	}
 }
 

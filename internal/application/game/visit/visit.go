@@ -42,6 +42,9 @@ const (
 
 // Rec is one visitor on the map (saved).
 type Rec struct {
+	GroupID uint64
+	Healed  bool  // recovered in a colony bed; goodwill is settled on healthy departure
+	Rations uint8 // own provisions, consumed only when hungry
 	ID      entity.EntityID
 	Faction int // 1 + faction index
 	LeaveAt uint64
@@ -100,7 +103,10 @@ func (v Visits) Factions() []int {
 }
 
 // Arrive brings a visitor group in from a map edge.
-func (v Visits) Arrive(now uint64) bool {
+func (v Visits) Arrive(now uint64) bool { return v.ArriveKind(KindVisitor, now) }
+
+// ArriveKind creates either a visiting party or travelers crossing the map.
+func (v Visits) ArriveKind(kind Kind, now uint64) bool {
 	facs := v.Factions()
 	if len(facs) == 0 {
 		return false
@@ -112,7 +118,10 @@ func (v Visits) Arrive(now uint64) bool {
 	if !ok {
 		return false
 	}
-	n := 2 + h.WorldRoll(3)
+	n := 1 + h.WorldRoll(4)
+	if kind == KindTraveler {
+		n = 1 + h.WorldRoll(3)
+	}
 	wantKin := h.RelativeRoll()
 	var kin entity.EntityID
 	var used [][2]int
@@ -136,9 +145,41 @@ func (v Visits) Arrive(now uint64) bool {
 	if len(ids) == 0 {
 		return false
 	}
-	h.Letter("info", "Visitors", ids[0], "%d people of %s have come to visit. They will stay about half a day.", len(ids), f.Name)
+	if kind == KindTraveler {
+		h.Letter("info", "Travelers", ids[0], "%d travelers of %s are crossing the region.", len(ids), f.Name)
+	} else {
+		h.Letter("info", "Visitors", ids[0], "%d people of %s have come to visit. They will stay about half a day.", len(ids), f.Name)
+	}
 	if kin != 0 {
 		h.RelativeLetter(kin, "visitors from "+f.Name)
+	}
+	members := make([]Member, 0, len(ids))
+	for i, id := range ids {
+		role := RoleVisitor
+		if i == 0 {
+			role = RoleLeader
+		}
+		members = append(members, Member{ID: id, Role: role})
+	}
+	gid := v.NewGroup(kind, ref, members, now, now+stay)
+	if kind == KindTraveler {
+		gs := v.h.Groups(false)
+		w, ht := h.Size()
+		for i := range *gs {
+			if g := &(*gs)[i]; g.ID == gid {
+				switch {
+				case ex == 0:
+					g.ExitX, g.ExitY = w-1-Inset, ey
+				case ex == w-1:
+					g.ExitX, g.ExitY = Inset, ey
+				case ey == 0:
+					g.ExitX, g.ExitY = ex, ht-1-Inset
+				default:
+					g.ExitX, g.ExitY = ex, Inset
+				}
+			}
+		}
+		v.LeaveGroup(gid, LeaveScheduled, now)
 	}
 	return true
 }
@@ -171,7 +212,7 @@ func (v Visits) Spawn(ref int, f *faction.Faction, x, y int, now uint64) entity.
 func (v Visits) Place(id entity.EntityID, ref, x, y int, now uint64) {
 	v.h.Place(id, ref, x, y, now)
 	p := v.h.Records(true)
-	*p = append(*p, Rec{ID: id, Faction: ref, LeaveAt: now + stay})
+	*p = append(*p, Rec{ID: id, Faction: ref, LeaveAt: now + stay, Rations: 2})
 }
 
 // SetStay makes visitor id leave at leaveAt (a trader caravan's longer
@@ -206,6 +247,7 @@ func (v Visits) Tick(a Aid, now uint64) {
 		return
 	}
 	v.notice(*list) // turn.go: a faction turned hostile (MAP-18)
+	v.TickGroups(now)
 	kept := (*list)[:0]
 	for i := range *list {
 		r := &(*list)[i] // in place: a guest leaving updates the record mid-step
@@ -256,6 +298,7 @@ func (v Visits) step(a Aid, r *Rec, now uint64) bool {
 	if h.GuestStep(r.ID) {
 		return true // care/guest.go: rescued, it heals in the colony's bed
 	}
+	h.NeedsStep(r.ID, now)
 	x, y := h.Pos(r.ID)
 	j := h.Job(r.ID)
 	if !r.Ally && h.Carrying(r.ID) == 0 {
@@ -273,6 +316,9 @@ func (v Visits) step(a Aid, r *Rec, now uint64) bool {
 		h.Release(r.ID)
 		h.SetJob(r.ID, job.Record{})
 		j = job.Record{}
+	}
+	if !r.Leaving && h.RestStep(r.ID, now) {
+		return true
 	}
 	if r.Leaving && v.carryOff(r, x, y, j, now) { // carry.go
 		return true
@@ -315,6 +361,16 @@ func (v Visits) stroll(id entity.EntityID) bool {
 	h := v.h
 	hx, hy := h.Home()
 	rg := h.StrollRange(id) // trade_caravan.go: a trader caravan camps closer
+	if gr, ok := v.GroupOf(id); ok && (gr.Kind == KindCaravan || gr.Kind == KindSmallTrader) {
+		hx, hy = gr.CampX, gr.CampY
+		if id != gr.Leader {
+			lx, ly := h.Pos(gr.Leader)
+			x, y := h.Pos(id)
+			if max(x-lx, lx-x, y-ly, ly-y) > 6 {
+				hx, hy, rg = lx, ly, 2
+			}
+		}
+	}
 	x := hx + h.WorldRoll(2*rg+1) - rg
 	y := hy + h.WorldRoll(2*rg+1) - rg
 	tx, ty, ok := h.WalkableNear(x, y, 3)
