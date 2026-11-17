@@ -60,3 +60,10 @@ Fighting: line of sight and cover, attack resolution and the attack/hunt job, de
 ## Tests
 - Unit tests here run against `fakeHost` (host_test.go); coverage ≈ 97 % at DEF-1 (shot_test.go: burst, bands, stray, friendly fire, armor, saves). Whole-game: `combat_model_test.go`. No-flap tests: `TestDefendSwitchDoesNotFlap`, `TestTurretLetsGo`, `TestReachHysteresis`, `TestTurretDangerStepNoFlap`. EAI (eai_b_test.go): `TestTurretTargetsTameManhunter`, `TestNearestThreatIndexMatchesScan`.
 - Whole-game tests: `internal/application/game/settlement_turret_test.go`, `turret_test.go`, `allies_test.go`, `combat_test.go`, `combat_state_test.go`, `defense_test.go`, `flee_test.go`, `fight_test.go`.
+
+## FAC-CORE: shared foreign-faction target selection
+
+Tactics.RaidFoes takes the usual live colonist candidates and appends all visible foreign enemies through Rosters.Near(Raiders|Animals). Human raiders target active machine/insect groups; machines target live human NPCs (including neutral visitors) and insects. Same-group hidden creatures, unrelated wildlife and dormant/downed/dead targets are excluded using domain/faction.HiddenEnemies. Two candidate buffers are reused. Raid.Tactics.Foes delegates here without a new game.Game or interface method.
+
+
+A tame animal follows the player's faction for hidden-faction targeting. Core hostile machines may attack colony animals; raider human target selection retains its original colonist-oriented behavior. The target list uses the source type, so a tame creature is never misclassified as its original wild species.

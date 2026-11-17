@@ -6,6 +6,7 @@ import (
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/combat/projectile"
 	"rimworld-go/internal/domain/combat/weapon"
+	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/sim/entity"
 )
 
@@ -27,7 +28,8 @@ type Tactics struct {
 	shots  *Shots
 	drafts *Drafts
 	seen   []Seen
-	out    []Seen // Colonists' answer, reused
+	out    []Seen // raid candidates, reused
+	foes   []Seen // nearby non-colony fighters, reused
 	// danger is the explosive shots in flight, rebuilt once a tick.
 	danger   []projectile.Shot
 	dangerAt uint64
@@ -154,6 +156,42 @@ func (t *Tactics) Danger(x, y int) (lx, ly, reach int, ok bool) {
 func (t *Tactics) Colonists(x, y, r int) []Seen {
 	t.out = t.h.Near(x, y, r, Pawns, t.out[:0])
 	t.out = slices.DeleteFunc(t.out, func(s Seen) bool { return !t.h.StandingPawn(s.ID) })
+	return t.out
+}
+
+// RaidFoes joins the existing colonist candidates with visible enemies
+// of the source's faction. Only the existing creature index
+// is consulted; humans and mechanoids use the same search.
+func (t *Tactics) RaidFoes(source entity.EntityID, x, y, r int) []Seen {
+	t.Colonists(x, y, r)
+	mine, hidden := faction.Settlers, false
+	if a, ok := t.h.Animal(source); ok {
+		mine, hidden = faction.Creature(a.Species)
+		if !hidden || a.Dead() || a.Dormant {
+			return t.out
+		}
+	} else if !t.h.StandingRaider(source) {
+		return t.out
+	}
+	t.foes = t.h.Near(x, y, r, Raiders|Animals, t.foes[:0])
+	for _, s := range t.foes {
+		if s.ID == source || !t.sight.Line(x, y, s.X, s.Y) {
+			continue
+		}
+		if a, ok := t.h.Animal(s.ID); ok {
+			other, foreign := faction.Creature(a.Species)
+			if a.Tame {
+				other, foreign = faction.Player, hidden
+			}
+			if !foreign || a.Dead() || a.Downed || a.Dormant ||
+				!faction.HiddenEnemies(mine, other) {
+				continue
+			}
+		} else if !hidden || !t.h.StandingPawn(s.ID) {
+			continue
+		}
+		t.out = append(t.out, s)
+	}
 	return t.out
 }
 

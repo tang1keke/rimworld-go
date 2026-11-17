@@ -313,11 +313,23 @@ func TestCasketOccupantsLive(t *testing.T) {
 	for _, h := range hostiles {
 		start[entity.EntityID(h)], _ = g.positions.Get(entity.EntityID(h))
 	}
-	g.Step(600)
+	attacked := map[entity.EntityID]bool{}
+	for i := 0; i < 600; i++ {
+		g.Step(1)
+		for _, trace := range g.traces {
+			if trace.Attacker != 0 {
+				attacked[trace.Attacker] = true
+			}
+		}
+	}
 	for id, p0 := range start {
 		p, ok := g.positions.Get(id)
-		if ok && p == p0 {
-			t.Fatalf("hostile occupant %d never moved", id)
+		if !ok || p != p0 {
+			continue
+		}
+		if !attacked[id] {
+			j, _ := g.jobs.Get(id)
+			t.Fatalf("hostile occupant %d neither moved nor attacked: job %+v", id, j)
 		}
 	}
 }

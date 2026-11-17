@@ -118,3 +118,14 @@ Core hidden faction provenance and read model · 2026-11-18 · branch pr/vanilla
 - Read-model composition moved to dossierview to stay below the Game package fixed line ceiling; no upward architecture budget adjustments or new artwork. S1's extra asthma and movement fields are retained.
 - Tests: domain species assignments; spawned mech/hive/vault insects and old-saved caskets; foreign human Dossier/capture/recruit; old SaveSchema and v12 fixture. Focused race, entire upstream game and child packages, build, vet, upstream make arch all PASS.
 - Remaining boundaries: cross-species NPC-to-NPC faction combat, nonplayer diplomatic war events and gift-method exact tuning. No push/PR/main merge/production deployment.
+
+## ENG-014-hidden-faction-crosscombat
+Core cross-faction combat in existing AI · 2026-11-18 · branch pr/vanilla-faction-core
+- Research: the public RimWorld wiki Mechanoid hive and Insectoids pages describe permanent hostility toward all other factions. Only documented mechanics were used; no original code, XML, data, art or DLC.
+- Domain faction.HiddenEnemies owns the pure relationship. combat.Tactics.RaidFoes merges regular colonist candidates with the nearest additional active foreign fighter found by indexed local query and LOS; scratch buffers are reused. raid.Tactics.Foes replaces Colonists in the same eight-method role; a source ID of 0 remains the kidnapping guard query.
+- Humans now target hostile machines and insects, machines target humans (including neutral visitors) and insects, and hive rage targets machines. Same hidden faction, unrelated wildlife, dormant and downed opponents are excluded. Mech guard leash and target-retention margin, existing AI jobs and attack cycles are preserved.
+- Real-game regressions were red before the patch and cover actual damage, target selection, no-flap, sight, source factions and save replay. An old hostile-casket test now permits stationary fighting demonstrated by attack traces, alongside movement.
+- Next phase remains separately scoped to dynamic human faction diplomacy and research-supported gift item valuation. No push, main merge or deployment.
+- After wider regression review, added ordinary manhunter versus mechanoid, a mechanoid targeting a tame colony animal, and all visible foreign candidates reaching the existing human threat scorer; each case was first observed failing in a real game test. No new timers, save fields or target queues.
+
+- Final checks: upstream full game and domain -race PASS, go build ./..., affected go vet and make arch PASS. S1 focused -race, build and vet PASS; full game failure baseline 8, candidate 8, identical names and zero new failures. Real test logs under /tmp/faction-crosscombat-release-race-20261118.log and /tmp/faction-crosscombat-s1-release-20261118.log.

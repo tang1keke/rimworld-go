@@ -43,8 +43,10 @@ type Tactics interface {
 	// Danger is the landing tile and reach of an explosive in flight
 	// whose blast would catch (x, y).
 	Danger(x, y int) (lx, ly, reach int, ok bool)
-	// Colonists appends the standing colonists within r of (x, y).
-	Colonists(x, y, r int, buf []Spot) []Spot
+	// Foes appends nearby sighted colony and enemy-faction creatures,
+	// for source's faction (0: colony-only guard check).
+	// The returned buffer belongs to the caller.
+	Foes(source entity.EntityID, x, y, r int, buf []Spot) []Spot
 	// Block is the first wall or shut door on id's way to (tx, ty) and
 	// the tile to hit it from; Bash is one blow on it with d (false: gone
 	// or out of touch).
@@ -111,7 +113,7 @@ func (rs *Raiders) target(id entity.EntityID, r *Raider, x, y int, d weapon.Def,
 	if known {
 		t, tx, ty, ok, best = nid, nx, ny, true, weapon.Distance(x, y, nx, ny)-rs.danger(nid)
 	}
-	rs.spots = rs.t.Colonists(x, y, max(SightRange, d.Range), rs.spots[:0])
+	rs.spots = rs.t.Foes(id, x, y, max(SightRange, d.Range), rs.spots[:0])
 	for _, s := range rs.spots {
 		sc := weapon.Distance(x, y, s.X, s.Y) - rs.danger(s.ID)
 		if (sc < best || sc == best && s.ID < t) && e.knows(id, r, s.ID, x, y, s.X, s.Y, now) {

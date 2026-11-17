@@ -3,6 +3,7 @@ package rage
 import (
 	"rimworld-go/internal/domain/animal"
 	"rimworld-go/internal/domain/combat/weapon"
+	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/sim/entity"
 )
 
@@ -45,7 +46,25 @@ func isFoe(s Sight, o entity.EntityID) bool {
 		return false
 	}
 	if a := s.R.h.Ref(o); a != nil {
-		return a.Tame && !a.Dead() && !a.Downed
+		if a.Dead() || a.Downed || a.Dormant {
+			return false
+		}
+		if a.Tame {
+			return true
+		}
+		if self := s.R.h.Ref(s.Self); self != nil {
+			mine, own := faction.Creature(self.Species)
+			theirs, foreign := faction.Creature(a.Species)
+			if !foreign {
+				return false
+			}
+			if own {
+				return faction.HiddenEnemies(mine, theirs)
+			}
+			// wiki: Mental break (manhunters attack humans and mechanoids).
+			return theirs == faction.MechHive
+		}
+		return false
 	}
 	return s.R.h.StandingPawn(o)
 }

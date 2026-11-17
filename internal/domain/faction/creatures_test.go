@@ -33,3 +33,15 @@ func TestCreatureAllegiance(t *testing.T) {
 		}
 	}
 }
+
+func TestHiddenFactionHostility(t *testing.T) {
+	t.Parallel()
+	for _, a := range []Type{Player, Settlers, Clans, Freebooters, AncientHostile, Swarm, MechHive} {
+		for _, b := range []Type{Player, Settlers, Clans, Freebooters, AncientHostile, Swarm, MechHive} {
+			want := a != b && (a == Swarm || b == Swarm || a == MechHive || b == MechHive)
+			if got := HiddenEnemies(a, b); got != want || got != HiddenEnemies(b, a) {
+				t.Errorf("hidden hostility %v/%v = %v, want %v", a, b, got, want)
+			}
+		}
+	}
+}

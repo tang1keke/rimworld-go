@@ -68,3 +68,44 @@ S1 counterpart: `release/vanilla-faction-core-20261117`, `docs/vanilla-faction-s
 
 - Tests: domain species classification; actual raid mech, hive swarm, vault dormant/hive casket and hostile casket human origin; Dossier and snapshot identity; save/load/captive retention and zero defaults for older saves; existing combat auto-threat, raids, injury and save hash; upstream `make arch`; S1 affected game and same-base regression.
 - Single worker owns the domain mapping, read-model projection, ancient person persistence, upstream tests, downstream port and docs. Clean Room applies throughout; no imported proprietary game identity names or art.
+
+## Hidden faction cross-combat (2026-11-18)
+
+### Public reference and observed gaps
+
+- Core information: [Mechanoid hive](https://rimworldwiki.com/wiki/Mechanoid_hive) says hive mechanoids are permanently hostile to every other non-mech-hive faction. [Insectoids](https://rimworldwiki.com/wiki/Insectoids) says infestation insects are hostile to every other faction. The original game's proprietary code, XML, data and art are excluded by CLEAN_ROOM.md.
+- In the present application, `raid.Raiders.target` sees only colonists/allies and human rival raiders; `raid.Mechs.pick` sees only colony/ally pawns and turrets; `rage.isFoe` sees people and tame animals, not the other hostile animal faction. Thus two hostile factions standing next to one another leave without fighting if the colony is farther away.
+- `Game.creatures().grid` and `Game.nearestWhere` are existing bounded spatial indexes. Existing `raid.Tactics.Colonists` already obtains the pawn candidates. `raid.tactics.target`, `raid.Mechs.pick` and `rage.ThinkManhunter` already own targeting cadence, weapon range, sight, memory, pursuit, and lock hysteresis.
+- `raid.Senses.Foes` has no consumers (the only implementation is its own adapter). It can be removed as part of a single-purpose interface improvement.
+
+### Contract
+
+1. Add pure `faction.HiddenEnemies(a,b)`: different factions fight when at least one is `Swarm` or `MechHive`. Same hidden faction is never a target; ordinary wild animals have no opposing faction; tame animals follow colony rules. All existing human-versus-human `Faction.Enemies` continue to own their separate world-war relationship.
+2. Evolve the existing `raid.Tactics.Colonists` to `Foes(source,x,y,r,buf)`, still one method within the eight-method Tactics limit. The same colony/ally targets remain, plus the nearest active foreign hostile within a bounded radius: human raiders vs mechs/insects; mechs vs human raiders and insects. Filter stale/dead/downed/dormant creatures and prisoners; require real line-of-sight for new candidates. Use the existing indexed nearestWhere; select deterministic minimum distance then ID.
+3. Raiders add this foreign candidate into their already-paced threat-weighted targeting; human rivals still use `Enemies`. Mechs choose among the same nearby foreign candidate and their existing colony/turret targets; a current standing target wins near-ties to prevent oscillation. Guards honor their post leash; attacks keep existing collision, cooldown and projectile paths.
+4. Infestation insects extend `rage.isFoe` only for themselves: mechanoid creatures of a different hidden faction also qualify, while regular wildlife/manhunters retain their existing rules. All human pawns are already valid manhunter targets via `StandingPawn`. Existing `rage` lock for 180 ticks and switching margin 6 tiles remain.
+5. No extra per-creature persisted field or save migration. No new faction IDs, UI or artwork. Existing `AnimalView`/Dossier and combat traces expose the battle. Neither incidental animal death nor neutral human visitors should make fictitious diplomatic or goodwill changes.
+6. Real game integration tests must first reproduce missing targeting, then verify the three directions of hostility, same-side filtering, active/inactive targets, LOS, save/replay, actual HP damage and no-flap. Race, whole upstream game, S1 regression comparison and arch stay mandatory. A single worker makes compatible upstream/S1 edits; no push/PR/merge/deploy.
+
+### Implemented and observed
+
+- Before the patch, five cross-battle tests failed: the human raider walked toward the colony instead of fighting a nearby machine, the machine ignored an insect, and the insect chose a more distant human. New range/LOS tests and direct damage observations failed as well.
+- Domain faction.HiddenEnemies is the single permanent inter-faction rule for machines/insects. combat.Tactics.RaidFoes uses a bounded creature index query, a reusable target buffer and line-of-sight; game raidTactics.Foes stays a thin adapter. The Game package architecture line budget stays fixed.
+- Raiders, mechanoids, and hive rage use the original target-job/attack/movement paths; only candidate eligibility changes. Neutral visitors are recognized as foreign human faction members by mechs even though they stay outside the hostile raider AI.
+- The first broad upstream game test found an obsolete casket movement assertion: a hostile ancient now stands still to attack a nearby vault insect. The test verifies actual attack traces or movement, preserving the observable activity contract.
+- Regression coverage now includes human versus machine/insect, machine versus raider/visitor/insect, insect versus machine, same-faction exclusions, dormancy/LOS, positive hit damage, no-flap and save/replay. No save version, RNG draw, new ID, map-wide tick scan, assets or DLC.
+- Remaining scope: dynamic non-player faction wars and independent evidence for exact item gift valuation. The present hidden-faction hostility is permanent, as published.
+
+### Final Core animal hostility coverage
+
+- A further check against the public wiki Mental break article showed that enraged ordinary animals pursue hostile mechanoids alongside humans. The earlier rage filter only added hive insects. A red real-game test demonstrated the gap; rage.isFoe now accepts a mechanoid for any other enraged animal, keeping the existing rage lock and chase behavior.
+- Permanent machine hostility also covers colony-tamed animals. A second red actual-game test caught the prior exclusion; combat.Tactics.RaidFoes maps a tame animal to the player faction for machine/hive target selection. Human raider-to-colony-pet behavior stays on its existing target rules.
+- With several foreign fighters nearby, each eligible opponent reaches the raider threat scorer. A red test showed the previous nearest-only candidate omitted a farther ranged machine; the indexed candidate list now exposes all visible active enemies to the existing threat-weighted scorer, in deterministic distance/ID competition. Scratch buffers are reused.
+- Evidence: https://rimworldwiki.com/wiki/Mental_break , https://rimworldwiki.com/wiki/Mechanoid_hive and https://rimworldwiki.com/wiki/Insectoids . These are behavior references, with no original data or balance tables extracted.
+
+### Final verification for cross-combat
+
+- Upstream: GOMAXPROCS=4 go test -race -p 2 -count=1 ./internal/application/game/... ./internal/domain/faction PASS. go build ./..., affected go vet and make arch PASS without budget changes.
+- S1 counterpart: race-enabled faction, rage, raid and combat packages PASS; real-game hidden-faction, casket, mech/hive, save-schema and old fixture regression PASS; go build ./... and affected vet PASS.
+- S1 full go test -short -count=1 ./internal/application/game/... still has eight previously present failing tests. The failures have exactly the same names as the baseline before this PR, with zero new failures.
+- Logs: /tmp/faction-crosscombat-release-race-20261118.log and /tmp/faction-crosscombat-s1-release-20261118.log; names: /tmp/faction-crosscombat-s1-release-fails-20261118.txt and /tmp/faction-s1-hidden-fail-names.txt.

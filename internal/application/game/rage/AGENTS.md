@@ -38,3 +38,9 @@ The animals' fight-or-flight brain: manhunter rage, tame guards, hunts, charges,
 - Unit tests here: `rage_test.go` (chase text, `KeepChaseWarned`, `FightBack`, `HurtBlind`, `HuntRadius`, `DistSq`).
 - EAI whole-game tests in the game: `eai_bash_test.go`, `eai_bash_gate_test.go` (EAI-001/002), `eai_herd_test.go` (EAI-003/004), `eai_pack_test.go` (EAI-005..007); `animal/pack_test.go` (`TestPackSizeScalesWithPoints`).
 - Whole-game tests stay in the game: `chase_test.go`, `animal_charge_test.go`, `animal_react_test.go`, `animals_flee_test.go`, `flee_test.go`, `animal_needs_test.go`, `animal_downed_test.go`, `handling_test.go`, `train_test.go`, `wildlife_test.go`.
+
+## FAC-CORE: hive opponents
+
+For an attacking hive insect, isFoe additionally accepts an active mechanoid of another hidden faction through domain/faction.HiddenEnemies. Same-faction insects, dormant/downed/dead creatures and unrelated wild animals remain excluded. Human pawns and tame animals retain their existing treatment. Target locking, reach-first selection and re-evaluation cadence stay unchanged.
+
+Public Core wiki Mental break behavior: any enraged ordinary animal may target hostile mechanoids in addition to standing humans. The existing target-lock and chase rules apply; unrelated wild animals and insectoids remain outside the ordinary animal rage target set.

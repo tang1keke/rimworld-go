@@ -15,3 +15,10 @@ func Creature(s animal.Species) (Type, bool) {
 		return Player, false
 	}
 }
+
+// HiddenEnemies is the permanent hostility of the two non-human Core
+// factions towards all other factions (wiki: Mechanoid hive; Insectoids).
+// Human-to-human wars remain on Faction.Enemies.
+func HiddenEnemies(a, b Type) bool {
+	return a != b && (a == MechHive || a == Swarm || b == MechHive || b == Swarm)
+}

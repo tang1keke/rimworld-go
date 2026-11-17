@@ -63,14 +63,6 @@ func (h raidSenses) Visible(id entity.EntityID, x, y int) bool {
 	p, ok := h.g.positions.Get(id)
 	return ok && h.g.combat.Sight.Line(p.X, p.Y, x, y)
 }
-func (h raidSenses) Foes(x, y, r int, buf []entity.EntityID) []entity.EntityID {
-	h.g.within(x, y, r, ckPawn, func(o entity.EntityID, p Position) {
-		if h.g.standingPawn(o) && h.g.combat.Sight.Line(x, y, p.X, p.Y) {
-			buf = append(buf, o)
-		}
-	})
-	return buf
-}
 
 type raidRoster struct{ g *Game }
 
@@ -118,7 +110,12 @@ func (h raidFight) WalkableNear(x, y, r int) (int, int, bool) {
 func (h raidFight) Strike(id entity.EntityID, j job.Record, now uint64) {
 	h.g.combat.Strikes.Do(id, j, now)
 }
-func (h raidFight) Weapon(id entity.EntityID) weapon.Def { return weaponDefOf(h.g, id) }
+func (h raidFight) Weapon(id entity.EntityID) weapon.Def {
+	if a, ok := h.g.animals.Get(id); ok {
+		return weapon.DefOf(animal.DefOf(a.Species).Attack)
+	}
+	return weaponDefOf(h.g, id)
+}
 func (h raidFight) CanHit(x, y int, d weapon.Def, tx, ty int) bool {
 	return h.g.combat.Sight.CanHit(x, y, d, tx, ty)
 }
@@ -248,8 +245,8 @@ func (h raidTactics) CoverSpot(id entity.EntityID, x, y, r int, d weapon.Def, tx
 	return h.g.combat.Tactics.BestCover(id, x, y, r, d, tx, ty)
 }
 func (h raidTactics) Danger(x, y int) (int, int, int, bool) { return h.g.combat.Tactics.Danger(x, y) }
-func (h raidTactics) Colonists(x, y, r int, buf []raid.Spot) []raid.Spot {
-	for _, s := range h.g.combat.Tactics.Colonists(x, y, r) {
+func (h raidTactics) Foes(source entity.EntityID, x, y, r int, buf []raid.Spot) []raid.Spot {
+	for _, s := range h.g.combat.Tactics.RaidFoes(source, x, y, r) {
 		buf = append(buf, raid.Spot(s))
 	}
 	return buf

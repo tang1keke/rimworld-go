@@ -21,13 +21,13 @@ import (
 // not bleed, and it leaves a wreck that shreds into salvage, not meat.
 //
 // Think is a mechanoid's tick, run from the game's animal phase in place
-// of the animal brain. Like a raider it goes for the nearest colonist (or
-// an ally, or a sentry turret well closer), closing until its weapon
-// reaches, then attacks on its weapon's cycle with the weapon's burst.
+// of the animal brain. Like a raider it goes for a nearby colony member
+// or foreign faction fighter, or a nearer sentry turret, closing until its
+// weapon reaches, then attacking on its weapon's cycle with its burst.
 // It looks for a new target only on its decision cycle
 // (animal.DecideEvery, staggered by id) or when its target falls: never a
 // scan of every creature per tick. A ship part's guard (shippart.go) holds
-// near its post, taking on colonists within GuardLeash of it and letting
+// near its post, taking on enemies within GuardLeash of it and letting
 // them go beyond GuardRelease (hysteresis: no chase/return flapping).
 
 const (
@@ -115,6 +115,7 @@ type Mechs struct {
 	recs  map[entity.EntityID]MechRecord
 	ships *ShipParts
 	near  []entity.EntityID // EMP's reused buffer
+	spots []Spot            // target search, only on a decision beat
 	// CBT-4: t bashes doors (nil: none); a lands drop pods; pods are a
 	// mechanoid raid's pods still falling (saved); hives the hive mounds,
 	// saved here (nest.go).
@@ -159,7 +160,7 @@ func (ms *Mechs) think(id entity.EntityID, a *animal.State, r *MechRecord, m ani
 	if at := now + uint64(id); lost || at%animal.DecideEvery == 0 || a.Target == 0 && at%mechLookEvery == 0 {
 		// a fallen target was dropped above; one still worth fighting is
 		// kept unless another is found (a guard's leash hysteresis)
-		if t := ms.pick(x, y, *r); t != a.Target && (t != 0 || a.Target == 0) {
+		if t := ms.pick(id, x, y, *r, a.Target); t != a.Target && (t != 0 || a.Target == 0) {
 			a.Target, r.Shots = t, 0
 			a.Cooldown = max(a.Cooldown, wd.Warmup) // aims at a new target
 		}
@@ -238,10 +239,9 @@ func (ms *Mechs) fire(id entity.EntityID, a *animal.State, r *MechRecord, wk wea
 	}
 }
 
-// pick is the target for a mechanoid at (x, y): the nearest colonist or
-// ally (a guard's only within GuardLeash of its post), or a sentry turret
-// in sight and well closer.
-func (ms *Mechs) pick(x, y int, r MechRecord) entity.EntityID {
+// pick finds the nearest eligible foe, retaining an existing target when
+// a new one is only slightly closer. Ship guards honor their post leash.
+func (ms *Mechs) pick(id entity.EntityID, x, y int, r MechRecord, current entity.EntityID) entity.EntityID {
 	t, tx, ty, ok := ms.h.RaidTarget(x, y)
 	if ok && r.Guard && weapon.Distance(r.PostX, r.PostY, tx, ty) > GuardLeash {
 		ok = false
@@ -252,8 +252,25 @@ func (ms *Mechs) pick(x, y int, r MechRecord) entity.EntityID {
 	} else {
 		t = 0
 	}
+	if ms.t != nil {
+		ms.spots = ms.t.Foes(id, x, y, SightRange, ms.spots[:0])
+		for _, s := range ms.spots {
+			if r.Guard && weapon.Distance(r.PostX, r.PostY, s.X, s.Y) > GuardLeash {
+				continue
+			}
+			if d := weapon.Distance(x, y, s.X, s.Y); d < cd || d == cd && s.ID < t {
+				t, cd = s.ID, d
+			}
+		}
+	}
 	if b, _, _, tok := ms.h.TurretFor(x, y, cd, SightRange); tok && (!r.Guard || ms.nearPost(r, x, y)) {
 		return b
+	}
+	if current != 0 && t != current && ms.holds(current, r) {
+		if cx, cy, ok := ms.h.Pos(current); ok &&
+			weapon.Distance(x, y, cx, cy) <= cd+switchMargin {
+			return current
+		}
 	}
 	return t
 }
@@ -270,6 +287,9 @@ func (ms *Mechs) holds(t entity.EntityID, r MechRecord) bool {
 	tx, ty, ok := ms.h.Pos(t)
 	if !ok {
 		return true // a turret: targetAt drops it once it is gone
+	}
+	if a := ms.w.Animal(t); a.Dead() || a.Downed || a.Dormant {
+		return false
 	}
 	if ms.h.Vital(t).Status != health.Alive {
 		return false
