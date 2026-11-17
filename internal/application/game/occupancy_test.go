@@ -93,8 +93,8 @@ func TestEnterBlockedByStandingPawn(t *testing.T) {
 	if v, alt := g.enter(a, Position{2, 5}, Position{3, 5}); v != stepGo || alt != (Position{3, 5}) {
 		t.Fatalf("colonist into a working colonist = %v %v, want go", v, alt)
 	}
-	if i := 5*g.occ.w + 3; g.occ.pcount[i] != 2 || g.occ.pfirst[i] != a && g.occ.pfirst[i] != b {
-		t.Fatalf("shared cell indexes %d partners (first %d), want both", g.occ.pcount[i], g.occ.pfirst[i])
+	if i := 5*g.occ.W + 3; g.occ.Pcount[i] != 2 || g.occ.Pfirst[i] != a && g.occ.Pfirst[i] != b {
+		t.Fatalf("shared cell indexes %d partners (first %d), want both", g.occ.Pcount[i], g.occ.Pfirst[i])
 	}
 
 	// a standing wild animal still blocks: the colonist plans around it at once
@@ -645,7 +645,7 @@ func TestOccupancyIndexIsLazyAndBounded(t *testing.T) {
 		g.clock.Advance(1)
 	}
 	g.buildOccupancy()
-	if g.occ.cells != nil || !g.occ.dirty {
+	if g.occ.Cells != nil || !g.occ.Dirty {
 		t.Fatal("index built eagerly off the sweep tick")
 	}
 	if id, ok := g.occupantAt(1, 1); !ok || id != a {

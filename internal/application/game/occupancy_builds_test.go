@@ -27,11 +27,11 @@ func TestOccupancyRebuildOncePerTick(t *testing.T) {
 		for range clock.TicksPerHour {
 			before := make([]uint64, len(g.maps))
 			for i, m := range g.maps {
-				before[i] = m.occ.builds
+				before[i] = m.occ.Builds
 			}
 			g.Step(1)
 			for i, m := range g.maps[:min(len(g.maps), len(before))] {
-				if d := m.occ.builds - before[i]; d > 1 {
+				if d := m.occ.Builds - before[i]; d > 1 {
 					t.Fatalf("%s: map %d rebuilt its occupancy %d times on tick %d", name, m.id, d, g.clock.Now())
 				} else {
 					total += d

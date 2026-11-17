@@ -8,10 +8,10 @@ import (
 )
 
 // nearFromCells recounts occupancy.near (blocker cells) from scratch.
-func nearFromCells(o *occupancy) []uint8 { return nearFrom(o, o.cells) }
+func nearFromCells(o *occupancy) []uint8 { return nearFrom(o, o.Cells) }
 
 // pnearFromCells recounts occupancy.pnear (partner cells) from scratch.
-func pnearFromCells(o *occupancy) []uint8 { return nearFrom(o, o.pfirst) }
+func pnearFromCells(o *occupancy) []uint8 { return nearFrom(o, o.Pfirst) }
 
 func nearFrom(o *occupancy, held []entity.EntityID) []uint8 {
 	near := make([]uint8, len(held))
@@ -19,10 +19,10 @@ func nearFrom(o *occupancy, held []entity.EntityID) []uint8 {
 		if id == 0 {
 			continue
 		}
-		x, y := i%o.w, i/o.w
-		for ny := max(y-1, 0); ny <= min(y+1, o.h-1); ny++ {
-			for nx := max(x-1, 0); nx <= min(x+1, o.w-1); nx++ {
-				near[ny*o.w+nx]++
+		x, y := i%o.W, i/o.W
+		for ny := max(y-1, 0); ny <= min(y+1, o.H-1); ny++ {
+			for nx := max(x-1, 0); nx <= min(x+1, o.W-1); nx++ {
+				near[ny*o.W+nx]++
 			}
 		}
 	}
@@ -35,19 +35,19 @@ func nearFrom(o *occupancy, held []entity.EntityID) []uint8 {
 func checkPartnerLayer(t *testing.T, o *occupancy, when string) {
 	t.Helper()
 	extra := map[int]int{}
-	for _, s := range o.pextra {
-		extra[s.idx]++
-		if s.id == o.pfirst[s.idx] {
-			t.Fatalf("%s: %d both first and extra on cell %d", when, s.id, s.idx)
+	for _, s := range o.Pextra {
+		extra[s.Idx]++
+		if s.ID == o.Pfirst[s.Idx] {
+			t.Fatalf("%s: %d both first and extra on cell %d", when, s.ID, s.Idx)
 		}
 	}
-	for i, n := range o.pcount {
+	for i, n := range o.Pcount {
 		want := extra[i]
-		if o.pfirst[i] != 0 {
+		if o.Pfirst[i] != 0 {
 			want++
 		}
-		if int(n) != want || (n == 0) != (o.pfirst[i] == 0) {
-			t.Fatalf("%s cell %d: count %d, first %d, extras %d", when, i, n, o.pfirst[i], extra[i])
+		if int(n) != want || (n == 0) != (o.Pfirst[i] == 0) {
+			t.Fatalf("%s cell %d: count %d, first %d, extras %d", when, i, n, o.Pfirst[i], extra[i])
 		}
 	}
 }
@@ -56,11 +56,11 @@ func checkNear(t *testing.T, o *occupancy, when string) {
 	t.Helper()
 	want, pwant := nearFromCells(o), pnearFromCells(o)
 	for i := range want {
-		if o.near[i] != want[i] {
-			t.Fatalf("%s cell %d: near %d, recount %d", when, i, o.near[i], want[i])
+		if o.Near[i] != want[i] {
+			t.Fatalf("%s cell %d: near %d, recount %d", when, i, o.Near[i], want[i])
 		}
-		if o.pnear[i] != pwant[i] {
-			t.Fatalf("%s cell %d: pnear %d, recount %d", when, i, o.pnear[i], pwant[i])
+		if o.Pnear[i] != pwant[i] {
+			t.Fatalf("%s cell %d: pnear %d, recount %d", when, i, o.Pnear[i], pwant[i])
 		}
 	}
 }
@@ -75,7 +75,7 @@ func TestOccupancyNearMatchesCells(t *testing.T) {
 	for tick := 0; tick < 3000; tick++ {
 		g.Step(1)
 		o := &g.occ
-		if o.cells == nil || o.dirty {
+		if o.Cells == nil || o.Dirty {
 			continue
 		}
 		when := fmt.Sprintf("tick %d", tick)
@@ -93,17 +93,17 @@ func TestOccupancyPutStacked(t *testing.T) {
 	b := wildAt(t, g, 5, 5) // stacked on a
 	rebuild(g)
 	o := &g.occ
-	i := 5*o.w + 5
-	if o.near[i] != 1 {
-		t.Fatalf("near = %d with two creatures on one cell, want 1", o.near[i])
+	i := 5*o.W + 5
+	if o.Near[i] != 1 {
+		t.Fatalf("near = %d with two creatures on one cell, want 1", o.Near[i])
 	}
-	o.move(a, false, Position{X: 5, Y: 5}, Position{X: 6, Y: 5})
-	if o.cells[i] != b || o.near[i] != 2 {
-		t.Fatalf("after a left: cell holds %d, near %d; want %d, 2", o.cells[i], o.near[i], b)
+	o.Move(a, false, 5, 5, 6, 5)
+	if o.Cells[i] != b || o.Near[i] != 2 {
+		t.Fatalf("after a left: cell holds %d, near %d; want %d, 2", o.Cells[i], o.Near[i], b)
 	}
-	o.move(b, false, Position{X: 5, Y: 5}, Position{X: 4, Y: 5})
-	if o.cells[i] != entity.EntityID(0) {
-		t.Fatalf("cell still held by %d", o.cells[i])
+	o.Move(b, false, 5, 5, 4, 5)
+	if o.Cells[i] != entity.EntityID(0) {
+		t.Fatalf("cell still held by %d", o.Cells[i])
 	}
 	checkNear(t, o, "after both left")
 }
@@ -119,33 +119,33 @@ func TestOccupancyPartnerLayer(t *testing.T) {
 	dog := animalAt(t, g, "husky", 5, 5, true)
 	rebuild(g)
 	o := &g.occ
-	i := 5*o.w + 5
-	if o.cells[i] != 0 || o.near[i] != 0 {
-		t.Fatalf("partners indexed as blockers: cell %d near %d", o.cells[i], o.near[i])
+	i := 5*o.W + 5
+	if o.Cells[i] != 0 || o.Near[i] != 0 {
+		t.Fatalf("partners indexed as blockers: cell %d near %d", o.Cells[i], o.Near[i])
 	}
-	if o.pcount[i] != 3 || o.pfirst[i] != a || o.pnear[i] != 1 {
-		t.Fatalf("partner cell: count %d first %d pnear %d; want 3, %d, 1", o.pcount[i], o.pfirst[i], o.pnear[i], a)
+	if o.Pcount[i] != 3 || o.Pfirst[i] != a || o.Pnear[i] != 1 {
+		t.Fatalf("partner cell: count %d first %d pnear %d; want 3, %d, 1", o.Pcount[i], o.Pfirst[i], o.Pnear[i], a)
 	}
 	if id, ok := g.occupantAt(5, 5); !ok || id != a {
 		t.Fatalf("occupantAt = %d, want the first partner %d", id, a)
 	}
-	o.move(a, true, Position{X: 5, Y: 5}, Position{X: 6, Y: 5})
-	if o.pcount[i] != 2 || o.pfirst[i] != b {
-		t.Fatalf("after a left: count %d first %d; want 2, %d", o.pcount[i], o.pfirst[i], b)
+	o.Move(a, true, 5, 5, 6, 5)
+	if o.Pcount[i] != 2 || o.Pfirst[i] != b {
+		t.Fatalf("after a left: count %d first %d; want 2, %d", o.Pcount[i], o.Pfirst[i], b)
 	}
-	o.move(dog, true, Position{X: 5, Y: 5}, Position{X: 6, Y: 5}) // joins a
-	o.move(b, true, Position{X: 5, Y: 5}, Position{X: 4, Y: 5})
-	if o.pcount[i] != 0 || o.pfirst[i] != 0 {
-		t.Fatalf("emptied cell: count %d first %d", o.pcount[i], o.pfirst[i])
+	o.Move(dog, true, 5, 5, 6, 5) // joins a
+	o.Move(b, true, 5, 5, 4, 5)
+	if o.Pcount[i] != 0 || o.Pfirst[i] != 0 {
+		t.Fatalf("emptied cell: count %d first %d", o.Pcount[i], o.Pfirst[i])
 	}
-	if j := 5*o.w + 6; o.pcount[j] != 2 || o.pfirst[j] != a {
-		t.Fatalf("joined cell: count %d first %d", o.pcount[j], o.pfirst[j])
+	if j := 5*o.W + 6; o.Pcount[j] != 2 || o.Pfirst[j] != a {
+		t.Fatalf("joined cell: count %d first %d", o.Pcount[j], o.Pfirst[j])
 	}
 	checkNear(t, o, "after moves")
 	checkPartnerLayer(t, o, "after moves")
 	// a rebuild starts over from the positions (unchanged here)
 	rebuild(g)
-	if o.pcount[i] != 3 || o.pfirst[i] != a {
-		t.Fatalf("rebuilt: count %d first %d", o.pcount[i], o.pfirst[i])
+	if o.Pcount[i] != 3 || o.Pfirst[i] != a {
+		t.Fatalf("rebuilt: count %d first %d", o.Pcount[i], o.Pfirst[i])
 	}
 }

@@ -63,52 +63,9 @@ const (
 	stuckFailTicks = 120
 )
 
-// occupancy is the movement-phase index of standing creatures. It is
-// transient: rebuilt from the mover lists every movement phase and never
-// saved.
-type occupancy struct {
-	w, h    int
-	cells   []entity.EntityID              // standing blocker (wild animal, raider) per cell, 0 = none
-	near    []uint8                        // per cell: blocker cells in its 3×3 (crowdCost's fast path)
-	marked  []int                          // cells written since the last rebuild
-	stacked []stackedRec                   // blockers sharing a cell with a lower ID
-	carried spatial.IDSet[entity.EntityID] // patients being carried, as of the last rebuild
-	// partner layer (PLAY-010): colonists and tame animals, several per
-	// cell. pfirst is the lowest ID of them, pcount how many, pextra the
-	// others (in no particular order: every read is order-free, so the
-	// index is a function of who stands where, as after a load); pnear
-	// counts partner cells in each cell's 3×3.
-	pfirst []entity.EntityID
-	pcount []uint16
-	pnear  []uint8
-	pextra []stackedRec
-	// rebuild scratch: cells holding a blocker and partners, cells holding
-	// two or more partners, creatures to move off, one cell's partners
-	mixed, shared []int
-	moveOff, here []entity.EntityID
-	// repath cache: the path enter() planned with a stepRepath verdict,
-	// handed out by pathAround in the same tick.
-	rpID   entity.EntityID
-	rpAt   uint64
-	rpPath []pathing.Point
-	rpMiss entity.EntityID // repathEvery's inline search for it failed (a pawn's: tests count searches)
-	// dirty: the movement phase started and the index is not rebuilt yet
-	// (it is rebuilt on first use, or by the periodic stack sweep); builds
-	// counts the rebuilds (at most one a map a tick: occupancy_builds_test.go).
-	dirty  bool
-	builds uint64
-	// hostile caches the wild-animal / raider walkability for the phase
-	// (boxed once: handing it out allocates nothing).
-	ground     spatial.Layer // groundExtra's cached terrain and plant cost (water.go)
-	hostile    pathing.Query
-	hostileOK  bool
-	hostileGen uint64 // bumped whenever hostile is rebuilt
-}
-
-type stackedRec struct {
-	id  entity.EntityID
-	idx int
-}
+// The movement index is owned by game/spatial.
+type occupancy = spatial.Occupancy
+type stackedRec = spatial.StackedRec
 
 // arrival is how a walk may end when its last cell is taken.
 type arrival uint8
@@ -125,7 +82,7 @@ const (
 // yieldRetry ticks it is rebuilt anyway, to sweep for stacks.
 func (g *Game) buildOccupancy() {
 	o := &g.occ
-	o.dirty, o.rpID, o.hostileOK = true, 0, false
+	o.Dirty, o.RpID, o.HostileOK = true, 0, false
 	if uint64(g.clock.Now())%yieldRetry == 0 {
 		g.rebuildOccupancy()
 	}
@@ -141,63 +98,63 @@ func (g *Game) buildOccupancy() {
 func (g *Game) rebuildOccupancy() {
 	o := &g.occ
 	w, h := g.grid.Width(), g.grid.Height()
-	if o.w != w || o.h != h || len(o.cells) != w*h {
-		o.w, o.h = w, h
-		o.cells = make([]entity.EntityID, w*h)
-		o.near = make([]uint8, w*h)
-		o.pfirst = make([]entity.EntityID, w*h)
-		o.pcount = make([]uint16, w*h)
-		o.pnear = make([]uint8, w*h)
-		o.marked = o.marked[:0]
+	if o.W != w || o.H != h || len(o.Cells) != w*h {
+		o.W, o.H = w, h
+		o.Cells = make([]entity.EntityID, w*h)
+		o.Near = make([]uint8, w*h)
+		o.Pfirst = make([]entity.EntityID, w*h)
+		o.Pcount = make([]uint16, w*h)
+		o.Pnear = make([]uint8, w*h)
+		o.Marked = o.Marked[:0]
 	}
-	for _, i := range o.marked {
-		o.put(i, 0)
-		o.pput(i, 0)
-		o.pcount[i] = 0
+	for _, i := range o.Marked {
+		o.Put(i, 0)
+		o.Pput(i, 0)
+		o.Pcount[i] = 0
 	}
-	o.marked = o.marked[:0]
-	o.stacked = o.stacked[:0]
-	o.pextra = o.pextra[:0]
-	o.mixed, o.shared = o.mixed[:0], o.shared[:0]
-	o.dirty, o.builds = false, o.builds+1
-	o.carried.Reset()
-	g.care.Carry.Each(func(_, p entity.EntityID) { o.carried.Add(p) })
+	o.Marked = o.Marked[:0]
+	o.Stacked = o.Stacked[:0]
+	o.Pextra = o.Pextra[:0]
+	o.Mixed, o.Shared = o.Mixed[:0], o.Shared[:0]
+	o.Dirty, o.Builds = false, o.Builds+1
+	o.Carried.Reset()
+	g.care.Carry.Each(func(_, p entity.EntityID) { o.Carried.Add(p) })
 	for list, ids := range [3][]entity.EntityID{g.pawnIDs, g.raiderIDs, g.animalIDs} {
 		for _, id := range ids {
 			if list < 2 && !g.standingWalker(id) || list == 2 && !g.standing(id) {
 				continue
 			}
 			pos, _ := g.positions.Get(id)
-			i, ok := o.index(pos.X, pos.Y)
+			i, ok := o.Index(pos.X, pos.Y)
 			if !ok {
 				continue
 			}
 			if g.partner(id) {
-				o.addPartner(i, id)
-				if o.cells[i] != 0 {
-					o.mixed = append(o.mixed, i)
+				o.AddPartner(i, id)
+				if o.Cells[i] != 0 {
+					o.Mixed = append(o.Mixed, i)
 				}
-				if o.pcount[i] == 2 {
-					o.shared = append(o.shared, i)
+				if o.Pcount[i] == 2 {
+					o.Shared = append(o.Shared, i)
 				}
 				continue
 			}
-			if o.pcount[i] != 0 {
-				o.mixed = append(o.mixed, i)
+			if o.Pcount[i] != 0 {
+				o.Mixed = append(o.Mixed, i)
 			}
-			switch held := o.cells[i]; {
+			switch held := o.Cells[i]; {
 			case held == 0:
-				o.put(i, id)
-				o.marked = append(o.marked, i)
+				o.Put(i, id)
+				o.Marked = append(o.Marked, i)
 			case id < held: // the lower ID keeps the cell
-				o.put(i, id)
-				o.stacked = append(o.stacked, stackedRec{id: held, idx: i})
+				o.Put(i, id)
+				o.Stacked = append(o.Stacked, stackedRec{ID: held, Idx: i})
 			default:
-				o.stacked = append(o.stacked, stackedRec{id: id, idx: i})
+				o.Stacked = append(o.Stacked, stackedRec{ID: id, Idx: i})
 			}
 		}
 	}
-	slices.SortFunc(o.stacked, func(a, b stackedRec) int { return cmp.Compare(a.id, b.id) })
+	slices.SortFunc(o.Stacked, func(a, b stackedRec) int { return cmp.Compare(a.ID, b.ID) })
 	g.unstack()
 }
 
@@ -206,26 +163,26 @@ func (g *Game) rebuildOccupancy() {
 // of settled colonists where either is in combat.
 func (g *Game) unstack() {
 	o := &g.occ
-	o.moveOff = o.moveOff[:0]
-	for _, s := range o.stacked {
-		o.moveOff = append(o.moveOff, s.id)
+	o.MoveOff = o.MoveOff[:0]
+	for _, s := range o.Stacked {
+		o.MoveOff = append(o.MoveOff, s.ID)
 	}
-	for _, i := range o.mixed {
-		if b := o.cells[i]; b > o.pfirst[i] {
-			o.moveOff = append(o.moveOff, b) // a partner below it keeps the cell
+	for _, i := range o.Mixed {
+		if b := o.Cells[i]; b > o.Pfirst[i] {
+			o.MoveOff = append(o.MoveOff, b) // a partner below it keeps the cell
 		} else {
-			o.moveOff = append(o.moveOff, o.partnersOn(i)...)
+			o.MoveOff = append(o.MoveOff, o.PartnersOn(i)...)
 		}
 	}
-	for _, i := range o.shared {
+	for _, i := range o.Shared {
 		g.combatStack(i)
 	}
-	if len(o.moveOff) == 0 {
+	if len(o.MoveOff) == 0 {
 		return
 	}
-	slices.Sort(o.moveOff)
-	o.moveOff = slices.Compact(o.moveOff)
-	for _, id := range o.moveOff {
+	slices.Sort(o.MoveOff)
+	o.MoveOff = slices.Compact(o.MoveOff)
+	for _, id := range o.MoveOff {
 		if _, walking := g.walkNext(id); !walking {
 			g.makeWay(id, 0)
 		}
@@ -238,7 +195,7 @@ func (g *Game) unstack() {
 // through (walking) are left alone.
 func (g *Game) combatStack(i int) {
 	o := &g.occ
-	ids := o.partnersOn(i)
+	ids := o.PartnersOn(i)
 	slices.Sort(ids)
 	stayed, combat := false, false
 	for _, id := range ids {
@@ -250,178 +207,11 @@ func (g *Game) combatStack(i int) {
 		}
 		c := g.combat.Guard.InCombat(id)
 		if stayed && (c || combat) {
-			o.moveOff = append(o.moveOff, id)
+			o.MoveOff = append(o.MoveOff, id)
 			continue
 		}
 		stayed, combat = true, combat || c
 	}
-}
-
-// partnersOn lists the partners on cell i (in the scratch buffer here).
-func (o *occupancy) partnersOn(i int) []entity.EntityID {
-	out := o.here[:0]
-	if o.pfirst[i] != 0 {
-		out = append(out, o.pfirst[i])
-	}
-	if o.pcount[i] > 1 {
-		for _, s := range o.pextra {
-			if s.idx == i {
-				out = append(out, s.id)
-			}
-		}
-	}
-	o.here = out
-	return out
-}
-
-// addPartner indexes partner id on cell i.
-func (o *occupancy) addPartner(i int, id entity.EntityID) {
-	switch first := o.pfirst[i]; {
-	case first == 0:
-		o.pput(i, id)
-	case id < first: // the lowest ID is first
-		o.pfirst[i] = id
-		o.pextra = append(o.pextra, stackedRec{id: first, idx: i})
-	default:
-		o.pextra = append(o.pextra, stackedRec{id: id, idx: i})
-	}
-	o.pcount[i]++
-	o.marked = append(o.marked, i)
-}
-
-// dropPartner unindexes partner id from cell fi (inMap: fi is on the
-// map); it reports whether id was indexed as a partner.
-func (o *occupancy) dropPartner(id entity.EntityID, fi int, inMap bool) bool {
-	if inMap && o.pfirst[fi] == id {
-		o.pcount[fi]--
-		k := -1
-		if o.pcount[fi] > 0 {
-			for n, s := range o.pextra {
-				if s.idx == fi && (k < 0 || s.id < o.pextra[k].id) {
-					k = n
-				}
-			}
-		}
-		if k < 0 {
-			o.pput(fi, 0)
-			o.pcount[fi] = 0
-			return true
-		}
-		o.pfirst[fi] = o.pextra[k].id // the next lowest takes over
-		o.pextra = slices.Delete(o.pextra, k, k+1)
-		return true
-	}
-	for n, s := range o.pextra {
-		if s.id == id {
-			o.pcount[s.idx]--
-			o.pextra = slices.Delete(o.pextra, n, n+1)
-			return true
-		}
-	}
-	return false
-}
-
-// pput sets cell i's first partner, keeping pnear in step when the cell
-// turns held or free.
-func (o *occupancy) pput(i int, id entity.EntityID) {
-	was := o.pfirst[i] != 0
-	o.pfirst[i] = id
-	if was != (id != 0) {
-		bump(o.pnear, o.w, o.h, i, was)
-	}
-}
-
-func (o *occupancy) index(x, y int) (int, bool) {
-	if x < 0 || y < 0 || x >= o.w || y >= o.h {
-		return 0, false
-	}
-	return y*o.w + x, true
-}
-
-// put sets cell i's blocker, keeping near (the blocker cells around each
-// cell) in step when the cell turns held or free.
-func (o *occupancy) put(i int, id entity.EntityID) {
-	was := o.cells[i] != 0
-	o.cells[i] = id
-	if was != (id != 0) {
-		bump(o.near, o.w, o.h, i, was)
-	}
-}
-
-// bump adds one (or, with down, removes one) to near across cell i's 3×3.
-func bump(near []uint8, w, h, i int, down bool) {
-	var d uint8 = 1
-	if down {
-		d = 255 // -1
-	}
-	x, y := i%w, i/w
-	for ny := max(y-1, 0); ny <= min(y+1, h-1); ny++ {
-		for nx := max(x-1, 0); nx <= min(x+1, w-1); nx++ {
-			near[ny*w+nx] += d
-		}
-	}
-}
-
-// at is the indexed standing creature on (x, y), 0 when none: its blocker,
-// else its first partner.
-func (o *occupancy) at(x, y int) entity.EntityID {
-	if i, ok := o.index(x, y); ok {
-		if b := o.cells[i]; b != 0 {
-			return b
-		}
-		return o.pfirst[i]
-	}
-	return 0
-}
-
-// blocker is the indexed blocker on (x, y), 0 when none.
-func (o *occupancy) blocker(x, y int) entity.EntityID {
-	if i, ok := o.index(x, y); ok {
-		return o.cells[i]
-	}
-	return 0
-}
-
-// move re-indexes id from -> to, in the partner layer when partner. A
-// blocker stacked on from takes the cell over when id leaves it.
-func (o *occupancy) move(id entity.EntityID, partner bool, from, to Position) {
-	fi, inMap := o.index(from.X, from.Y)
-	if !o.dropBlocker(id, fi, inMap) {
-		o.dropPartner(id, fi, inMap)
-	}
-	ti, ok := o.index(to.X, to.Y)
-	if !ok {
-		return
-	}
-	if partner {
-		o.addPartner(ti, id)
-		return
-	}
-	o.put(ti, id)
-	o.marked = append(o.marked, ti)
-}
-
-// dropBlocker unindexes blocker id from cell fi; it reports whether id was
-// indexed as a blocker.
-func (o *occupancy) dropBlocker(id entity.EntityID, fi int, inMap bool) bool {
-	if inMap && o.cells[fi] == id {
-		o.put(fi, 0)
-		for k, s := range o.stacked {
-			if s.idx == fi {
-				o.put(fi, s.id)
-				o.stacked = append(o.stacked[:k], o.stacked[k+1:]...)
-				break
-			}
-		}
-		return true
-	}
-	for k, s := range o.stacked {
-		if s.id == id {
-			o.stacked = append(o.stacked[:k], o.stacked[k+1:]...)
-			return true
-		}
-	}
-	return false
 }
 
 // partner reports a creature that walks through other partners: a
@@ -450,7 +240,7 @@ func (g *Game) standingWalker(id entity.EntityID) bool {
 	if j := g.jobs.Ref(id); j != nil && j.Kind == job.Sleep && (j.State == job.Do || j.State == job.Complete) {
 		return false // lying down: can be stepped over
 	}
-	return !g.occ.carried.Has(id)
+	return !g.occ.Carried.Has(id)
 }
 
 // enter decides whether id may step from -> to this tick, and keeps the
@@ -464,7 +254,7 @@ func (g *Game) enter(id entity.EntityID, from, to Position) (stepVerdict, Positi
 		if mp && g.meleeOn(id, to) {
 			return stepWait, from // a partner closing on a partner stops next to it
 		}
-		o.move(id, mp, from, to)
+		o.Move(id, mp, from.X, from.Y, to.X, to.Y)
 		return stepGo, to
 	}
 	m := g.motionOf(id)
@@ -496,12 +286,12 @@ func (g *Game) enter(id entity.EntityID, from, to Position) (stepVerdict, Positi
 			return stepWait, from
 		case arriveNearest:
 			if alt, ok := g.nearestFreeStep(id, from, to); ok {
-				o.move(id, mp, from, alt)
+				o.Move(id, mp, from.X, from.Y, alt.X, alt.Y)
 				return stepArriveNear, alt
 			}
 		default:
 			if alt, ok := g.freeNextTo(id, from, g.workCell(id, to)); ok {
-				o.move(id, mp, from, alt)
+				o.Move(id, mp, from.X, from.Y, alt.X, alt.Y)
 				return stepArriveNear, alt
 			}
 		}
@@ -515,18 +305,18 @@ func (g *Game) enter(id entity.EntityID, from, to Position) (stepVerdict, Positi
 // in combat (decision 7). Other partners pass through.
 func (g *Game) holderFor(id entity.EntityID, mp bool, c Position) entity.EntityID {
 	o := &g.occ
-	i, ok := o.index(c.X, c.Y)
+	i, ok := o.Index(c.X, c.Y)
 	if !ok {
 		return 0
 	}
-	if b := o.cells[i]; b != 0 && b != id {
+	if b := o.Cells[i]; b != 0 && b != id {
 		return b
 	}
-	if o.pcount[i] == 0 {
+	if o.Pcount[i] == 0 {
 		return 0
 	}
 	if !mp {
-		return o.pfirst[i]
+		return o.Pfirst[i]
 	}
 	if g.colonist(id) && g.finalStep(id, c) {
 		return g.combatHolder(id, i)
@@ -543,14 +333,14 @@ func (g *Game) combatHolder(id entity.EntityID, i int) entity.EntityID {
 	keeps := func(p entity.EntityID) bool {
 		return p != 0 && p != id && g.colonist(p) && (self || g.combat.Guard.InCombat(p))
 	}
-	if p := o.pfirst[i]; keeps(p) {
+	if p := o.Pfirst[i]; keeps(p) {
 		return p // the lowest ID
 	}
 	var best entity.EntityID
-	if o.pcount[i] > 1 {
-		for _, s := range o.pextra {
-			if s.idx == i && (best == 0 || s.id < best) && keeps(s.id) {
-				best = s.id
+	if o.Pcount[i] > 1 {
+		for _, s := range o.Pextra {
+			if s.Idx == i && (best == 0 || s.ID < best) && keeps(s.ID) {
+				best = s.ID
 			}
 		}
 	}
@@ -560,19 +350,19 @@ func (g *Game) combatHolder(id entity.EntityID, i int) entity.EntityID {
 // meleeOn reports that id's attack target is a partner on cell c.
 func (g *Game) meleeOn(id entity.EntityID, c Position) bool {
 	o := &g.occ
-	i, ok := o.index(c.X, c.Y)
-	if !ok || o.pcount[i] == 0 {
+	i, ok := o.Index(c.X, c.Y)
+	if !ok || o.Pcount[i] == 0 {
 		return false
 	}
 	t := g.targetOf(id)
 	if t == 0 {
 		return false
 	}
-	if o.pfirst[i] == t {
+	if o.Pfirst[i] == t {
 		return true
 	}
-	for _, s := range o.pextra {
-		if s.idx == i && s.id == t {
+	for _, s := range o.Pextra {
+		if s.Idx == i && s.ID == t {
 			return true
 		}
 	}
@@ -584,8 +374,8 @@ func (g *Game) meleeOn(id entity.EntityID, c Position) bool {
 // someone's cell while passing through).
 func (g *Game) stopOK(id entity.EntityID, c Position) bool {
 	o := &g.occ
-	i, ok := o.index(c.X, c.Y)
-	if !ok || o.pcount[i] < 2 || !g.colonist(id) {
+	i, ok := o.Index(c.X, c.Y)
+	if !ok || o.Pcount[i] < 2 || !g.colonist(id) {
 		return true
 	}
 	return g.combatHolder(id, i) == 0
@@ -594,7 +384,7 @@ func (g *Game) stopOK(id entity.EntityID, c Position) bool {
 // occIndex is the index, built on first use (e.g. a hook called before
 // any movement phase).
 func (g *Game) occIndex() *occupancy {
-	if g.occ.dirty || g.occ.cells == nil {
+	if g.occ.Dirty || g.occ.Cells == nil {
 		g.rebuildOccupancy()
 	}
 	return &g.occ
@@ -619,7 +409,7 @@ func (g *Game) repathEvery(id entity.EntityID, from, to Position, m motionRec, b
 	if g.planAround(id, from, to) {
 		return stepRepath, from
 	}
-	g.occ.rpMiss = id
+	g.occ.RpMiss = id
 	return stepWait, from
 }
 
@@ -640,7 +430,7 @@ func (g *Game) planAround(id entity.EntityID, from, to Position) bool {
 	if first.X == to.X && first.Y == to.Y || g.holderFor(id, g.partner(id), Position{X: first.X, Y: first.Y}) != 0 {
 		return false
 	}
-	o.rpID, o.rpAt, o.rpPath = id, uint64(g.clock.Now()), path
+	o.RpID, o.RpAt, o.RpPath = id, uint64(g.clock.Now()), path
 	return true
 }
 
@@ -665,12 +455,12 @@ func (g *Game) giveWay(id entity.EntityID, mp bool, from, to Position, occ entit
 			continue
 		}
 		dist := pathing.Octile(c.X, c.Y, goal.X, goal.Y)
-		if !found || dist < bestD || dist == bestD && before(c, best) {
+		if !found || dist < bestD || dist == bestD && spatial.Before(c.X, c.Y, best.X, best.Y) {
 			best, bestD, found = c, dist, true
 		}
 	}
 	if found {
-		o.move(id, mp, from, best)
+		o.Move(id, mp, from.X, from.Y, best.X, best.Y)
 		return stepSidestep, best
 	}
 	if g.planAround(id, from, to) {
@@ -684,12 +474,12 @@ func (g *Game) giveWay(id entity.EntityID, mp bool, from, to Position, occ entit
 			continue
 		}
 		dist := pathing.Octile(c.X, c.Y, op.X, op.Y)
-		if !found || dist > bestD || dist == bestD && before(c, best) {
+		if !found || dist > bestD || dist == bestD && spatial.Before(c.X, c.Y, best.X, best.Y) {
 			best, bestD, found = c, dist, true
 		}
 	}
 	if found {
-		o.move(id, mp, from, best)
+		o.Move(id, mp, from.X, from.Y, best.X, best.Y)
 		return stepSidestep, best
 	}
 	return stepWait, from
@@ -700,14 +490,12 @@ var stepDirs = [8][2]int{
 	{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1},
 }
 
-// before is the stable tie-break: lower y, then lower x.
-func before(a, b Position) bool {
-	if a.Y != b.Y {
-		return a.Y < b.Y
-	}
-	return a.X < b.X
+// stepOpen retains the caller's Position convention for map movement.
+func (g *Game) stepOpen(q pathing.Query, from, c Position) bool {
+	return spatial.StepOpen(q, &g.occ, from.X, from.Y, c.X, c.Y)
 }
 
+// onPath reports a cell blocked by an existing walking route.
 func onPath(p []Position, c Position) bool {
 	for _, q := range p {
 		if q == c {
@@ -715,22 +503,6 @@ func onPath(p []Position, c Position) bool {
 		}
 	}
 	return false
-}
-
-// stepOpen: one legal step from -> c onto an empty cell (walkable, a
-// neighbour, no corner cutting, no creature at all: a cell to stop on).
-func (g *Game) stepOpen(q pathing.Query, from, c Position) bool {
-	dx, dy := c.X-from.X, c.Y-from.Y
-	if dx < -1 || dx > 1 || dy < -1 || dy > 1 || dx == 0 && dy == 0 {
-		return false
-	}
-	if !q.Walkable(c.X, c.Y) || g.occ.at(c.X, c.Y) != 0 {
-		return false
-	}
-	if dx != 0 && dy != 0 && (!q.Walkable(from.X+dx, from.Y) || !q.Walkable(from.X, from.Y+dy)) {
-		return false
-	}
-	return true
 }
 
 // blockCycle follows the chain of walkers each waiting on the next one's
@@ -871,44 +643,20 @@ func (g *Game) workCell(id entity.EntityID, to Position) Position {
 	return Position{X: j.TX, Y: j.TY}
 }
 
-// freeNextTo is where a walk ends instead of a taken last cell: from
-// itself if it touches wc, else the free step from 'from' that touches wc,
-// nearest to it.
+// freeNextTo chooses a legal work-adjacent stop.
 func (g *Game) freeNextTo(id entity.EntityID, from, wc Position) (Position, bool) {
-	if pathing.Dist(from.X, from.Y, wc.X, wc.Y) <= 1 && g.stopOK(id, from) {
-		return from, true
-	}
 	q := g.queryFor(id)
-	best, found, bestD := Position{}, false, 0
-	for _, d := range stepDirs {
-		c := Position{X: from.X + d[0], Y: from.Y + d[1]}
-		if pathing.Dist(c.X, c.Y, wc.X, wc.Y) > 1 || !g.stepOpen(q, from, c) {
-			continue
-		}
-		dist := pathing.Octile(c.X, c.Y, wc.X, wc.Y)
-		if !found || dist < bestD || dist == bestD && before(c, best) {
-			best, bestD, found = c, dist, true
-		}
-	}
-	return best, found
+	x, y, ok := spatial.FreeNextTo(from.X, from.Y, wc.X, wc.Y, g.stopOK(id, from),
+		func(x, y int) bool { return g.stepOpen(q, from, Position{X: x, Y: y}) })
+	return Position{X: x, Y: y}, ok
 }
 
-// nearestFreeStep is the free cell nearest to the taken target among 'from'
-// and its open steps ('from' wins ties: no needless shuffle). 'from' only
-// counts when id may stop there (stopOK); false when no cell qualifies.
+// nearestFreeStep prefers the current cell on a distance tie.
 func (g *Game) nearestFreeStep(id entity.EntityID, from, to Position) (Position, bool) {
 	q := g.queryFor(id)
-	best, bestD, found := from, pathing.Octile(from.X, from.Y, to.X, to.Y), g.stopOK(id, from)
-	for _, d := range stepDirs {
-		c := Position{X: from.X + d[0], Y: from.Y + d[1]}
-		if !g.stepOpen(q, from, c) {
-			continue
-		}
-		if dist := pathing.Octile(c.X, c.Y, to.X, to.Y); !found || dist < bestD || dist == bestD && best != from && before(c, best) {
-			best, bestD, found = c, dist, true
-		}
-	}
-	return best, found
+	x, y, ok := spatial.NearestFreeStep(from.X, from.Y, to.X, to.Y, g.stopOK(id, from),
+		func(x, y int) bool { return g.stepOpen(q, from, Position{X: x, Y: y}) })
+	return Position{X: x, Y: y}, ok
 }
 
 // idleYieldable: a creature that steps aside for a walker who has waited
@@ -1018,77 +766,26 @@ func (g *Game) breaking(id entity.EntityID) bool {
 	return ok
 }
 
-// asideRoute is a breadth-first search (fixed neighbour order, no corner
-// cutting, around other creatures) for the nearest free cell within
-// asideRadius that is off 'avoid' and not reserved or a bed. Among the
-// nearest, a working pawn prefers one touching its work cell wc. The
-// route excludes the start and ends at the chosen cell.
+// asideRoute searches a bounded neighbourhood for a safe detour.
 func (g *Game) asideRoute(id entity.EntityID, pos Position, avoid []Position, wc Position, working bool) ([]pathing.Point, bool) {
 	q := g.queryFor(id)
-	const side = 2*asideRadius + 1
-	var parent [side * side]int16
-	var depth [side * side]int8
-	for i := range parent {
-		parent[i] = -1
-	}
-	local := func(c Position) (int, bool) {
-		lx, ly := c.X-pos.X+asideRadius, c.Y-pos.Y+asideRadius
-		if lx < 0 || ly < 0 || lx >= side || ly >= side {
-			return 0, false
-		}
-		return ly*side + lx, true
-	}
-	start, _ := local(pos)
-	parent[start] = int16(start)
-	queue := []Position{pos}
-	best, found, bestDepth, bestKey := Position{}, false, int8(0), 0
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		ci, _ := local(cur)
-		if found && depth[ci] >= bestDepth {
-			break
-		}
-		for _, d := range stepDirs {
-			c := Position{X: cur.X + d[0], Y: cur.Y + d[1]}
-			li, in := local(c)
-			if !in || parent[li] >= 0 || !g.stepOpen(q, cur, c) {
-				continue
-			}
-			parent[li], depth[li] = int16(ci), depth[ci]+1
-			queue = append(queue, c)
-			if onPath(avoid, c) || g.bedCovering(c.X, c.Y) {
-				continue
-			}
-			if owner, taken := g.reserve.TileOwner(c.X, c.Y); taken && owner != id {
-				continue
-			}
-			key := 0
-			if working {
-				key = pathing.Octile(c.X, c.Y, wc.X, wc.Y)
-				if pathing.Dist(c.X, c.Y, wc.X, wc.Y) > 1 {
-					key += 1 << 20
+	return spatial.AsideRoute(pos.X, pos.Y, wc.X, wc.Y, working,
+		func(fx, fy, x, y int) bool {
+			return g.stepOpen(q, Position{X: fx, Y: fy}, Position{X: x, Y: y})
+		},
+		func(x, y int) bool {
+			c := Position{X: x, Y: y}
+			for _, a := range avoid {
+				if a == c {
+					return true
 				}
 			}
-			if !found || key < bestKey || key == bestKey && before(c, best) {
-				best, found, bestDepth, bestKey = c, true, depth[li], key
+			if g.bedCovering(x, y) {
+				return true
 			}
-		}
-	}
-	if !found {
-		return nil, false
-	}
-	var rev []pathing.Point
-	for c := best; c != pos; {
-		rev = append(rev, pathing.Point{X: c.X, Y: c.Y})
-		li, _ := local(c)
-		p := int(parent[li])
-		c = Position{X: pos.X + p%side - asideRadius, Y: pos.Y + p/side - asideRadius}
-	}
-	for i, k := 0, len(rev)-1; i < k; i, k = i+1, k-1 {
-		rev[i], rev[k] = rev[k], rev[i]
-	}
-	return rev, true
+			owner, taken := g.reserve.TileOwner(x, y)
+			return taken && owner != id
+		})
 }
 
 // queryFor is the walkability id moves with: wild animals keep out of
@@ -1110,11 +807,11 @@ func (g *Game) queryFor(id entity.EntityID) pathing.Query {
 // not change while creatures step).
 func (g *Game) phaseHostileMap() pathing.Query {
 	o := &g.occ
-	if !o.hostileOK || o.dirty {
-		o.hostile, o.hostileOK = g.hostileMap(), true
-		o.hostileGen++
+	if !o.HostileOK || o.Dirty {
+		o.Hostile, o.HostileOK = g.hostileMap(), true
+		o.HostileGen++
 	}
-	return o.hostile
+	return o.Hostile
 }
 
 // crowdCost adds blocking costs to a walkability query: a cell holding a
@@ -1131,8 +828,8 @@ type crowdCost struct {
 func (c crowdCost) ExtraCost(x, y int) int {
 	o := &c.g.occ
 	ground := c.g.groundExtra(x, y) + softExtra(c.Query, x, y) // water.go: slow ground costs extra, so A* wades only when it pays; area_soft.go
-	i, ok := o.index(x, y)
-	if !ok || o.near[i] == 0 && (c.partner || o.pnear[i] == 0) {
+	i, ok := o.Index(x, y)
+	if !ok || o.Near[i] == 0 && (c.partner || o.Pnear[i] == 0) {
 		return ground // no creature in the way on the cell or beside it
 	}
 	if id := c.in(x, y); id != 0 && id != c.self {
@@ -1153,9 +850,9 @@ func (c crowdCost) ExtraCost(x, y int) int {
 // in is the creature on (x, y) that the mover prices.
 func (c crowdCost) in(x, y int) entity.EntityID {
 	if c.partner {
-		return c.g.occ.blocker(x, y)
+		return c.g.occ.Blocker(x, y)
 	}
-	return c.g.occ.at(x, y)
+	return c.g.occ.At(x, y)
 }
 
 func (g *Game) costedQuery(id entity.EntityID) pathing.Query {
@@ -1170,9 +867,9 @@ func (g *Game) costedQuery(id entity.EntityID) pathing.Query {
 // else to the cheapest free-standing neighbour.
 func (g *Game) pathAround(id entity.EntityID, tx, ty int) ([]pathing.Point, bool) {
 	o := &g.occ
-	if o.rpID == id && o.rpAt == uint64(g.clock.Now()) {
-		p := o.rpPath
-		o.rpID, o.rpPath = 0, nil
+	if o.RpID == id && o.RpAt == uint64(g.clock.Now()) {
+		p := o.RpPath
+		o.RpID, o.RpPath = 0, nil
 		return p, true
 	}
 	pos, _ := g.positions.Get(id)
@@ -1197,30 +894,16 @@ func (g *Game) pathAround(id entity.EntityID, tx, ty int) ([]pathing.Point, bool
 		if !ok {
 			continue
 		}
-		if c := routeCost(q, pos, p); !bestOK || c < bestCost {
+		if c := spatial.RouteCost(q, pos.X, pos.Y, p); !bestOK || c < bestCost {
 			best, bestOK, bestCost = p, true, c
 		}
 	}
 	return best, bestOK
 }
 
-// routeCost is the octile cost of walking p from pos under q's extras.
-func routeCost(q pathing.Query, pos Position, p []pathing.Point) int {
-	c, _ := q.(pathing.Coster)
-	cost, px, py := 0, pos.X, pos.Y
-	for _, s := range p {
-		cost += pathing.Octile(px, py, s.X, s.Y)
-		if c != nil {
-			cost += max(c.ExtraCost(s.X, s.Y), 0)
-		}
-		px, py = s.X, s.Y
-	}
-	return cost
-}
-
 // occupantAt reports the standing creature on (x, y), if any, as of the
 // current movement phase's index: its blocker, else its first partner.
 func (g *Game) occupantAt(x, y int) (entity.EntityID, bool) {
-	id := g.occIndex().at(x, y)
+	id := g.occIndex().At(x, y)
 	return id, id != 0
 }

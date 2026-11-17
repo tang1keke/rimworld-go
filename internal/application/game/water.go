@@ -61,7 +61,7 @@ func (g *Game) groundExtra(x, y int) int {
 		return 0
 	}
 	i := y*g.grid.Width() + x
-	l := &g.occ.ground // cached on structVer (terrain, buildings), plantGen and the plant store
+	l := &g.occ.Ground // cached on structVer (terrain, buildings), plantGen and the plant store
 	l.Sync(g.grid.Width()*g.grid.Height(), [2]uint64{g.structVer, g.idx.jobs.plantGen}, g.plants)
 	extra := int(l.Get(i))
 	if extra == spatial.Unset {

@@ -182,7 +182,7 @@ func (g *Game) animalPathQuery(tame, phase bool) pathing.Query {
 	case tame:
 	case phase:
 		phaseBase = g.phaseHostileMap()
-		slot, ver = 2, g.occ.hostileGen
+		slot, ver = 2, g.occ.HostileGen
 	default:
 		slot, ver = 1, g.structVer
 	}
