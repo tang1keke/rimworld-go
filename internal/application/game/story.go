@@ -9,6 +9,7 @@ import (
 	"rimworld-go/internal/application/game/raid"
 	"rimworld-go/internal/application/game/ship"
 	"rimworld-go/internal/application/game/wealth"
+	"rimworld-go/internal/application/modloader"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/animal"
 	"rimworld-go/internal/domain/building/construction"
@@ -503,7 +504,7 @@ func wealthPart(g *Game, i, ni, nb, na int) int {
 	switch {
 	case i < ni:
 		if st, ok := g.stacks.Get(g.itemIDs[i]); ok {
-			return st.Kind.Value() * st.Qty
+			return modloader.ItemValue(g.modRuntime, st.Kind) * st.Qty
 		}
 	case i < ni+nb:
 		if b, ok := g.bldgs.Get(g.bldgIDs[i-ni]); ok && !notColonyPiece(b) { // ruins and vents are no one's wealth

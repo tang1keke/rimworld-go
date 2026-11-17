@@ -1,0 +1,8 @@
+{
+  "id": "example.tools",
+  "name": "Example Tools",
+  "version": "1.0.0",
+  "api_version": "1.0",
+  "authors": ["Example"],
+  "capabilities": ["definitions.write", "definitions.patch", "resources.read"]
+}
