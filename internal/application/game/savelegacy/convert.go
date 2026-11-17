@@ -36,6 +36,35 @@ func Upgrade(fields ...any) error {
 	return nil
 }
 
+// UpgradeAndClear upgrades destination/source pointer pairs and clears the legacy
+// fields only after every conversion succeeds. marker identifies the canonical schema.
+func UpgradeAndClear(marker *bool, fields ...any) error {
+	if marker == nil {
+		return fmt.Errorf("legacy upgrade requires a schema marker")
+	}
+	if len(fields)%2 != 0 {
+		return fmt.Errorf("legacy upgrade expects destination/source pointer pairs")
+	}
+	pairs := make([]any, 0, len(fields))
+	sources := make([]reflect.Value, 0, len(fields)/2)
+	for i := 0; i < len(fields); i += 2 {
+		source := reflect.ValueOf(fields[i+1])
+		if source.Kind() != reflect.Pointer || source.IsNil() || !source.Elem().CanInterface() || !source.Elem().CanSet() {
+			return fmt.Errorf("legacy field %d requires a settable source pointer", i/2)
+		}
+		pairs = append(pairs, fields[i], source.Elem().Interface())
+		sources = append(sources, source.Elem())
+	}
+	if err := Upgrade(pairs...); err != nil {
+		return err
+	}
+	for _, source := range sources {
+		source.SetZero()
+	}
+	*marker = true
+	return nil
+}
+
 func copyField(dst, src reflect.Value) error {
 	if src.Type().AssignableTo(dst.Type()) {
 		dst.Set(src)

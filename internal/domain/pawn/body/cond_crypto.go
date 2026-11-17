@@ -42,6 +42,14 @@ func CryptoSick(b *Body) bool {
 	return ok
 }
 
+// FoodPoisonedOrCryptoSick reports b with food poisoning or cryptosleep sickness.
+func FoodPoisonedOrCryptoSick(b *Body) bool {
+	if _, ok := b.Poisoned(); ok {
+		return true
+	}
+	return CryptoSick(b)
+}
+
 // StepCryptoSickness brings it up to tick now: its severity the share
 // left to run, gone after CryptoSickTicks. It reports a change.
 func StepCryptoSickness(b *Body, now uint64) bool {

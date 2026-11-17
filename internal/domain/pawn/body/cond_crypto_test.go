@@ -21,3 +21,21 @@ func TestCryptosleepSickness(t *testing.T) {
 		t.Fatal("still sick after 10000 ticks")
 	}
 }
+
+func TestFoodPoisonedOrCryptoSick(t *testing.T) {
+	if FoodPoisonedOrCryptoSick(nil) {
+		t.Fatal("nil body is sick")
+	}
+	b := &Body{}
+	if FoodPoisonedOrCryptoSick(b) {
+		t.Fatal("healthy body is sick")
+	}
+	if !b.Poison(100) || !FoodPoisonedOrCryptoSick(b) {
+		t.Fatal("food poisoning was not detected")
+	}
+	b.RemoveCond(CondFoodPoisoning)
+	CryptoSicken(b, 200)
+	if !FoodPoisonedOrCryptoSick(b) {
+		t.Fatal("cryptosleep sickness was not detected")
+	}
+}

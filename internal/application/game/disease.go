@@ -205,7 +205,7 @@ func (g *Game) stepDiseases(now uint64) {
 	}
 	for _, id := range ownPatients(g) { // patients.go: this map's, a copy (a death touches the index)
 		b := g.bodies[id]
-		poisoned := g.poisoned(id) // food_poison.go (WS-M)
+		poisoned := body.FoodPoisonedOrCryptoSick(b)
 		if !poisoned && !hasDisease(b) {
 			continue
 		}
@@ -337,9 +337,9 @@ func (g *Game) diseaseSick(id entity.EntityID) bool {
 }
 
 // feelsSick reports id under the "sick" thought (rooms.go): fighting a
-// condition (sick, infection.go), host to parasites, or food poisoned.
+// condition (sick, infection.go), host to parasites, or food/cryptosleep sick.
 func (g *Game) feelsSick(id entity.EntityID) bool {
-	if g.sick(id) || g.poisoned(id) { // food_poison.go (WS-M)
+	if g.sick(id) || body.FoodPoisonedOrCryptoSick(g.bodies[id]) {
 		return true
 	}
 	b := g.bodies[id]

@@ -654,7 +654,9 @@ func Load(r io.Reader) (*Game, SaveInfo, error) {
 	// field names. The explicit marker distinguishes them from canonical
 	// v18 saves, including empty colonies whose skill maps are nil.
 	if info.Version < 18 || !s.SkillSchema18 {
-		if err := s.migrateSkillArrays(); err != nil {
+		if err := savelegacy.UpgradeAndClear(&s.SkillSchema18,
+			&s.Bios18, &s.Bios, &s.Skills18, &s.Skills, &s.SkillLive18,
+			&s.SkillLive, &s.NG118, &s.NG1, &s.People18, &s.People); err != nil {
 			return nil, info, fmt.Errorf("migrate v%d skill state: %w", info.Version, err)
 		}
 	}
@@ -1206,21 +1208,4 @@ func (g *Game) migrateLegacyStone() {
 		fix(&o.cmd)
 		g.postponed.orders[id] = o
 	}
-}
-
-// migrateSkillArrays upgrades historical 11-skill fields before Game.migrateSave.
-func (s *saveState) migrateSkillArrays() error {
-	if err := savelegacy.Upgrade(
-		&s.Bios18, s.Bios,
-		&s.Skills18, s.Skills,
-		&s.SkillLive18, s.SkillLive,
-		&s.NG118, s.NG1,
-		&s.People18, s.People,
-	); err != nil {
-		return err
-	}
-	s.Bios, s.Skills, s.SkillLive = nil, nil, nil
-	s.NG1, s.People = nil, nil
-	s.SkillSchema18 = true
-	return nil
 }

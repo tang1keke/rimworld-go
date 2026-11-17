@@ -72,8 +72,13 @@ func TestV17SkillArraysMigrateIntoCanonicalFields(t *testing.T) {
 	if err := gob.NewDecoder(&raw).Decode(&s); err != nil {
 		t.Fatalf("decode v17 wire layout: %v", err)
 	}
-	if err := s.migrateSkillArrays(); err != nil {
+	if err := savelegacy.UpgradeAndClear(&s.SkillSchema18,
+		&s.Bios18, &s.Bios, &s.Skills18, &s.Skills, &s.SkillLive18,
+		&s.SkillLive, &s.NG118, &s.NG1, &s.People18, &s.People); err != nil {
 		t.Fatal(err)
+	}
+	if !s.SkillSchema18 {
+		t.Fatal("legacy migration did not mark the canonical v18 skill schema")
 	}
 
 	want := skill.Set{}

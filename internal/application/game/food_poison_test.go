@@ -116,14 +116,14 @@ func TestFoodPoisoningRunsItsCourse(t *testing.T) {
 	g := New(Config{Seed: 1, Width: 12, Height: 8})
 	id, _ := g.SpawnNamedPawn(4, 4, "Pat")
 	g.rollFoodPoison(id, item.Stack{Kind: item.Meal, Qty: 1, Poison: 1000})
-	if !g.poisoned(id) || !g.indexedPatient(id) || !g.feelsSick(id) {
-		t.Fatalf("a sure meal did not poison: poisoned %v, patient %v", g.poisoned(id), g.indexedPatient(id))
+	if !body.FoodPoisonedOrCryptoSick(g.bodies[id]) || !g.indexedPatient(id) || !g.feelsSick(id) {
+		t.Fatalf("a sure meal did not poison: poisoned %v, patient %v", body.FoodPoisonedOrCryptoSick(g.bodies[id]), g.indexedPatient(id))
 	}
 	full := g.capacity(id, body.Consciousness)
 	stages := map[uint8]bool{}
 	prev := uint8(body.FoodStageInitial)
 	hours := 0
-	for g.poisoned(id) && hours < 48 {
+	for body.FoodPoisonedOrCryptoSick(g.bodies[id]) && hours < 48 {
 		c, _ := g.bodies[id].Poisoned()
 		if c.Stage > prev {
 			t.Fatalf("stage went back up from %d to %d at hour %d", prev, c.Stage, hours)
@@ -195,7 +195,7 @@ func TestLegacyStacksNotPoisoned(t *testing.T) {
 	for i := 0; i < 2000; i++ {
 		g.rollFoodPoison(id, st)
 	}
-	if g.poisoned(id) {
+	if body.FoodPoisonedOrCryptoSick(g.bodies[id]) {
 		t.Fatal("a legacy meal poisoned")
 	}
 	if a, b := g.stream(streamMedical).IntN(1<<30), ref.stream(streamMedical).IntN(1<<30); a != b {
@@ -288,7 +288,7 @@ func TestFoodPoisonDifficultyScaling(t *testing.T) {
 	s.FoodPoisonChance = 0
 	g.ng.setup.Difficulty = s
 	g.rollFoodPoison(id, item.Stack{Kind: item.Meal, Poison: 1000})
-	if g.poisoned(id) {
+	if body.FoodPoisonedOrCryptoSick(g.bodies[id]) {
 		t.Fatal("zero food-poison chance failed in the real eating path")
 	}
 }

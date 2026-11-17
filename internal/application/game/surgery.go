@@ -949,7 +949,7 @@ func (g *Game) stepAnesthetics(now uint64) {
 		}
 		if c, ok := b.Cond(body.CondAnesthetic); ok {
 			r := g.stream(streamMedical)
-			if !g.poisoned(id) {
+			if !body.FoodPoisonedOrCryptoSick(b) {
 				g.foodVomit(id, b)
 			}
 			if c.Stage < 2 {

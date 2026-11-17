@@ -57,7 +57,7 @@ func TestSynthStomachHalvesPoisoning(t *testing.T) {
 		n := 0
 		for range 400 {
 			g.rollFoodPoison(id, item.Stack{Kind: item.Meal, Qty: 1, Poison: 1000})
-			if g.poisoned(id) {
+			if body.FoodPoisonedOrCryptoSick(g.bodies[id]) {
 				n++
 				g.bodies[id].RemoveCond(body.CondFoodPoisoning)
 			}

@@ -197,13 +197,13 @@ func TestRawFoodPoisonRoll(t *testing.T) {
 	sick := 0
 	for i := 0; i < 2000; i++ {
 		g.rollFoodPoison(ada, item.Stack{Kind: item.NutrientPasteMeal, Qty: 1})
-		if g.poisoned(ada) {
+		if body.FoodPoisonedOrCryptoSick(g.bodies[ada]) {
 			t.Fatal("paste never poisons")
 		}
 	}
 	for i := 0; i < 2000; i++ {
 		g.rollFoodPoison(ada, item.Stack{Kind: item.Potatoes, Qty: 1})
-		if g.poisoned(ada) {
+		if body.FoodPoisonedOrCryptoSick(g.bodies[ada]) {
 			sick++
 			g.bodies[ada].RemoveCond(body.CondFoodPoisoning)
 		}

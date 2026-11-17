@@ -76,12 +76,6 @@ func (g *Game) foodVomit(id entity.EntityID, b *body.Body) {
 	}
 }
 
-// poisoned reports id with food poisoning or cryptosleep sickness (AX-9).
-func (g *Game) poisoned(id entity.EntityID) bool {
-	_, ok := g.bodies[id].Poisoned()
-	return ok || body.CryptoSick(g.bodies[id])
-}
-
 // cryptoSicken gives person id cryptosleep sickness (out of a casket).
 func cryptoSicken(g *Game, id entity.EntityID) {
 	if v, ok := g.vital.Get(id); ok && v.Status != health.Dead && g.ensureBody(id, &v) != nil {
