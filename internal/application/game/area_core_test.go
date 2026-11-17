@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"rimworld-go/internal/application/game/haul"
+	"rimworld-go/internal/application/game/pathstage"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/building/construction"
@@ -100,7 +101,7 @@ func TestAreaSoftCost(t *testing.T) {
 	if !plainSoft(g.pathQuery(id)).(softQuery).s.fire {
 		t.Fatal("the reference search keeps the costs")
 	}
-	if _, ok := plainSoft(g.grid).(plainQuery); !ok {
+	if _, ok := plainSoft(g.grid).(pathstage.PlainQuery); !ok {
 		t.Fatal("a plain query stays plain")
 	}
 }

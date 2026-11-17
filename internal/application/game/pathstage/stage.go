@@ -72,6 +72,7 @@ type Request struct {
 	ID             entity.EntityID
 	From, To, Goal pathing.Point
 	Token          Token
+	Guard          Guard
 	Query          pathing.Query
 	Kind           Kind
 	lo, hi         int // the corridor's span of the arena

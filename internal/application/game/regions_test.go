@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"rimworld-go/internal/application/game/pathstage"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/animal"
 	"rimworld-go/internal/domain/building/construction"
@@ -45,7 +46,7 @@ func checkRegionQueries(t *testing.T, g *Game, r *randx.Rand, pairs int) {
 			if !q.Walkable(tx, ty) || sx == tx && sy == ty {
 				continue
 			}
-			_, want := pathing.Find(plainQuery{q}, sx, sy, tx, ty)
+			_, want := pathing.Find(pathstage.PlainQuery{Query: q}, sx, sy, tx, ty)
 			if got := rq.Reach(sx, sy, tx, ty); got != want {
 				t.Fatalf("layer %d (%d,%d)->(%d,%d): Reach=%v, A*=%v", l, sx, sy, tx, ty, got, want)
 			}

@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"rimworld-go/internal/application/game/pathstage"
+	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/animal"
 	"rimworld-go/internal/domain/sim/entity"
-	"rimworld-go/internal/domain/world/region"
 )
 
 // Path queries (NG-1 §6.5, E3): pathTo and pathAround ask the region map
@@ -26,32 +26,13 @@ func (g *Game) searcher() *pathing.Searcher {
 
 // reachFrom is the region pre-check for a mover at pos: may a walk reach
 // (x, y)? Without regions everything may.
-func (g *Game) reachFrom(id entity.EntityID, pos Position, regions bool) reachCheck {
+func (g *Game) reachFrom(id entity.EntityID, pos Position, regions bool) pathstage.ReachCheck {
 	if !regions {
-		return reachCheck{}
+		return pathstage.ReachCheck{}
 	}
-	return reachCheck{g: g, m: g.regionsNow(), l: g.moverLayer(id), id: id, pos: pos}
-}
-
-// reachCheck is reachFrom's answer (a value, not a closure: asking
-// allocates nothing). With no map every cell may be reached.
-type reachCheck struct {
-	g   *Game
-	m   *region.Map
-	l   region.Layer
-	id  entity.EntityID
-	pos Position
-}
-
-func (r reachCheck) ok(x, y int) bool {
-	if r.m == nil {
-		return true
-	}
-	ok := r.m.Reach(r.l, r.pos.X, r.pos.Y, x, y)
-	if !ok && checkIndex(r.g) {
-		checkReach(r.g, r.g.pathQuery(r.id), r.pos.X, r.pos.Y, x, y, ok)
-	}
-	return ok
+	return pathstage.NewReachCheck(g.regionsNow(), pathstage.MoverLayer(g.sapper(id), g.isRaider(id)), pathing.Point(pos), func(x, y int, ok bool) {
+		pathstage.CheckReach(g.pathQuery(id), pos.X, pos.Y, x, y, ok, !ok && checkIndex(g))
+	})
 }
 
 // Long searches (NG-1 §6.5): a path whose ends are more than longPath
@@ -77,20 +58,9 @@ func (g *Game) findPath(id entity.EntityID, q pathing.Query, sx, sy, tx, ty int)
 // planSearch is how findPath searches; allow, a corridor's cells, is valid
 // until the region map's next corridor.
 func planSearch(g *Game, id entity.EntityID, q pathing.Query, sx, sy, tx, ty int) (pathstage.Kind, []uint64) {
-	switch {
-	case pathing.Octile(sx, sy, tx, ty) <= longPath || g.noRegions() || g.regs.exactLong:
-		return pathstage.Exact, nil
-	case !q.Walkable(tx, ty) || !g.grid.InBounds(sx, sy):
-		return pathstage.Failed, nil
-	case sx == tx && sy == ty:
-		return pathstage.Here, nil
-	}
-	allow, ok := g.regionsNow().Corridor(g.moverLayer(id), sx, sy, tx, ty)
-	if !ok {
-		checkReach(g, q, sx, sy, tx, ty, false) // under the test self-check, proven with a full search
-		return pathstage.Failed, nil
-	}
-	return pathstage.Corridor, allow
+	return pathstage.PlanSearch(q, sx, sy, tx, ty, longPath, g.noRegions(), g.regs.exactLong,
+		g.grid.InBounds(sx, sy), pathstage.MoverLayer(g.sapper(id), g.isRaider(id)), g.regionsNow,
+		func() { pathstage.CheckReach(q, sx, sy, tx, ty, false, checkIndex(g)) })
 }
 
 // findPathVia is findPath, or a plain exact search without regions.
@@ -129,6 +99,77 @@ func (g *Game) checkThreatScan(id entity.EntityID, pos Position, animalR, raider
 	if want != got || wantD != gotD {
 		panic(fmt.Sprintf("nearestThreatTo: index found %d at %d, scan %d at %d", got, gotD, want, wantD))
 	}
+}
+
+func pathsFrozen(g *Game) bool {
+	return g.regs.paths.Frozen() || g.regs.pawnPaths.Frozen()
+}
+
+// preplanPawnPaths batches only the static-obstruction routes that can be
+// searched without changing the ordered movement loop.
+func preplanPawnPaths(g *Game, movers []mover, now uint64) {
+	p := g.maps[0].regs.paths.Pool()
+	g.regs.pawnPaths.Preplan(pathstage.PawnPlan{
+		MoverCount: len(movers),
+		MoverAt: func(i int) pathstage.Mover {
+			mv := movers[i]
+			return pathstage.Mover{ID: mv.id, Animal: mv.animal}
+		},
+		Candidate: func(m pathstage.Mover) pathstage.Candidate {
+			if !g.colonist(m.ID) || now < g.motionOf(m.ID).NextMoveAt || !g.alive(m.ID) {
+				return pathstage.Candidate{}
+			}
+			j, _ := g.jobs.Get(m.ID)
+			if j.State != job.Goto || j.PathI >= len(j.Path) {
+				return pathstage.Candidate{}
+			}
+			from, _ := g.positions.Get(m.ID)
+			tx, ty := walkTarget(j)
+			next := j.Path[j.PathI]
+			return pathstage.Candidate{
+				Eligible: true, Job: j, Guard: pathstage.Guard{
+					Kind: j.Kind, Forced: j.Forced, Area: g.restrictedRef(m.ID), AreaFree: g.areaPathFree(m.ID),
+				},
+				From: pathing.Point(from), Next: next, Goal: pathing.Point{X: tx, Y: ty},
+				NextWalkable: g.grid.Walkable(next.X, next.Y), GoalWalkable: g.grid.Walkable(tx, ty),
+			}
+		},
+		Enabled: p != nil && p.Lanes() > 1 && len(g.pawnIDs) >= 8 && !g.noRegions() && !g.fireActive(),
+		Pool:    p,
+		Warm: func() {
+			g.plantIndex()
+			if !g.noRegions() {
+				g.regionsNow().Regions()
+			}
+		},
+		Plan: func(r pathstage.Request) (pathing.Query, pathstage.Kind, []uint64) {
+			q := g.pathQuery(r.ID)
+			k := pathstage.Failed
+			var allow []uint64
+			if q.Walkable(r.Goal.X, r.Goal.Y) &&
+				g.reachFrom(r.ID, Position(r.From), true).OK(r.Goal.X, r.Goal.Y) {
+				if c, ok := q.(pathing.Coster); ok {
+					c.ExtraCost(r.From.X, r.From.Y)
+				}
+				if b, ok := q.(pathing.Bitset); ok {
+					b.BlockedBits()
+				}
+				k, allow = planSearch(g, r.ID, q, r.From.X, r.From.Y, r.Goal.X, r.Goal.Y)
+			}
+			return q, k, allow
+		},
+		GridVersion: g.grid.Version(), StructVersion: g.structVer, Searcher: g.searcher(),
+	})
+}
+
+// preplannedPawnPath returns a staged route only while its job and map still match.
+func preplannedPawnPath(g *Game, id entity.EntityID, j job.Record, tx, ty int) ([]pathing.Point, bool, bool) {
+	from, _ := g.positions.Get(id)
+	result, ready := g.regs.pawnPaths.Lookup(id, pathstage.Guard{
+		Kind: j.Kind, Forced: j.Forced, Area: g.restrictedRef(id), AreaFree: g.areaPathFree(id),
+	}, pathing.Point(from), j.Path[j.PathI], pathing.Point{X: tx, Y: ty},
+		pathstage.TokenOf(j.Path, j.PathI, pathing.Point(from)), g.grid.Version(), g.structVer, g.fireActive())
+	return result.Path, result.OK, ready
 }
 
 // runRepaths is the movement phase's path stage (pathstage, GAR-035): the

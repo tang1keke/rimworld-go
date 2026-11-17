@@ -763,7 +763,7 @@ func (g *Game) pathToVia(id entity.EntityID, tx, ty int, regions bool) ([]pathin
 		q = plainSoft(q) // area_soft.go: a plain search (self-check reference), same costs
 	}
 	if q.Walkable(tx, ty) {
-		if !reach.ok(tx, ty) {
+		if !reach.OK(tx, ty) {
 			return nil, false
 		}
 		return g.findPathVia(id, q, regions, pos.X, pos.Y, tx, ty)
@@ -781,7 +781,7 @@ func (g *Game) pathToVia(id entity.EntityID, tx, ty int, regions bool) ([]pathin
 				continue
 			}
 			ax, ay := tx+dx, ty+dy
-			if !q.Walkable(ax, ay) || !reach.ok(ax, ay) {
+			if !q.Walkable(ax, ay) || !reach.OK(ax, ay) {
 				continue
 			}
 			p, ok := g.findPathVia(id, q, regions, pos.X, pos.Y, ax, ay)
@@ -1569,6 +1569,7 @@ func (g *Game) phaseMovement() {
 	movers := g.movers()
 	g.pruneMotion(movers)
 	g.buildOccupancy()
+	preplanPawnPaths(g, movers, now)
 	g.regs.paths.Open() // animal repaths queue, then run after the loop (paths.go runRepaths)
 	var raiders []entity.EntityID
 	for _, mv := range movers {
@@ -1602,7 +1603,10 @@ func (g *Game) movePawn(id entity.EntityID, m motionRec, now uint64) bool {
 	next := j.Path[j.PathI]
 	tx, ty := walkTarget(j)
 	if !g.grid.Walkable(next.X, next.Y) || g.isRaider(id) && g.doorAt(next.X, next.Y) {
-		path, ok := g.pathTo(id, tx, ty)
+		path, ok, ready := preplannedPawnPath(g, id, j, tx, ty)
+		if !ready {
+			path, ok = g.pathTo(id, tx, ty)
+		}
 		if !ok {
 			j.State = job.Fail
 			j.Fail = job.Unreachable

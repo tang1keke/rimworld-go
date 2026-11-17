@@ -42,7 +42,7 @@ var selfCheckEvery uint64 = 1
 // checkIndex: is this lookup of g checked against the scan? Counted per game (one owner, no atomic),
 // only while the check is on and never during a parallel path stage: a search writes nothing shared.
 func checkIndex(g *Game) bool {
-	if !indexSelfCheck || g.regs.paths.Frozen() {
+	if !indexSelfCheck || pathsFrozen(g) {
 		return false
 	}
 	g.idx.checkN++
