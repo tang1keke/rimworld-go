@@ -1,14 +1,12 @@
 package game
 
 import (
-	"encoding/binary"
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"io"
-	mathbits "math/bits"
 	"rimworld-go/internal/application/game/aqua"
+	"rimworld-go/internal/application/game/behavior"
 	"rimworld-go/internal/application/game/bodytemp"
 	"rimworld-go/internal/application/game/care"
 	"rimworld-go/internal/application/game/combat"
@@ -26,6 +24,7 @@ import (
 	"rimworld-go/internal/application/game/resize"
 	"rimworld-go/internal/application/game/rest"
 	"rimworld-go/internal/application/game/savefmt"
+	"rimworld-go/internal/application/game/saveutil"
 	"rimworld-go/internal/application/game/sense"
 	"rimworld-go/internal/application/game/ship"
 	"rimworld-go/internal/application/game/thermo"
@@ -422,8 +421,9 @@ type saveState struct {
 	Recreation *recreate.Save
 	// ExtraMaps (v12, MAP-0) is every open map after the first, in id
 	// order, and View the map viewed; nil and 0 with one map.
-	ExtraMaps []mapSave
-	View      uint32
+	ExtraMaps      []mapSave
+	View           uint32
+	BehaviorStates []behavior.StoredState // additive: keep unknown provider state
 }
 
 // mapSave is one extra map: only State's map fields are written
@@ -520,12 +520,18 @@ func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
 		Exposure: map[entity.EntityID][2]int{}, NoComfort: g.noComfort,
 		NoFood: g.noFood, RestedFree: g.rest.Export(), RestNeeds: g.rest.Needs.Export(), Calm: g.calm, Banked: g.banked,
 		OrderQueue: map[entity.EntityID][]savedOrder{}, Worn: craft.ExportOutfits(g.apparel), Joy: g.joy,
-		PrioList: exportPrios(g.prio), Scheds: g.scheds, NextThreat: g.nextThreat, ThreatsOn: g.threatsOn,
+		PrioList: saveutil.ExportPrios(g.prio), Scheds: g.scheds, NextThreat: g.nextThreat, ThreatsOn: g.threatsOn,
 		Breaks: map[entity.EntityID]savedBreak{}, Memories: g.memories, Pending: g.pending,
 		AteAt: g.ateAt, Draft: g.draft, SleptAt: g.sleptAt, Equip: g.equip,
 		Carrying: g.care.Carry.Export(), TendedUntil: g.care.Doctor.ExportTended(),
 		Research: g.lab.Prog.V1(), ResearchAll: g.lab.Prog.Slice(), NG1: g.exportSetupState(), ResearchCur: g.lab.Cur, ResearchSet: g.lab.Set,
 		ResearchCold: g.lab.ColdList(), Strikes: g.lastStrike, Hits: g.lastHit, Graves: g.graves,
+	}
+	if g.worldSt != nil {
+		s.BehaviorStates = behavior.CloneStates(g.worldSt.behaviorSaved)
+		if g.worldSt.behavior != nil {
+			s.BehaviorStates = g.worldSt.behavior.Export()
+		}
 	}
 	exportMapFields(g, &s)
 	eachMap(g, func() { // a sculpture stands on one map, its record is colony-wide
@@ -710,21 +716,21 @@ func loadWithRuntime(r io.Reader, runtime modloader.Runtime) (*Game, SaveInfo, e
 	g.names = importStore(s.Names)
 	g.need, g.vital, g.labor = importStore(s.Need), importStore(s.Vital), importStore(s.Labor)
 	g.pending = s.Pending
-	setMap(&g.lastMeal, s.LastMeal)
+	saveutil.SetMap(&g.lastMeal, s.LastMeal)
 	g.craft.Bills.Import(s.Bills)  // craft/bills.go
 	g.craft.Drying.Import(s.Racks) // craft/drying.go
 	g.craft.Art.Import(s.Art)      // craft/art.go (PRD-3)
-	setMap(&g.fuel, s.Fuel)
-	setMap(&g.noComfort, s.NoComfort)
-	setMap(&g.noFood, s.NoFood)
+	saveutil.SetMap(&g.fuel, s.Fuel)
+	saveutil.SetMap(&g.noComfort, s.NoComfort)
+	saveutil.SetMap(&g.noFood, s.NoFood)
 	g.rest.Import(s.RestedFree)      // rest/sleep.go
 	g.rest.Needs.Import(s.RestNeeds) // rest/needs.go (BED-3)
-	setMap(&g.calm, s.Calm)
-	setMap(&g.banked, s.Banked)
+	saveutil.SetMap(&g.calm, s.Calm)
+	saveutil.SetMap(&g.banked, s.Banked)
 	g.apparel = craft.ImportOutfits(s.Worn, s.Apparel) // craft/garment.go (PRD-2)
 	switch {
 	case s.PrioList != nil:
-		g.prio = importPrios(s.PrioList)
+		g.prio = saveutil.ImportPrios(s.PrioList)
 	case s.Prios != nil:
 		g.migrateWarden(s.Prios)
 	default:
@@ -736,13 +742,13 @@ func loadWithRuntime(r io.Reader, runtime modloader.Runtime) (*Game, SaveInfo, e
 		}
 	}
 	g.nextThreat, g.threatsOn = s.NextThreat, s.ThreatsOn
-	setMap(&g.scheds, s.Scheds)
-	setMap(&g.joy, s.Joy)
-	setMap(&g.memories, s.Memories)
-	setMap(&g.ateAt, s.AteAt)
-	setMap(&g.draft, s.Draft)
-	setMap(&g.sleptAt, s.SleptAt)
-	setMap(&g.equip, s.Equip)
+	saveutil.SetMap(&g.scheds, s.Scheds)
+	saveutil.SetMap(&g.joy, s.Joy)
+	saveutil.SetMap(&g.memories, s.Memories)
+	saveutil.SetMap(&g.ateAt, s.AteAt)
+	saveutil.SetMap(&g.draft, s.Draft)
+	saveutil.SetMap(&g.sleptAt, s.SleptAt)
+	saveutil.SetMap(&g.equip, s.Equip)
 	g.care.Carry.Import(s.Carrying)
 	g.care.Doctor.ImportTended(s.TendedUntil)
 	g.med.legacyWounds = s.Wounds // infection.go: migrated by migrateSave (v < 6)
@@ -751,9 +757,9 @@ func loadWithRuntime(r io.Reader, runtime modloader.Runtime) (*Game, SaveInfo, e
 		g.lab.Prog = research.FromSlice(s.ResearchAll)
 	}
 	g.lab.SetCold(s.ResearchCold)
-	setMap(&g.lastStrike, s.Strikes)
-	setMap(&g.lastHit, s.Hits)
-	setMap(&g.graves, s.Graves)
+	saveutil.SetMap(&g.lastStrike, s.Strikes)
+	saveutil.SetMap(&g.lastHit, s.Hits)
+	saveutil.SetMap(&g.graves, s.Graves)
 	for id, q := range s.OrderQueue { // before importGeology's stone migration
 		for _, o := range q {
 			g.orderQueue[id] = append(g.orderQueue[id], queuedOrder{cmd: o.Cmd, label: o.Label, retryAt: o.RetryAt, tries: o.Tries})
@@ -765,7 +771,7 @@ func loadWithRuntime(r io.Reader, runtime modloader.Runtime) (*Game, SaveInfo, e
 	g.importLanding(s.Landing)                  // setup_mapgen.go: after importSetupState
 	g.importBios(s.Bios, s.Skills, s.WorkCarry) // skills.go: older saves get neutral bios
 	g.importSkillLive(s.SkillLive)
-	setMap(&g.troughs, s.Troughs)
+	saveutil.SetMap(&g.troughs, s.Troughs)
 	for id, e := range s.Exposure {
 		g.exposure[id] = bodytemp.Sev{Hypo: int32(e[0]), Heat: int32(e[1])}
 	}
@@ -779,6 +785,13 @@ func loadWithRuntime(r io.Reader, runtime modloader.Runtime) (*Game, SaveInfo, e
 	}
 	g.importPeople(s.People)
 	g.importWorld(s.World)
+	if len(s.BehaviorStates) > 0 {
+		r := behavior.NewRegistry()
+		if err := r.Restore(s.BehaviorStates); err != nil {
+			return nil, info, fmt.Errorf("restore behavior states: %w", err)
+		}
+		g.worldS().behaviorSaved = r.Export()
+	}
 	shipOf(g).Import(s.AX8) // game/ship (AX-8)
 	g.importBodies(s.Bodies)
 	g.importSurgery(s.Surgery)
@@ -836,11 +849,11 @@ func importMapFields(g *Game, s *saveState) {
 	g.migrateAnimalBodies() // animal_health.go (MED-13): one-part bodies get their anatomy
 	g.traces, g.wild = s.Traces, s.Wild
 	g.wl = s.Wildlife
-	setMap(&g.mines, s.Mines)
+	saveutil.SetMap(&g.mines, s.Mines)
 	g.importPostponed(s.Postponed)
 	g.postponed.SweepAt = s.PostSweep
 	g.importOrders(s.PostOrders)
-	setMap(&g.raiders, s.Raiders)
+	saveutil.SetMap(&g.raiders, s.Raiders)
 	g.raiderIDs, g.raidGroups = s.RaiderIDs, s.RaidGroups
 	g.raid.Rock.Import(s.RockDamage) // raid/rock.go
 	g.motion = importStore(s.Motion) // a mover without a record reads motionOf's due-now default
@@ -854,7 +867,7 @@ func importMapFields(g *Game, s *saveState) {
 	g.wealth.Import(s.Wealth) // game/wealth (EAI-0)
 	g.grass.regrow = s.GrassRegrow
 	g.importStains(s.Stains)
-	setMap(&g.stains.dripN, s.StainDrip)
+	saveutil.SetMap(&g.stains.dripN, s.StainDrip)
 	g.importPlan(s.Plan)            // plan.go: older saves have no marks
 	g.importFog(s.Fog)              // fog.go: older saves have no fog
 	g.importVaults(s.Vaults)        // vault.go: older saves have no vaults
@@ -1088,30 +1101,7 @@ func (s *saveState) blockedTiles() []int {
 	if s.BlockedBits == nil {
 		return s.Blocked
 	}
-	return bitIndexes(s.BlockedBits)
-}
-
-// bitIndexes lists the set bits of a bitset in ascending order.
-func bitIndexes(bits []uint64) []int {
-	n := 0
-	for _, w := range bits {
-		n += mathbits.OnesCount64(w)
-	}
-	out := make([]int, 0, n)
-	for wi, w := range bits {
-		for w != 0 {
-			out = append(out, wi*64+mathbits.TrailingZeros64(w))
-			w &= w - 1
-		}
-	}
-	return out
-}
-
-// setMap installs a decoded map, keeping the empty one gob leaves nil.
-func setMap[K comparable, V any](dst *map[K]V, src map[K]V) {
-	if src != nil {
-		*dst = src
-	}
+	return saveutil.BitIndexes(s.BlockedBits)
 }
 
 // legacyPriorities is work.Priorities before the Handle work type.
@@ -1119,31 +1109,6 @@ type legacyPriorities [work.Handle]uint8
 
 // priorities12 is work.Priorities before the Warden work type (ENG-003).
 type priorities12 [work.Warden]uint8
-
-// exportPrios is the PrioList save field: each colonist's priorities as a
-// plain slice in work.Type order.
-func exportPrios(m map[entity.EntityID]work.Priorities) map[entity.EntityID][]uint8 {
-	out := make(map[entity.EntityID][]uint8, len(m))
-	for id, p := range m {
-		out[id] = slices.Clone(p[:])
-	}
-	return out
-}
-
-// importPrios rebuilds exportPrios' map: work types missing from an older,
-// shorter list load off, extra ones are ignored.
-func importPrios(m map[entity.EntityID][]uint8) map[entity.EntityID]work.Priorities {
-	out := make(map[entity.EntityID]work.Priorities, len(m))
-	for id, l := range m {
-		var p work.Priorities
-		copy(p[:], l)
-		if len(l) <= int(work.PlantCut) {
-			p[work.PlantCut] = p[work.Grow] // FOOD-2: split from growing
-		}
-		out[id] = p
-	}
-	return out
-}
 
 // migrateWarden loads the priorities of a save from before the Warden work
 // type (12 types): every work type keeps its priority, Warden is off.
@@ -1178,31 +1143,15 @@ func (g *Game) migrateHandling(old map[entity.EntityID]legacyPriorities) {
 // terrain (deterministic, never the sim RNG) and its legacy stone is
 // migrated to granite blocks.
 func (g *Game) importGeology(geo geology.Map, smooths map[[2]int]bool, ver uint64) {
-	setMap(&g.smooths, smooths)
+	saveutil.SetMap(&g.smooths, smooths)
 	g.structVer = ver
 	g.migrateLegacyStone() // a no-op on newer saves
 	if geo.W == g.terr.W && geo.H == g.terr.H && geo.W > 0 {
 		g.geo = geo
 		return
 	}
-	g.geo = geology.Generate(terrainHash(g.terr), g.terr)
+	g.geo = geology.Generate(saveutil.TerrainHash(g.terr), g.terr)
 	g.structVer++
-}
-
-// terrainHash is an FNV-64a hash of the terrain: the geology seed of a
-// save made before geology existed.
-func terrainHash(t terrain.Map) uint64 {
-	h := fnv.New64a()
-	var hdr [16]byte
-	binary.LittleEndian.PutUint64(hdr[:8], uint64(t.W))
-	binary.LittleEndian.PutUint64(hdr[8:], uint64(t.H))
-	_, _ = h.Write(hdr[:])
-	cells := make([]byte, len(t.Cells))
-	for i, c := range t.Cells {
-		cells[i] = byte(c)
-	}
-	_, _ = h.Write(cells)
-	return h.Sum64()
 }
 
 // migrateLegacyStone rewrites the generic stone of older saves (no longer

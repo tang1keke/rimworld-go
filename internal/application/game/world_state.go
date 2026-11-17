@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 
+	"rimworld-go/internal/application/game/behavior"
 	"rimworld-go/internal/application/game/letters"
 	"rimworld-go/internal/application/game/maps"
 	"rimworld-go/internal/application/game/outfit"
@@ -79,19 +80,54 @@ type worldState struct {
 	huntOut map[entity.EntityID]huntOutRec
 	// areaVer is each area's version (by id), areaGen the last one handed
 	// out (areas.go; not saved: views only).
-	areaVer     map[uint16]uint64
-	areaGen     uint64
-	ship        *ship.State   // story.go: game/ship (AX-8), built on first use
-	ax9         *travel.State // game/travel (AX-9): caskets, pods, sites, hitching
-	ax9h        travel.Host   // its host (travelOf), built once
-	mapsH       maps.Host     // game/maps' host (fleetOf), built once
-	maxColonies int           // Options' cap, sent at start and load (never saved; 0 means 1)
-	visitH      visit.Host    // game/visit's host (visitsOf), built once
-	atlas       maps.Atlas    // game/maps: the open maps beyond the first (MAP-01)
-	sense       *sense.Sense  // senseOf (sense_host.go): the habit rules (CSE)
-	outfits     outfit.Book   // outfitBook (apparel.go): apparel policies (GEAR-3), saved as Outfits
-	quests      *quest.Quests // questOf (quest_host.go): the quests root (QST-1), saved as Quests
-	questMemo   questMemo     // questViews: the read model's quest list
+	areaVer       map[uint16]uint64
+	areaGen       uint64
+	ship          *ship.State            // story.go: game/ship (AX-8), built on first use
+	ax9           *travel.State          // game/travel (AX-9): caskets, pods, sites, hitching
+	ax9h          travel.Host            // its host (travelOf), built once
+	mapsH         maps.Host              // game/maps' host (fleetOf), built once
+	maxColonies   int                    // Options' cap, sent at start and load (never saved; 0 means 1)
+	visitH        visit.Host             // game/visit's host (visitsOf), built once
+	atlas         maps.Atlas             // game/maps: the open maps beyond the first (MAP-01)
+	sense         *sense.Sense           // senseOf (sense_host.go): the habit rules (CSE)
+	outfits       outfit.Book            // outfitBook (apparel.go): apparel policies (GEAR-3), saved as Outfits
+	quests        *quest.Quests          // questOf (quest_host.go): the quests root (QST-1), saved as Quests
+	questMemo     questMemo              // questViews: the read model's quest list
+	behavior      BehaviorRuntime        // opt-in trusted Go behavior runtime; never saved
+	behaviorSaved []behavior.StoredState // opaque save data, retained without a runtime
+}
+
+// BehaviorRuntime is the application boundary for an explicitly trusted behavior
+// host. The game never imports the host, loads native plugins or runs scripts.
+type BehaviorRuntime interface {
+	Step(tick uint64)
+	Export() []behavior.StoredState
+}
+
+// AttachBehaviorRuntime installs a fully configured trusted runtime. The caller
+// restores saved states before attaching; this never auto-loads code.
+func AttachBehaviorRuntime(g *Game, run BehaviorRuntime) { g.worldS().behavior = run }
+
+// BehaviorStates returns detached saved blobs to a trusted host attaching
+// after Load. Unknown provider states survive while no runtime is attached.
+func BehaviorStates(g *Game) []behavior.StoredState {
+	if g.worldSt == nil {
+		return nil
+	}
+	return behavior.CloneStates(g.worldSt.behaviorSaved)
+}
+
+// BehaviorStateSnapshot reads live provider state when one is attached, or
+// retained saved state otherwise. This is for replacing an opt-in host without
+// reverting its progress; BehaviorStates deliberately remains load-only.
+func BehaviorStateSnapshot(g *Game) []behavior.StoredState {
+	if g.worldSt == nil {
+		return nil
+	}
+	if g.worldSt.behavior != nil {
+		return behavior.CloneStates(g.worldSt.behavior.Export())
+	}
+	return behavior.CloneStates(g.worldSt.behaviorSaved)
 }
 
 // worldSave is worldState as saved.

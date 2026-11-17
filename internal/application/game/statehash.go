@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"rimworld-go/internal/application/game/savehash"
+	"rimworld-go/internal/application/game/saveutil"
 	"rimworld-go/internal/domain/sim/statehash"
 )
 
@@ -34,13 +35,8 @@ func (g *Game) StateHash() uint64 {
 	return statehash.OfFields(normalisedFields(info, &s))
 }
 
-// normalisedFields is the save as named fields, with research folded into
-// one "Research" progress list (the newest field that holds it).
-//
-// The header is hashed as its v1 shape (Version pinned to 1): its newer
-// fields (map size, biome, storyteller, difficulty, save mode) are derived
-// from state hashed below, and the version is format. The blocked tiles
-// are hashed as the v1 index list whichever field carries them.
+// normalisedFields keeps the game-facing save decode at the boundary while
+// delegating canonical field handling to the small savehash package.
 func normalisedFields(info SaveInfo, s *saveState) map[string]any {
 	extra := make([]savehash.ExtraMap, len(s.ExtraMaps))
 	for i := range s.ExtraMaps {
@@ -50,10 +46,10 @@ func normalisedFields(info SaveInfo, s *saveState) map[string]any {
 	}
 	var prios any
 	if s.PrioList != nil {
-		prios = importPrios(s.PrioList)
+		prios = saveutil.ImportPrios(s.PrioList)
 	}
 	return savehash.Normalised(savehash.Input{
-		Header: savehash.Header{1, info.Name, info.Date, info.Day, info.Colonists},
+		Header: savehash.Header{Version: 1, Name: info.Name, Date: info.Date, Day: info.Day, Colonists: info.Colonists},
 		State:  s, Blocked: s.blockedTiles(), Content: info.Content,
 		HasPrioList: s.PrioList != nil, Prios: prios,
 		RNGStreams: s.RNGStreams, StreamSeedKey: streamSeedKey, ExtraMaps: extra,

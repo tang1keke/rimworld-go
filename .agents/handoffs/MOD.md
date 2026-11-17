@@ -127,3 +127,12 @@ Wander, snow sky, cold store (CSE-028, 041, 042, 043) · 2026-11-04 · b4830ea8d
 Recipe ingredient kinds named (CSE-046) · 2026-11-04 · b4830ea8d
 - Changed: `recipe.Input.Kinds()` (kinds `Accepts` takes, in kind order); `craft/view.go` `Recipes()` fills `RecipeView.InputKinds`; `Bills.pickTip(r)` in `inspector/bill_config.go` returns "Takes: wood, steel, ..." when `FullRecipeList` is on, "" otherwise. Tests `TestInputKindsMatchPlanner` (stateless inputs only; the planner's per-stack state: dryable, smelt yield, wreck, is not in `Kinds`), `TestRecipeRowNamesKinds`. `Def.InputKinds` unchanged.
 - Open: the picker row is not wired: `openBillPicker` in `inspector/building_inspector.go` needs `Tip: func(i int) string { return a.Bills().pickTip(recipes[i]) }` on its `uikit.ListSpec`.
+
+## MOD-038-behavior-api
+Trusted behavior-provider host (Phase 38 initial slice) · 2026-11-16 · a6cb1648
+- Changed: opt-in `behaviorhost.Attach`/`LoadWithProviders` wires trusted Go `behavior.Provider` instances to detached multi-map read models and native command proposals.
+- Decisions: manifest IDs and capabilities are validated; due providers run synchronously in ID order after all map phases. Each proposal is validated in full before any next-tick native command is queued. Errors and panics are isolated per provider.
+- Save: additive sorted versioned `BehaviorStates` gob entries, unknown-provider retention, migrator on registration, no save-version bump; reattaching a host preserves current provider state. No-provider state hashes remain stable.
+- UI: none; this is a trusted application API, not an end-user mod manager, content loader, or scripting runtime. Phase 37 UI and mod discovery have not shipped.
+- Limits: no pathing-region read model, script sandbox, runtime resource budget, custom jobs/content, or typed event hooks. Core package SOLID budget preserved by extracting pure save conversions into `game/saveutil`.
+- Open: Phase 37 plugin discovery, load order and save metadata; Phase 38 sandbox, event/definition hooks, richer queries and native commands, missing-plugin UI and deterministic script budgets.

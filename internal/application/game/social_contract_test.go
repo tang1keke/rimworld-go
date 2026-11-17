@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"rimworld-go/internal/application/game/saveutil"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/work"
 	"rimworld-go/internal/domain/building/construction"
@@ -98,7 +99,7 @@ func TestWardenOffByDefaultAndMigrated(t *testing.T) {
 	if p := h.prio[id]; p[work.Cook] != 1 || p[work.Handle] != 4 || p[work.Warden] != 0 {
 		t.Fatalf("migrated = %v", p)
 	}
-	if got := importPrios(map[entity.EntityID][]uint8{id: {0, 2}}); got[id][work.Doctor] != 2 || got[id][work.Warden] != 0 {
+	if got := saveutil.ImportPrios(map[entity.EntityID][]uint8{id: {0, 2}}); got[id][work.Doctor] != 2 || got[id][work.Warden] != 0 {
 		t.Fatalf("short list = %v", got[id])
 	}
 }

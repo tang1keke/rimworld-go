@@ -2737,16 +2737,16 @@ allowing arbitrary mutation of internal Go functions.
 
 ## 38.1 Stable extension API
 
--   [ ] **Plugin API version**
--   [ ] **Capability declaration**
--   [ ] **Read-only world query API**
--   [ ] **Command submission API**
+-   [x] **Plugin API version** (trusted Go behavior API v1.0, `game/behavior`; sandboxed plugin ABI remains future work)
+-   [x] **Capability declaration** (explicit manifest caps, version and duplicate validation in `game/behavior`)
+-   [-] **Read-only world query API** (detached, per-provider world/map/entity snapshots; full gameplay/definition/event query coverage remains open)
+-   [-] **Command submission API** (validated, capability-gated native build/mine/deconstruct/bill/haul intents; broader command types and script bindings open)
 -   [ ] **Definition registration hooks**
 -   [ ] **Event subscription**
 -   [ ] **Custom validation hooks**
 -   [ ] **Custom UI panels/actions where safe**
 -   [ ] **Custom incident behavior**
--   [ ] **Custom job/intent providers**
+-   [-] **Custom job/intent providers** (trusted deterministic providers may propose native commands; custom job/intent types and sandbox remain open)
 -   [ ] **Custom stat modifiers**
 -   [ ] **Custom health-effect behavior**
 -   [ ] **Custom recipe/building components**
@@ -2790,17 +2790,17 @@ Hooks must have documented ordering.
     -   No arbitrary filesystem.
     -   no network.
     -   no process execution.
--   [ ] **Script error isolation**
+-   [-] **Script error isolation** (trusted Go provider errors/panics are isolated per proposal; no script runtime, resource budget or sandbox yet)
     -   Plugin failure reports plugin ID and hook.
     -   Avoid corrupting authoritative state.
 
 ## 38.4 Save support for plugins
 
--   [ ] **Plugin-owned persistent state**
+-   [-] **Plugin-owned persistent state** (namespaced, versioned opaque blobs in append-only saves, sorted export and missing-provider retention; canonical serialization is provider-owned, plugin metadata not wired)
     -   Namespaced versioned blob/schema.
     -   Deterministic serialization.
--   [ ] **Plugin migration API**
--   [-] **Missing-plugin save diagnostics** (SAV-025: `savefmt.MissingPlugins` and the load notice are tested with fakes; there is no mod system, so no plugin can be missing yet)
+-   [-] **Plugin migration API** (trusted Go `Migrator` handles version upgrades on load/register; script migration and plugin loader remain open)
+-   [-] **Missing-plugin save diagnostics** (SAV-025 plus `behaviorhost.Runner.Missing()` reports absent trusted behavior providers while preserving blobs; installed-mod discovery and player-facing diagnostics remain open)
 -   [-] **Plugin set stored in save metadata** (SAV-025: every header carries `Content.Plugins` = `["core"]`; discovery and load order `[!]` blocked: no mod system)
 -   [-] **Content hash/replay compatibility** (SAV-025: `game/contentid` fingerprints the content registries into the header; a same-build save with another hash asks before loading; replay compatibility not built)
 
