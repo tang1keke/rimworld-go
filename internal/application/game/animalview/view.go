@@ -14,6 +14,8 @@ type View struct {
 	// Female picks a dimorphic species' female art; Size its body
 	// length in tiles (SIM-019).
 	Species    string
+	Faction    string // hidden faction, empty for ordinary wildlife
+	Emblem     string // existing project faction icon
 	Label      string
 	Attack     string
 	Female     bool

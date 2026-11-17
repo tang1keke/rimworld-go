@@ -488,7 +488,7 @@ func (g *Game) animalViews() []AnimalView {
 		p, _ := g.positions.Get(id)
 		sv := animalview.Of(a.Species)
 		out = append(out, AnimalView{
-			ID: id, Species: a.Species.String(), Label: sv.Label, X: p.X, Y: p.Y,
+			ID: id, Species: a.Species.String(), Label: sv.Label, Faction: sv.Faction, Emblem: sv.Emblem, X: p.X, Y: p.Y,
 			Attack: sv.Attack, Female: animalFemale(id, a),
 			Size:       sv.Size,
 			Health:     a.HP() * 100 / sv.MaxHP,

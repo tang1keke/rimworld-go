@@ -108,3 +108,13 @@ Core faction types, diplomacy, goodwill and world wars · 2026-11-17 · branch `
 - Legacy gob type IDs and fields intact; two added faction fields. v12 fixture bytes unchanged; new golden reflects the existing v17 migration rebuilding rough faction wars under corrected Core rule, verified by temporarily restoring old war rule and observing old hash PASS.
 - QA: domain, trade, maps, visit, travel, tradeview and dialogs focused race PASS; game faction, trade, diplomacy, world and save focused race PASS. Full build, affected vet, `make arch` PASS. Removed 2 obsolete architecture exceptions instead of increasing budget.
 - S1-specific autonomous colony radio gift policy (max200 -> max500) stays in S1 companion branch. Not covered: live hidden-mech/hive identity integration, dynamic wars, exact proprietary gift-price interpolation. No push, PR, main merge or production deployment.
+
+
+## ENG-013-hidden-faction-actors
+Core hidden faction provenance and read model · 2026-11-18 · branch pr/vanilla-faction-core
+- Clean room sources: public wiki Factions, Mechanoid hive, Ancients; design gap .agents/gaps/VANILLA_FACTIONS_CORE_20261117.md. Original code, XML, assets, named lore and DLC were not accessed.
+- Domain faction.Creature derives Swarm/MechHive affiliation from saved immutable animal.Species. No second mutable animal faction table or state. Combat auto-engagement, species-cached AnimalView, and Dossier use the one classification; dormant vault insects retain owner identity without waking.
+- Hostile sleeper-casket humans gain person.Origin=AncientHostile, mirrored by one append-only personSave. Capture and checkpoint preserve it; recruiting clears it. Existing 1-based world faction references remain unchanged and hidden origins do not enter comms/settlement/trade.
+- Read-model composition moved to dossierview to stay below the Game package fixed line ceiling; no upward architecture budget adjustments or new artwork. S1's extra asthma and movement fields are retained.
+- Tests: domain species assignments; spawned mech/hive/vault insects and old-saved caskets; foreign human Dossier/capture/recruit; old SaveSchema and v12 fixture. Focused race, entire upstream game and child packages, build, vet, upstream make arch all PASS.
+- Remaining boundaries: cross-species NPC-to-NPC faction combat, nonplayer diplomatic war events and gift-method exact tuning. No push/PR/main merge/production deployment.

@@ -6,6 +6,7 @@ import (
 	"rimworld-go/internal/application/game/raid"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/work"
+	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/pawn/health"
 	"rimworld-go/internal/domain/pawn/needs"
 	"rimworld-go/internal/domain/pawn/social"
@@ -151,7 +152,7 @@ func (g *Game) enlist(p entity.EntityID) {
 		if _, has := g.sk.bios[p]; !has && per.HasBio {
 			g.giveBio(p, per.Bio) // skills.go: its skills and stats
 		}
-		per.Bio, per.HasBio, per.Where, per.Faction = g.sk.bios[p], false, whereColony, 0
+		per.Bio, per.HasBio, per.Where, per.Faction, per.Origin = g.sk.bios[p], false, whereColony, 0, faction.Player
 	}
 	if _, ok := g.prio[p]; !ok {
 		g.prio[p] = work.DefaultPriorities()

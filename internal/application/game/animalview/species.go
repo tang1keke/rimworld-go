@@ -9,11 +9,13 @@ import (
 	"sync"
 
 	"rimworld-go/internal/domain/animal"
+	"rimworld-go/internal/domain/faction"
 )
 
 // Species is a species' share of an animal's read model.
 type Species struct {
 	Label, Attack, Diet string
+	Faction, Emblem     string
 	Size                float64
 	MaxHP               int
 }
@@ -28,10 +30,15 @@ var table = sync.OnceValue(func() []Species {
 })
 
 func of(s animal.Species) Species {
-	return Species{
+	v := Species{
 		Label: s.Label(), Attack: animal.RosterOf(s).Attack.String(), Diet: animal.EcologyOf(s).Diet.String(),
 		Size: animal.BodyLength(s), MaxHP: animal.DefOf(s).MaxHP,
 	}
+	if typ, ok := faction.Creature(s); ok {
+		def := faction.DefOf(typ)
+		v.Faction, v.Emblem = def.Label, def.Emblem()
+	}
+	return v
 }
 
 // Of is s's view (computed for a species outside the table, as the lookups

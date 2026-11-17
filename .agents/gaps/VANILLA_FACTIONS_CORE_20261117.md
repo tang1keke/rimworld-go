@@ -45,3 +45,26 @@ S1 counterpart: `release/vanilla-faction-core-20261117`, `docs/vanilla-faction-s
 - Fixed an original combat-fixture assumption: two hostile-to-player factions now receive explicit mutual Enemies before checking actual pawn-on-pawn fighting. A full upstream game test run exposed the fixture, while focused tests had passed.
 - Replaced a brittle globe test demand for all five road classes in one random world with two independent assertions: the complete class legend and a generated path visible zoom behavior.
 - Published wiki cumulative gift-cost examples are directly asserted: goodwill 0 to 40 for 2,041 silver, 0 to 60 for 3,661 and 0 to 75 for 5,539. The intermediate steps remain independently authored (not copied from any proprietary content). War-time trade does not credit goodwill or saved trade carry.
+
+## Hidden factions: actor identity follow-up (2026-11-18)
+
+### Evidence
+
+- Public [Factions](https://rimworldwiki.com/wiki/Factions), [Mechanoid hive](https://rimworldwiki.com/wiki/Mechanoid_hive) and [Ancients](https://rimworldwiki.com/wiki/Ancients) describe hidden mechanoid, insect and ancient affiliations. Only observable mechanics and allowed public values are used.
+- Current `raid/mech.go` mechanoids, `raid/hive.go` insects, vault defenders and casket insects are spawned into the authoritative animal store. Their immutable species already identifies their group, including after save/reload. `combat/engage.go` separately hardcodes Mech/Hive hostility.
+- A hostile sleeper-casket human is spawned with `person.Faction=0` in `casket.go`, and has no persistent foreign origin when captured or exported; `bio_view.go` already displays factions for ordinary foreign humans and the colony emblem for owned animals.
+- `personSave` serializes full biographies and faction refs. A small append-only `Hidden` faction type field can carry an ancient's original origin after their status changes, without inserting a fake world faction into `ng.factions` and without revising 1-based faction IDs.
+
+### Contract and boundaries
+
+- Canonical pure classification `faction.Creature(species)` returns `(Swarm,true)` for any hive species, `(MechHive,true)` for any mech species, and `(Player,false)` for ordinary wildlife. This is derived from immutable saved `animal.Species`, so introducing an additional creature faction field or migration would duplicate authority.
+- The combat auto-engagement rule queries this classification. The existing machine and insect threat AI, aggro timings, EMP stun, hive breeding and loot/corpse behavior remain unchanged.
+- Animal snapshot species facts and Dossier show the original project's own label/emblem for their hidden affiliation. A dormant hidden defender keeps its identity; dormancy still suppresses active threats. Normal wildlife remains `RelationWild`, and colony animals remain `RelationOwn`.
+- A hostile sleeper casket spawns with a persisted `person.Hidden=AncientHostile` (zero = no hidden faction). The existing `person.Faction` and raid group remain 0. Capture/return/death preserve origin, while recruitment into the colony clears the old origin. The player UI uses the normal Dossier faction label/emblem. Friendly sleepers who join the colony immediately are owned by the player.
+- No hidden group enters the world faction roster, world settlements, diplomacy, trader/caravan selection or goodwill. No new battle simulation or parallel AI path. Existing raid and animal species IDs, save version and old golden fixtures remain intact. Only an additive `personSave.Hidden` field is required.
+- Faction-vs-faction dynamic war declarations remain a distinct decision. The cited Core public pages establish player-facing goodwill and faction-dependent encounters; behavior and persistence of NPC-to-NPC declarations requires a dedicated design with proven gameplay effects. Do not invent periodic random wars.
+
+### Tests and PR
+
+- Tests: domain species classification; actual raid mech, hive swarm, vault dormant/hive casket and hostile casket human origin; Dossier and snapshot identity; save/load/captive retention and zero defaults for older saves; existing combat auto-threat, raids, injury and save hash; upstream `make arch`; S1 affected game and same-base regression.
+- Single worker owns the domain mapping, read-model projection, ancient person persistence, upstream tests, downstream port and docs. Clean Room applies throughout; no imported proprietary game identity names or art.

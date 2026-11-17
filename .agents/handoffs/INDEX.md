@@ -155,6 +155,7 @@ One row per handoff section. Open the ledger at `#<lowercased ID>`. A new task a
 | ENG-010-vanilla-visitor-escape | Vanilla visitors and trader caravans breach enclosed exits | 2026-11-17 | [ENG.md](ENG.md#eng-010-vanilla-visitor-escape) |
 | ENG-011-vanilla-visitor-system | Vanilla visitors, travelers, and trade caravan groups | 2026-11-17 | [ENG.md](ENG.md#eng-011-vanilla-visitor-system) |
 | ENG-012-vanilla-factions-core | Core faction types, diplomacy, goodwill and world wars | 2026-11-17 | [ENG.md](ENG.md#eng-012-vanilla-factions-core) |
+| ENG-013-hidden-faction-actors | Core hidden faction provenance and read model | 2026-11-18 | [ENG.md](ENG.md#eng-013-hidden-faction-actors) |
 | FEED-001-tame-animal-food | Hungry tame animals reach the food the colony has | 2026-10-30 | [FOOD.md](FOOD.md#feed-001-tame-animal-food) |
 | FISH-tanks | Fish tanks | 2026-11-02 | [FOOD.md](FOOD.md#fish-tanks) |
 | FISH_TANK_PLAN | Fish tanks and the MAP-5 fixes: gap analysis and plan (FISH-*, MAP-5, STK-AL 2) | 2026-11-02 | [FOOD.md](FOOD.md#fish_tank_plan) |

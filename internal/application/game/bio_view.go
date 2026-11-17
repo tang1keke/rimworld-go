@@ -50,14 +50,7 @@ func colonyEmblem() string { return factionView(faction.Faction{Type: faction.Pl
 
 func fillAnimalCard(g *Game, c *dossierview.Card, a animal.State, now uint64) {
 	c.AgeDayOfYear = animal.AgeDays(a.Born, now, a.Species) % clock.DaysPerYear
-	switch {
-	case a.Tame:
-		c.Relation, c.FactionEmblem = dossierview.RelationOwn, colonyEmblem()
-	case g.hostile(a) || a.Enraged(now):
-		c.Relation = dossierview.RelationFoe
-	default:
-		c.Relation = dossierview.RelationWild
-	}
+	c.AnimalFaction(a.Species, a.Tame, g.hostile(a) || a.Enraged(now))
 	if a.Mode == animal.Attack && a.Target != 0 {
 		c.AttackTarget = g.creatureName(a.Target)
 	}
@@ -75,6 +68,8 @@ func fillPawnCard(g *Game, c *dossierview.Card, id entity.EntityID, now uint64) 
 		if f := g.factionOf(p.Faction); f != nil {
 			v := factionView(*f)
 			c.Faction, c.FactionEmblem = v.Name, v.Emblem
+		} else {
+			c.HiddenOrigin(p.Origin)
 		}
 	}
 	if t := g.trade.caravan; t != nil && t.Trader == id {

@@ -37,7 +37,8 @@ type person struct {
 	ID       entity.EntityID
 	Bio      pawngen.Pawn
 	HasBio   bool
-	Faction  int // 1 + faction index; 0: the colony or none
+	Faction  int          // 1 + faction index; 0: the colony or none
+	Origin   faction.Type // hidden ancient origin; Player means none
 	Where    where
 	DiedAt   uint64
 	KilledBy entity.EntityID
@@ -66,6 +67,7 @@ type personSave struct {
 	ID       entity.EntityID
 	Bio      *pawngen.Pawn // nil: the bio is the colonist's (Bios)
 	Faction  int
+	Origin   faction.Type
 	Where    uint8
 	DiedAt   uint64
 	KilledBy entity.EntityID
@@ -466,7 +468,7 @@ func (g *Game) exportPeople() *peopleSave {
 	out := &peopleSave{Version: 1, Seeded: reg.seeded}
 	for _, id := range reg.ids {
 		p := reg.byID[id]
-		ps := personSave{ID: id, Faction: p.Faction, Where: uint8(p.Where), DiedAt: p.DiedAt, KilledBy: p.KilledBy, Parents: p.Parents}
+		ps := personSave{ID: id, Faction: p.Faction, Origin: p.Origin, Where: uint8(p.Where), DiedAt: p.DiedAt, KilledBy: p.KilledBy, Parents: p.Parents}
 		if p.HasBio {
 			b := p.Bio
 			ps.Bio = &b
@@ -486,7 +488,7 @@ func (g *Game) importPeople(s *peopleSave) {
 	reg := g.peopleReg()
 	reg.seeded = s.Seeded
 	for _, ps := range s.Persons {
-		p := &person{ID: ps.ID, Faction: ps.Faction, Where: where(ps.Where), DiedAt: ps.DiedAt, KilledBy: ps.KilledBy, Parents: ps.Parents}
+		p := &person{ID: ps.ID, Faction: ps.Faction, Origin: ps.Origin, Where: where(ps.Where), DiedAt: ps.DiedAt, KilledBy: ps.KilledBy, Parents: ps.Parents}
 		if ps.Bio != nil {
 			p.Bio, p.HasBio = *ps.Bio, true
 		}

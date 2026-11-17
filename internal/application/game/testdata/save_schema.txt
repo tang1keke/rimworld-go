@@ -1167,6 +1167,7 @@ saveState.People.Persons[].DiedAt uint64
 saveState.People.Persons[].Faction int
 saveState.People.Persons[].ID rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.People.Persons[].KilledBy rimworld-go/internal/domain/sim/entity.EntityID = uint64
+saveState.People.Persons[].Origin rimworld-go/internal/domain/faction.Type = uint8
 saveState.People.Persons[].Parents [2]rimworld-go/internal/domain/sim/entity.EntityID
 saveState.People.Persons[].Parents[] rimworld-go/internal/domain/sim/entity.EntityID = uint64
 saveState.People.Persons[].Where uint8
