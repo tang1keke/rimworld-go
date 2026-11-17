@@ -97,13 +97,11 @@ func (g *Game) phaseAnimals() {
 	g.raid.Ships.Tick(now)                          // raid/shippart.go (DEF-4): guards wake, the blight spreads
 	g.wl.ids = append(g.wl.ids[:0], g.animalIDs...) // the list changes as animals die or leave
 	for _, id := range g.wl.ids {
-		a, ok := g.animals.Get(id)
-		if !ok {
-			continue
-		}
-		if a.Dormant {
+		ar := g.animals.Ref(id)
+		if ar == nil || ar.Dormant {
 			continue // vault.go: a sealed vault's sleeper neither thinks nor needs
 		}
+		a := *ar
 		if a.Cooldown > 0 {
 			a.Cooldown--
 		}
@@ -113,7 +111,7 @@ func (g *Game) phaseAnimals() {
 		if !g.tickLife(id, &a, now) { // animal_life.go
 			continue // died of old age
 		}
-		g.thinkAnimal(id, &a, now)
+		thinkAnimalReady(g, id, &a, now)
 		if !g.animals.Has(id) {
 			continue
 		}
@@ -130,7 +128,12 @@ func (g *Game) phaseAnimals() {
 // leaving animal walks off; then needs pick between wandering, feeding and
 // resting (decide, paced).
 func (g *Game) thinkAnimal(id entity.EntityID, a *animal.State, now uint64) {
-	a.Normalise(uint64(id))        // an older save's (or a fixture's) hunger counter
+	a.Normalise(uint64(id)) // direct decisions and older fixtures still normalise first
+	thinkAnimalReady(g, id, a, now)
+}
+
+// The normal per-tick path already normalised during tickNeeds.
+func thinkAnimalReady(g *Game, id entity.EntityID, a *animal.State, now uint64) {
 	a.Errand = false               // set again below by the errands that are no mode (PLAY-022)
 	if g.downedThink(id, a, now) { // animal_health.go: a downed animal lies still
 		return
@@ -156,8 +159,11 @@ func (g *Game) thinkAnimal(id entity.EntityID, a *animal.State, now uint64) {
 	if rageOf(g).FleeCheck(id, a, rage.Pos(pos), def, now) {
 		return
 	}
-	rageOf(g).ChargeCheck(id, a, rage.Pos(pos), now) // a wild predator may rush someone close
-	if a.Tame && g.masterDuty(id, a, now) {          // train_animals.go: guard and release
+	if a.ChargeSince != 0 || !a.Tame && now >= a.NextCharge &&
+		(now+uint64(id))%animal.DecideEvery == 0 && animal.Charger(a.Species) {
+		rageOf(g).ChargeCheck(id, a, rage.Pos(pos), now)
+	}
+	if a.Tame && g.masterDuty(id, a, now) { // train_animals.go: guard and release
 		return
 	}
 	if a.Tame && def.Predator && a.HuntSince != 0 {
@@ -167,6 +173,8 @@ func (g *Game) thinkAnimal(id entity.EntityID, a *animal.State, now uint64) {
 		if rageOf(g).GuardCheck(id, a, rage.Pos(pos), now) {
 			return
 		}
+	} else if a.Target == 0 && !def.Predator {
+		a.HuntSince = 0 // with no foe, grazers have no fight to update
 	} else if rageOf(g).FightCheck(id, a, rage.Pos(pos), def, now) { // a tame predator's hunt runs as a wild one's (PLAY-017)
 		return
 	}
