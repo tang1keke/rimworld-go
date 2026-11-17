@@ -669,12 +669,15 @@ func joyOffHash(seed uint64, ticks int) (uint64, *Game) {
 // Re-pinned (core-gameplay integration): MED-14 body coverage changes
 // combat outcomes; SIM mood expectations and sleep-aware mood lifecycle
 // change the colony state even with habits disabled. Two runs agree.
+// Re-pinned (WRK-002): low-mood pawns now make direct work progress every
+// tick instead of losing one in four; that changes this 30,000-tick colony.
+// Two matching runs on the integrated branch agree.
 func TestHabitsOffKeepTheHash(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
 		seed uint64
 		want uint64
-	}{{1, 0x7f7fb4aac91ed351}, {2, 0xa8c25c62bb23f5ad}} {
+	}{{1, 0xee0995e44c66c32b}, {2, 0x1ec2d2ea484f7855}} {
 		h, g := joyOffHash(c.seed, 30000)
 		if h != c.want {
 			t.Errorf("seed %d: hash %#x, want %#x", c.seed, h, c.want)
