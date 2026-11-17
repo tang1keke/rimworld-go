@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"maps"
-	"reflect"
-	"slices"
 
+	"rimworld-go/internal/application/game/savehash"
 	"rimworld-go/internal/domain/sim/statehash"
-	"rimworld-go/internal/domain/world/temperature"
 )
 
 // StateHash fingerprints the complete authoritative state: everything Save
@@ -45,84 +42,20 @@ func (g *Game) StateHash() uint64 {
 // from state hashed below, and the version is format. The blocked tiles
 // are hashed as the v1 index list whichever field carries them.
 func normalisedFields(info SaveInfo, s *saveState) map[string]any {
-	f := map[string]any{"Info": infoV1{1, info.Name, info.Date, info.Day, info.Colonists}}
-	v, t := reflect.ValueOf(s).Elem(), reflect.TypeOf(s).Elem()
-	for i := 0; i < t.NumField(); i++ {
-		if t.Field(i).IsExported() {
-			f[t.Field(i).Name] = v.Field(i).Interface()
-		}
+	extra := make([]savehash.ExtraMap, len(s.ExtraMaps))
+	for i := range s.ExtraMaps {
+		m := &s.ExtraMaps[i]
+		extra[i] = savehash.ExtraMap{ID: m.ID, Tile: m.Tile, Climate: m.Climate,
+			State: statehash.OfFields(normalisedFields(SaveInfo{}, &m.State))}
 	}
-	research := ints(f["ResearchAll"])
-	if research == nil {
-		research = ints(f["Research"])
+	var prios any
+	if s.PrioList != nil {
+		prios = importPrios(s.PrioList)
 	}
-	delete(f, "ResearchAll")
-	for len(research) > 0 && research[len(research)-1] == 0 {
-		research = research[:len(research)-1]
-	}
-	f["Research"] = research
-	f["Blocked"] = s.blockedTiles()
-	delete(f, "BlockedBits")
-	// Bookkeeping first saved in v2 (it existed before, unsaved): hashed
-	// through its effects on the state above, so the pins taken before v2
-	// still hold. TestSaveV2RoundTripSetup checks it survives a save.
-	for _, k := range [...]string{"SkillLive", "StainDrip", "PostSweep"} {
-		delete(f, k)
-	}
-	// DoorsOriented (PLAY-011) only marks the save format: door facings
-	// are hashed through the buildings themselves.
-	delete(f, "DoorsOriented")
-	// ENG-003: priorities are saved as slices (PrioList) now; they are
-	// hashed as the fixed-size arrays they were (a new work type at its
-	// zero value leaves the sparse encoding alone). The streams' base seed
-	// is configuration: the streams themselves are hashed once used.
-	if l := s.PrioList; l != nil {
-		delete(f, "PrioList")
-		f["Prios"] = importPrios(l)
-	}
-	if st := maps.Clone(s.RNGStreams); st != nil {
-		delete(st, streamSeedKey)
-		f["RNGStreams"] = st
-	}
-	// MAP-0: each extra map's state hashed the same way (none: nothing
-	// added); the viewed map is presentation.
-	delete(f, "View")
-	if len(s.ExtraMaps) > 0 {
-		hs := make([]extraHash, len(s.ExtraMaps))
-		for i := range s.ExtraMaps {
-			m := &s.ExtraMaps[i]
-			hs[i] = extraHash{m.ID, m.Tile, m.Climate, statehash.OfFields(normalisedFields(SaveInfo{}, &m.State))}
-		}
-		f["ExtraMaps"] = hs
-	}
-	return f
-}
-
-// extraHash is an extra map in the hash: its fields' hash beside its id,
-// tile and climate.
-type extraHash struct {
-	ID      uint32
-	Tile    int
-	Climate temperature.Climate
-	State   uint64
-}
-
-// infoV1 is SaveInfo as version 1 wrote it (the hashed header).
-type infoV1 struct {
-	Version        int
-	Name, Date     string
-	Day, Colonists int
-}
-
-// ints is an int array or slice as a fresh []int (nil for anything else).
-func ints(x any) []int {
-	v := reflect.ValueOf(x)
-	if !v.IsValid() || (v.Kind() != reflect.Array && v.Kind() != reflect.Slice) || v.Type().Elem().Kind() != reflect.Int {
-		return nil
-	}
-	out := make([]int, v.Len())
-	for i := range out {
-		out[i] = int(v.Index(i).Int())
-	}
-	return slices.Clip(out)
+	return savehash.Normalised(savehash.Input{
+		Header: savehash.Header{1, info.Name, info.Date, info.Day, info.Colonists},
+		State:  s, Blocked: s.blockedTiles(), Content: info.Content,
+		HasPrioList: s.PrioList != nil, Prios: prios,
+		RNGStreams: s.RNGStreams, StreamSeedKey: streamSeedKey, ExtraMaps: extra,
+	})
 }

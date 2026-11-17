@@ -1,0 +1,3 @@
+[
+  {"op": "replace", "target": "core:wood", "field": "value", "value": 17}
+]

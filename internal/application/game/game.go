@@ -23,6 +23,7 @@ import (
 	"rimworld-go/internal/application/game/sched"
 	"rimworld-go/internal/application/game/thermo"
 	"rimworld-go/internal/application/game/wealth"
+	"rimworld-go/internal/application/modloader"
 	"rimworld-go/internal/domain/gameplay"
 	"rimworld-go/internal/domain/incident"
 	"rimworld-go/internal/domain/research"
@@ -754,8 +755,14 @@ type AutoSlaughterView struct {
 // Game holds all authoritative simulation state: the colony-wide part
 // here, and the map being stepped or viewed through the embedded
 // *mapState (MAP-0). Every map in maps ticks every tick (Step).
+type gameRuntime struct {
+	streams    rngStreams
+	modRuntime modloader.Runtime
+}
+
 type Game struct {
 	*mapState
+	gameRuntime
 	// maps are the open maps in id order, maps[0] first; view is the one
 	// the read models report between ticks (ViewMap).
 	maps     []*mapState
@@ -834,7 +841,6 @@ type Game struct {
 	rest    *rest.Sleep                     // rest package (BED-0): beds, sleep, waking thoughts
 	worldSt *worldState                     // world_state.go
 	history []historyEntry                  // history.go
-	streams rngStreams                      // rng_streams.go: never g.rng
 	// PLAY-024: traders, request cooldowns and the open trade or comms
 	// session (trade.go), saved as the additive Trade field.
 	trade tradeState
@@ -978,40 +984,40 @@ type mapState struct {
 func New(cfg Config) *Game {
 	m := newMapState(cfg, 0)
 	g := &Game{
-		mapState:   m,
-		maps:       []*mapState{m},
-		view:       m,
-		clock:      clock.NewAt(clock.StartingMorning()),
-		entities:   entity.NewAllocator(),
-		rng:        randx.New(cfg.Seed),
-		sched:      schedule.DefaultColony(),
-		names:      component.NewStore[string](),
-		need:       component.NewStore[needs.Pair](),
-		vital:      component.NewStore[health.Record](),
-		labor:      component.NewStore[work.Mask](),
-		lastMeal:   make(map[entity.EntityID]item.Kind),
-		fuel:       make(map[entity.EntityID]int),
-		exposure:   make(bodytemp.Ledger),
-		noComfort:  make(map[entity.EntityID]uint64),
-		troughs:    make(map[entity.EntityID]troughState),
-		noFood:     make(map[entity.EntityID]uint64),
-		calm:       make(map[entity.EntityID]uint64),
-		banked:     make(map[entity.EntityID]bool),
-		orderQueue: make(map[entity.EntityID][]queuedOrder),
-		apparel:    make(map[entity.EntityID]worn),
-		prio:       make(map[entity.EntityID]work.Priorities),
-		scheds:     make(map[entity.EntityID]schedule.Grid),
-		joy:        make(map[entity.EntityID]int),
-		breaks:     make(map[entity.EntityID]breakState),
-		memories:   make(map[entity.EntityID]mood.Memories),
-		ateAt:      make(map[entity.EntityID]bool),
-		logs:       make(map[entity.EntityID][]logEntry),
-		draft:      make(map[entity.EntityID]bool),
-		sleptAt:    make(map[entity.EntityID]entity.EntityID),
-		equip:      make(map[entity.EntityID]item.Kind),
-		lastStrike: make(map[entity.EntityID]strikeRec),
-		lastHit:    make(map[entity.EntityID]hitRec),
-		streams:    rngStreams{seed: cfg.Seed},
+		mapState:    m,
+		maps:        []*mapState{m},
+		view:        m,
+		clock:       clock.NewAt(clock.StartingMorning()),
+		entities:    entity.NewAllocator(),
+		rng:         randx.New(cfg.Seed),
+		sched:       schedule.DefaultColony(),
+		names:       component.NewStore[string](),
+		need:        component.NewStore[needs.Pair](),
+		vital:       component.NewStore[health.Record](),
+		labor:       component.NewStore[work.Mask](),
+		lastMeal:    make(map[entity.EntityID]item.Kind),
+		fuel:        make(map[entity.EntityID]int),
+		exposure:    make(bodytemp.Ledger),
+		noComfort:   make(map[entity.EntityID]uint64),
+		troughs:     make(map[entity.EntityID]troughState),
+		noFood:      make(map[entity.EntityID]uint64),
+		calm:        make(map[entity.EntityID]uint64),
+		banked:      make(map[entity.EntityID]bool),
+		orderQueue:  make(map[entity.EntityID][]queuedOrder),
+		apparel:     make(map[entity.EntityID]worn),
+		prio:        make(map[entity.EntityID]work.Priorities),
+		scheds:      make(map[entity.EntityID]schedule.Grid),
+		joy:         make(map[entity.EntityID]int),
+		breaks:      make(map[entity.EntityID]breakState),
+		memories:    make(map[entity.EntityID]mood.Memories),
+		ateAt:       make(map[entity.EntityID]bool),
+		logs:        make(map[entity.EntityID][]logEntry),
+		draft:       make(map[entity.EntityID]bool),
+		sleptAt:     make(map[entity.EntityID]entity.EntityID),
+		equip:       make(map[entity.EntityID]item.Kind),
+		lastStrike:  make(map[entity.EntityID]strikeRec),
+		lastHit:     make(map[entity.EntityID]hitRec),
+		gameRuntime: gameRuntime{streams: rngStreams{seed: cfg.Seed}},
 	}
 	g.care = care.New(newCareHost(g), care.Roles{Prison: carePrison{g}, Guests: careGuests{g}, Social: careSocial{g}, Gear: careGear{g}, Meals: careMeals{g}, Gifts: careGifts{g}, Captives: careCaptives{g}}) // care_host*.go, quest_host.go
 	g.mind, g.systems = mind.New(newMindHost(g)), phaseSystems(g)
@@ -1021,6 +1027,13 @@ func New(cfg Config) *Game {
 	g.rest = rest.New(newRestHost(g))       // rest_host.go
 	g.lab = rlab.New(researchHost{g})       // research.go
 	g.lab.Prog = research.Complete()        // sandbox: everything known
+	return g
+}
+
+// NewWithModRuntime attaches the immutable mod-content runtime to a new game.
+func NewWithModRuntime(cfg Config, runtime modloader.Runtime) *Game {
+	g := New(cfg)
+	g.modRuntime = runtime
 	return g
 }
 

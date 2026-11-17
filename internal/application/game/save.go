@@ -30,6 +30,7 @@ import (
 	"rimworld-go/internal/application/game/ship"
 	"rimworld-go/internal/application/game/thermo"
 	"rimworld-go/internal/application/game/wealth"
+	"rimworld-go/internal/application/modloader"
 	"rimworld-go/internal/domain/difficulty"
 	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/pawn/pawngen"
@@ -477,6 +478,7 @@ func (g *Game) Info(name string) SaveInfo {
 		info.Difficulty = s.Preset.String()
 	}
 	info.Ending = g.worldS().ship.Ending() // game/ship (AX-8)
+	info.Content = modloader.ContentOf(g.modRuntime)
 	return info
 }
 
@@ -581,6 +583,9 @@ func EncodeSaveAs(g *Game, w io.Writer, stamp savefmt.Stamp) error {
 		s.View = g.view.id
 	}
 	info := g.Info(stamp.Name)
+	if g.modRuntime != nil {
+		stamp.Content = info.Content
+	}
 	stamp.Apply(&info)
 	enc := gob.NewEncoder(w)
 	if err := enc.Encode(info); err != nil {
@@ -665,6 +670,15 @@ func ReadSaveInfo(r io.Reader) (SaveInfo, error) {
 
 // Load restores a game written by Save.
 func Load(r io.Reader) (*Game, SaveInfo, error) {
+	return loadWithRuntime(r, nil)
+}
+
+// LoadWithModRuntime restores a save only when its active mod content matches.
+func LoadWithModRuntime(r io.Reader, runtime modloader.Runtime) (*Game, SaveInfo, error) {
+	return loadWithRuntime(r, runtime)
+}
+
+func loadWithRuntime(r io.Reader, runtime modloader.Runtime) (*Game, SaveInfo, error) {
 	zr, err := savefmt.NewReader(r)
 	if err != nil {
 		return nil, SaveInfo{}, fmt.Errorf("not a save file: %w", err)
@@ -675,6 +689,9 @@ func Load(r io.Reader) (*Game, SaveInfo, error) {
 		return nil, info, fmt.Errorf("read save header: %w", err)
 	}
 	info.Upgrade()
+	if err := modloader.CheckContent(info.Content, runtime); err != nil {
+		return nil, info, err
+	}
 	if !SupportedSaveVersion(info.Version) {
 		return nil, info, fmt.Errorf("%w (file v%d, game v%d)", ErrSaveVersion, info.Version, SaveVersion)
 	}
@@ -682,7 +699,7 @@ func Load(r io.Reader) (*Game, SaveInfo, error) {
 	if err := savefmt.Finish(dec.Decode(&s), zr); err != nil { // the body decodes and the CRC holds (SAV-022)
 		return nil, info, fmt.Errorf("read save state: %w", err)
 	}
-	g := New(Config{Width: s.W, Height: s.H})
+	g := NewWithModRuntime(Config{Width: s.W, Height: s.H}, runtime)
 	if err := g.rng.UnmarshalBinary(s.RNG); err != nil {
 		return nil, info, fmt.Errorf("restore rng: %w", err)
 	}
