@@ -14,13 +14,15 @@ g := game.New(game.Config{Seed: 1, Width: 64, Height: 64})
 runner, err := behaviorhost.Attach(g, myTrustedProvider)
 if err != nil { return err }
 
-// Save/loading is the ordinary game format; install providers after loading:
+// Core-only save convenience path:
 loaded, restoredRunner, info, err := behaviorhost.LoadWithProviders(reader, myTrustedProvider)
 _ = runner
 _ = loaded
 _ = restoredRunner
 _ = info
 ```
+
+For a save written with the declarative data-only mod loader, call `game.LoadWithModRuntime(reader, registry)` first, then pass the loaded game to `behaviorhost.Attach(loaded, myTrustedProvider)`. `LoadWithProviders` is the core-only convenience path. The data-only registry and trusted behavior registry remain separate; they do not yet share a selected module manifest or lifecycle.
 
 The `Runner` exposes `Export()` for current provider states, `Missing()` for preserved saved states whose providers are not installed, and `Failures()` for per-provider diagnostics. Reattaching with a different trusted provider set preserves the current live state; no loader, dynamic linking, script interpreter, or hot-reload lifecycle is provided.
 
@@ -53,7 +55,7 @@ Errors or panics in `Propose`, unauthorized actions, or failed host validation a
 
 `saveState.BehaviorStates` is an **additive** gob field: namespaced ID, state schema version and opaque bytes, exported in sorted order with detached byte storage. The existing `SaveVersion`, older save fixtures and no-provider state hashes are preserved. `game.Load` retains unknown provider states without installing code; loading again without those providers does not discard the bytes. `behaviorhost.LoadWithProviders` restores saved data before registering providers; older versions require the provider's `Migrator`, and newer saved versions are rejected for that provider. Current runtime state is available through `Runner.Export()`; `game.BehaviorStates(g)` is a read-only snapshot of the *retained load-time state*, not live `Runner` state. The canonical game state hash includes nonempty provider state and does not vary merely because no provider was attached.
 
-The save header's `Content.Plugins` still contains only `["core"]`. Mod discovery, plugin IDs/content hashes in save metadata, dependency ordering, missing-plugin UI, and compatibility prompts are **Phase 37** integration work.
+When a game is created with `game.NewWithModRuntime`, the save header records the data-only registry's ordered `core` + mod IDs/version hashes and content fingerprint, and `game.LoadWithModRuntime` rejects mismatches. Core-only games retain the legacy save-header behavior. This identity does not include trusted behavior provider IDs, API versions or code hashes, and no unified selected module registry/register/execute/save flow exists yet. Mod directory discovery/enablement UI, expanded definition/patch/asset/localization coverage, provider/module identity and migration, missing-module diagnostics and compatibility prompts remain incomplete **Phase 37/38 acceptance work**.
 
 ## Verification and follow-ups
 
