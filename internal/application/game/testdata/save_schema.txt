@@ -763,6 +763,7 @@ saveState.NG1.Factions []rimworld-go/internal/domain/faction.Faction
 saveState.NG1.Factions[] rimworld-go/internal/domain/faction.Faction
 saveState.NG1.Factions[].Besieged bool
 saveState.NG1.Factions[].Defeated bool
+saveState.NG1.Factions[].DriftDay uint8
 saveState.NG1.Factions[].Enemies []int
 saveState.NG1.Factions[].Enemies[] int
 saveState.NG1.Factions[].Events []string
@@ -781,6 +782,7 @@ saveState.NG1.Factions[].SettlementNames[] string
 saveState.NG1.Factions[].Settlements []int
 saveState.NG1.Factions[].Settlements[] int
 saveState.NG1.Factions[].ThankedDay int
+saveState.NG1.Factions[].TradeRemainder uint16
 saveState.NG1.Factions[].Type rimworld-go/internal/domain/faction.Type = uint8
 saveState.NG1.IntroDone bool
 saveState.NG1.Lost bool
@@ -864,6 +866,7 @@ saveState.NG1.Setup.Factions []rimworld-go/internal/domain/faction.Faction
 saveState.NG1.Setup.Factions[] rimworld-go/internal/domain/faction.Faction
 saveState.NG1.Setup.Factions[].Besieged bool
 saveState.NG1.Setup.Factions[].Defeated bool
+saveState.NG1.Setup.Factions[].DriftDay uint8
 saveState.NG1.Setup.Factions[].Enemies []int
 saveState.NG1.Setup.Factions[].Enemies[] int
 saveState.NG1.Setup.Factions[].Events []string
@@ -882,6 +885,7 @@ saveState.NG1.Setup.Factions[].SettlementNames[] string
 saveState.NG1.Setup.Factions[].Settlements []int
 saveState.NG1.Setup.Factions[].Settlements[] int
 saveState.NG1.Setup.Factions[].ThankedDay int
+saveState.NG1.Setup.Factions[].TradeRemainder uint16
 saveState.NG1.Setup.Factions[].Type rimworld-go/internal/domain/faction.Type = uint8
 saveState.NG1.Setup.GenVersion uint16
 saveState.NG1.Setup.GoneAt uint64

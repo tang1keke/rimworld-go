@@ -407,10 +407,12 @@ func TestProposeTradeMovesGoods(t *testing.T) {
 	}
 	// a gift: goodwill for goods, no silver back
 	f.Goodwill = 0
+	faction.Update(f)
+	giftWant := faction.GiftGoodwill(*f, 200)
 	silver1 := totalOf(g, item.Silver)
 	g.Enqueue(command.Command{Kind: command.ProposeTrade, Name: trade.EncodeOffer([]trade.Delta{{Kind: item.Silver, Qty: -200}}), Enabled: true})
 	g.ApplyPending()
-	if f.Goodwill != faction.GiftGoodwill(200) || totalOf(g, item.Silver) != silver1-200 {
+	if f.Goodwill != giftWant || totalOf(g, item.Silver) != silver1-200 {
 		t.Fatalf("gift: goodwill %d, silver %d -> %d", f.Goodwill, silver1, totalOf(g, item.Silver))
 	}
 }
@@ -659,9 +661,10 @@ func TestCommsGiftRaisesGoodwill(t *testing.T) {
 	if f.Goodwill != 0 || totalOf(g, item.Silver) != 800 {
 		t.Fatal("a gift beyond the silver in reach went through")
 	}
+	wantGain := faction.GiftGoodwill(*f, 200)
 	g.Enqueue(command.Command{Kind: command.CommsGift, Index: f.ID, Count: 200})
 	g.ApplyPending()
-	if f.Goodwill != 5 || totalOf(g, item.Silver) != 600 {
+	if f.Goodwill != wantGain || totalOf(g, item.Silver) != 600 {
 		t.Fatalf("goodwill %d, silver %d", f.Goodwill, totalOf(g, item.Silver))
 	}
 	if cv, _ := g.CommsView(); cv.BeaconSilver != 100 {
@@ -670,7 +673,7 @@ func TestCommsGiftRaisesGoodwill(t *testing.T) {
 }
 
 // TestCommsRequestCaravan: a caravan request costs goodwill, starts the
-// cooldown, schedules the caravan 6-12 hours on and it comes.
+// cooldown, schedules the caravan after two days and it comes.
 func TestCommsRequestCaravan(t *testing.T) {
 	t.Parallel()
 	g := visitorGame(t)
@@ -680,10 +683,14 @@ func TestCommsRequestCaravan(t *testing.T) {
 			f = &g.ng.factions[i]
 		}
 	}
-	f.Goodwill = 30
+	f.Goodwill = 80
+	faction.Update(f)
+	if f.Relation != faction.Friendly {
+		t.Fatal("request fixture must be allied")
+	}
 	g.Enqueue(command.Command{Kind: command.CommsRequestCaravan, Index: f.ID})
 	g.ApplyPending()
-	if f.Goodwill != 30 || len(g.trade.requests) != 0 {
+	if f.Goodwill != 80 || len(g.trade.requests) != 0 {
 		t.Fatal("a request without a comms session went through")
 	}
 	g.trade.comms = &commsSession{operator: g.pawnIDs[0]} // the console itself is TestOrbitalGoodsOnlyNearBeacon's
@@ -691,11 +698,11 @@ func TestCommsRequestCaravan(t *testing.T) {
 	g.Enqueue(command.Command{Kind: command.CommsRequestCaravan, Index: f.ID})
 	g.Enqueue(command.Command{Kind: command.CommsRequestCaravan, Index: f.ID}) // a second ask is refused
 	g.ApplyPending()
-	if f.Goodwill != 30-faction.CaravanCost || len(g.trade.requests) != 1 {
+	if f.Goodwill != 80-faction.CaravanCost || len(g.trade.requests) != 1 {
 		t.Fatalf("goodwill %d, requests %+v", f.Goodwill, g.trade.requests)
 	}
 	r := g.trade.requests[0]
-	if r.Faction != f.ID || r.At < now+6*clock.TicksPerHour || r.At > now+12*clock.TicksPerHour {
+	if r.Faction != f.ID || r.At != now+48*clock.TicksPerHour {
 		t.Fatalf("request %+v (now %d)", r, now)
 	}
 	if cd := g.cooldownOf(f.ID); cd.CaravanUntil != now+faction.CaravanCooldownDays*clock.TicksPerDay {

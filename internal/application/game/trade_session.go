@@ -77,7 +77,7 @@ func (g *Game) party(s *tradeSession) (tradeParty, bool) {
 func (g *Game) termsFor(id entity.EntityID, f *faction.Faction) trade.Terms {
 	t := trade.Terms{Social: int(g.skillOf(id, skill.Social).Level)}
 	if f != nil {
-		t.Goodwill, t.Hostile = f.Goodwill, f.Relation == faction.Hostile
+		t.Goodwill, t.Hostile, t.FactionType = f.Goodwill, f.Relation == faction.Hostile, f.Type
 	}
 	return t
 }
@@ -177,6 +177,10 @@ func (g *Game) cmdProposeTrade(offer string, gift bool) {
 		for _, l := range deliver {
 			g.dropGoods(l, pos.X, pos.Y, false)
 		}
+	}
+	if p.f != nil {
+		faction.TradeGoodwill(p.f, res.TradedValue(),
+			fmt.Sprintf("Day %d: trading with visitors", g.relDay(now)+1))
 	}
 	g.message(pos.X, pos.Y, "%s traded with %s.", g.name(s.negotiator), p.name)
 }

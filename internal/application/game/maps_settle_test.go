@@ -106,9 +106,11 @@ func TestGoodwillCannotRiseDuringAttack(t *testing.T) {
 	if f.Besieged {
 		t.Fatal("still besieged after the settlement fell")
 	}
-	g.factionsDay()
+	for range 5 {
+		g.factionsDay() // wiki: Factions. Below natural min, +0.2/day
+	}
 	if f.Goodwill <= was {
-		t.Fatalf("goodwill %d stayed at %d after the settlement fell", f.Goodwill, was)
+		t.Fatalf("goodwill %d stayed at %d after five peaceful days", f.Goodwill, was)
 	}
 }
 

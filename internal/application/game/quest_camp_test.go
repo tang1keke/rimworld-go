@@ -39,7 +39,7 @@ func campScene(t *testing.T) (g *Game, gi int) {
 		f.Defeated, f.Besieged = false, false
 		if gi < 0 {
 			gi = i
-			f.Relation, f.Goodwill = faction.Neutral, d.Baseline
+			f.Relation, f.Goodwill = faction.Neutral, max(d.GoodwillMin, min(0, d.GoodwillMax))
 			continue
 		}
 		f.Relation, f.Goodwill = faction.Hostile, -80

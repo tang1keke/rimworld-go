@@ -96,9 +96,6 @@ func (a Aid) byID(id int) *faction.Faction { return ofRef(a.v.h.Factions(), a.re
 // RequestOK reports whether faction f sends military aid if asked now,
 // or why not.
 func (a Aid) RequestOK(f faction.Faction, now uint64) (bool, string) {
-	if !f.Type.Human() {
-		return false, ReasonNoFighters
-	}
 	if ok, why := faction.CanRequestAid(f, a.v.h.Cooldown(f.ID), now); !ok {
 		return false, why
 	}

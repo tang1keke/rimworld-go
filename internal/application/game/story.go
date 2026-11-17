@@ -123,7 +123,7 @@ func (g *Game) storyThreat(roll, day int, winter bool, pct int, now uint64) {
 func storyMajor(g *Game, pts int, now uint64) bool {
 	humans := 0 // each hostile human faction weighs 1 as a raider (wiki: Events)
 	for _, f := range g.ng.factions {
-		if f.Type.Human() && f.Relation == faction.Hostile && !f.Defeated {
+		if faction.Raider(f) {
 			humans++
 		}
 	}

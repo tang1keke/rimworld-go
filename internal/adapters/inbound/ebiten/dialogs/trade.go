@@ -373,7 +373,7 @@ func (dl *Dealings) tradeBody(d *tradeDraft, body gfx.Rect) {
 		d.setGift(d.gift)
 	}
 	if d.gift {
-		dl.kit().Label(sum.X+240, sum.Y+30, dl.sh.Tf("Goodwill %d -> %d", v.Goodwill, v.Goodwill+faction.GiftGoodwill(d.giftSilver())), gfx.Body)
+		dl.kit().Label(sum.X+240, sum.Y+30, dl.sh.Tf("Goodwill %d -> %d", v.Goodwill, v.Goodwill+faction.GiftGoodwill(faction.Faction{Type: v.FactionType, Goodwill: v.Goodwill}, d.giftSilver())), gfx.Body)
 	} else {
 		after := gfx.WithColor(gfx.Body, uikit.Text)
 		if d.colonyAfterC() < 0 {

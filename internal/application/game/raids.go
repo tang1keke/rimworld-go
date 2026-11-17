@@ -515,7 +515,8 @@ func (h raidMischief) Flammable(x, y, r int) (int, int, bool) { return flammable
 func (h raidMischief) Ignite(x, y int) bool                   { return h.g.ignite(x, y, burstFireSize) } // fire.go
 func (h raidMischief) Rival(fa, fb int) bool {
 	a, b := h.g.factionOf(fa), h.g.factionOf(fb)
-	return fa != fb && a != nil && b != nil && a.Relation == faction.Hostile && b.Relation == faction.Hostile
+	return fa != fb && a != nil && b != nil && a.AtWar(b.ID) && b.AtWar(a.ID) &&
+		!a.Defeated && !b.Defeated
 }
 
 type raidSiege struct{ g *Game }

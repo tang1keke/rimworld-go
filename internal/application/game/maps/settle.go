@@ -255,23 +255,18 @@ func (l Lifecycle) destroy(fi, t int) string {
 	return fa.Name
 }
 
-// Enemies reports human faction a hostile to another human faction b
-// (original tuning: factions have no relations of their own here). Freebooters are
-// everyone's enemies, and two factions hostile to the colony are rivals,
-// as raiders of two such factions fight on the map (game raids' Rival).
+// Enemies reports an actual inter-faction war, independent of either
+// faction's relationship with the player's colony (EAI-015).
 func Enemies(a, b faction.Faction) bool {
-	if !a.Type.Human() || !b.Type.Human() || a.Defeated {
-		return false
-	}
-	return a.Type == faction.Freebooters || b.Type == faction.Freebooters ||
-		a.Relation == faction.Hostile && b.Relation == faction.Hostile
+	return a.ID != b.ID && !a.Defeated && !b.Defeated && a.Type.HasWorldSettlements() &&
+		b.Type.HasWorldSettlements() && a.AtWar(b.ID) && b.AtWar(a.ID)
 }
 
 // factionAt is the index of the human faction whose settlement stands on
 // tile t (-1: none, or a defeated one).
 func (l Lifecycle) factionAt(t int) int {
 	for i, fa := range l.f.h.Factions() {
-		if fa.Type.Human() && !fa.Defeated && slices.Contains(fa.Settlements, t) {
+		if fa.Type.HasWorldSettlements() && !fa.Defeated && slices.Contains(fa.Settlements, t) {
 			return i
 		}
 	}

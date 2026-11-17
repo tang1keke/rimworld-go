@@ -26,6 +26,7 @@ type Market struct {
 func Compose(v Trade, m Market) Trade {
 	v.Trader, v.TraderKind = m.TraderName, trade.DefOf(m.Kind).Label
 	v.Faction, v.FactionID, v.Goodwill = m.FactionName, m.FactionID, m.Terms.Goodwill
+	v.FactionType = m.Terms.FactionType
 	v.HoursLeft, v.Social = m.HoursLeft, m.Terms.Social
 	centi := m.Terms.Social*trade.SocialStepCenti + m.Terms.Goodwill*trade.BuyGoodwillMilli/10
 	v.PriceModPct = min(centi/100, trade.BuyMarkupPct-trade.BuyFloorPct)

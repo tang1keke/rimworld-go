@@ -6,7 +6,10 @@
 // and §29). Plain data: no state, no host.
 package tradeview
 
-import "rimworld-go/internal/domain/sim/entity"
+import (
+	"rimworld-go/internal/domain/faction"
+	"rimworld-go/internal/domain/sim/entity"
+)
 
 // Trade is the open trade session (game.Game.TradeView; ok false while
 // none is open). Prices are per unit in hundredths of a silver.
@@ -17,6 +20,7 @@ type Trade struct {
 	// until it (or the caravan) leaves.
 	Trader, TraderKind, Faction string
 	FactionID                   int
+	FactionType                 faction.Type // gift preview uses the actual natural goodwill range
 	Orbital                     bool
 	HoursLeft                   int
 	// Negotiator is the colonist trading, with its Social level and the
@@ -71,14 +75,15 @@ type Comms struct {
 // Faction is one faction row: its goodwill and relation
 // ("hostile", "neutral", "friendly") and each action it allows now.
 type Faction struct {
-	ID       int
-	Name     string
-	Type     string // faction.Type key ("settlers", ...)
-	Goodwill int
-	Relation string
-	Gift     Action
-	Caravan  Action
-	Aid      Action
+	ID          int
+	Name        string
+	Type        string // faction.Type key ("settlers", ...)
+	FactionType faction.Type
+	Goodwill    int
+	Relation    string
+	Gift        Action
+	Caravan     Action
+	Aid         Action
 }
 
 // Action is one comms action: Allowed now, its Cost (goodwill

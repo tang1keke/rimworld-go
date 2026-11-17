@@ -46,6 +46,7 @@ func CloneFactions(fs []faction.Faction) []faction.Faction {
 		f.SettlementNames = slices.Clone(f.SettlementNames)
 		f.History = slices.Clone(f.History)
 		f.Events = slices.Clone(f.Events)
+		f.Enemies = slices.Clone(f.Enemies)
 		out[i] = f
 	}
 	return out

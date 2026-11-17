@@ -57,7 +57,7 @@ func SettlementViews(fs []faction.Faction, name func(t int) string) []SiteView {
 				n = "a settlement of " + f.Name
 			}
 			out = append(out, SiteView{Tile: t, Name: n, Faction: f.Name, Relation: RelationWord(f.Relation),
-				Visitable: f.Type.Human() && f.Relation != faction.Hostile})
+				Visitable: f.CanVisit()})
 		}
 	}
 	return out

@@ -169,7 +169,7 @@ func (dl *Dealings) commsFaction(d *commsDraft, f game.CommsFactionView, r gfx.R
 		Disabled: amount >= d.view.BeaconSilver, Reason: dl.sh.T("That is all the silver in reach.")}) {
 		d.stepGift(id, CommsGiftStep*qtyMult(dl.kit()))
 	}
-	earn := faction.GiftGoodwill(amount)
+	earn := faction.GiftGoodwill(faction.Faction{Type: f.FactionType, Goodwill: f.Goodwill}, amount)
 	if dl.kit().Button(fmt.Sprintf("comms.%d.gift", id), gfx.Rect{X: r.X + 124, Y: by, W: 170, H: h}, dl.sh.T("Gift silver"), uikit.BtnOpts{
 		Disabled: why != "", Reason: why, Tip: dl.sh.Tf("Gift\nGives %d silver for about %+d goodwill.", amount, earn)}) {
 		dl.sh.Enqueue(command.Command{Kind: command.CommsGift, Index: id, Count: amount})

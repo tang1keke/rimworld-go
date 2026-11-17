@@ -145,7 +145,7 @@ func (f Fleet) fight(c *Caravan, k Trouble, fac int) {
 func (f Fleet) hostile() int {
 	var out []int
 	for i, fa := range f.h.Factions() {
-		if fa.Type.Human() && fa.Relation == faction.Hostile && !fa.Defeated {
+		if faction.Raider(fa) {
 			out = append(out, i+1)
 		}
 	}

@@ -123,3 +123,32 @@ func TestRivalIsAnEnemy(t *testing.T) {
 		t.Fatalf("enemy names %q", got)
 	}
 }
+
+// Hostile human faction archetypes fight every other surface faction.
+// Their hostility to other peoples is independent of their goodwill with
+// the player (wiki: Factions).
+func TestHostileFactionsAtWarWithEveryWorldFaction(t *testing.T) {
+	fs := Generate(DefaultSlots(), randx.New(918))
+	for _, f := range fs {
+		if f.Type != Drifters && f.Type != FierceClans && f.Type != SavageClans && f.Type != Freebooters {
+			continue
+		}
+		for _, other := range fs {
+			if f.ID != other.ID && (!f.AtWar(other.ID) || !other.AtWar(f.ID)) {
+				t.Fatalf("%s not at war with %s", f.Type, other.Type)
+			}
+		}
+	}
+	if len(fs) != 6 {
+		t.Fatalf("default Core factions: got %d", len(fs))
+	}
+	for i := range fs {
+		if fs[i].Type == Drifters {
+			fs[i].Goodwill = 90
+			Update(&fs[i])
+			if fs[i].Relation != Friendly || len(fs[i].Enemies) != len(fs)-1 {
+				t.Fatal("befriending a rough faction changed its wars with others")
+			}
+		}
+	}
+}

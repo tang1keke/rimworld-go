@@ -95,7 +95,7 @@ func ofRef(fs []faction.Faction, ref int) *faction.Faction {
 func (v Visits) Factions() []int {
 	var out []int
 	for i, f := range v.h.Factions() {
-		if f.Type.Human() && f.Relation != faction.Hostile && !f.Defeated {
+		if f.CanVisit() {
 			out = append(out, i+1)
 		}
 	}

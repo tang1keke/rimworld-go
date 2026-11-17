@@ -56,8 +56,8 @@ func (g *Game) CommsView() (CommsView, bool) {
 // commsFaction is faction f's comms row.
 func (g *Game) commsFaction(f faction.Faction, beacons bool, silver int, now uint64) CommsFactionView {
 	fv := factionView(f) // factions.go: the relation label
-	row := CommsFactionView{ID: f.ID, Name: f.Name, Type: f.Type.String(), Goodwill: f.Goodwill, Relation: fv.Relation}
-	row.Gift = CommsActionView{Cost: faction.GiftSilverPerGoodwill}
+	row := CommsFactionView{ID: f.ID, Name: f.Name, Type: f.Type.String(), FactionType: f.Type, Goodwill: f.Goodwill, Relation: fv.Relation}
+	row.Gift = CommsActionView{Cost: faction.GiftSilverFor(f, f.Goodwill+1)}
 	switch {
 	case f.Defeated:
 		row.Gift.Reason = faction.ReasonGone
@@ -65,7 +65,7 @@ func (g *Game) commsFaction(f faction.Faction, beacons bool, silver int, now uin
 		row.Gift.Reason = faction.ReasonBesieged
 	case !beacons:
 		row.Gift.Reason = ReasonNoBeacon
-	case silver < faction.GiftSilverPerGoodwill:
+	case row.Gift.Cost == 0 || silver < row.Gift.Cost:
 		row.Gift.Reason = ReasonNoSilver
 	default:
 		row.Gift.Allowed = true
@@ -80,7 +80,7 @@ func (g *Game) commsFaction(f faction.Faction, beacons bool, silver int, now uin
 // caravanRequestOK reports whether faction f sends a caravan if asked
 // now, or why not.
 func (g *Game) caravanRequestOK(f faction.Faction, now uint64) (bool, string) {
-	if !f.Type.Human() {
+	if !f.Type.HasWorldSettlements() {
 		return false, ReasonNotTraders
 	}
 	if ok, why := faction.CanRequestCaravan(f, g.cooldownOf(f.ID), now); !ok {
@@ -116,7 +116,7 @@ func (g *Game) cmdCommsGift(id, silver int) {
 	if c == nil || f == nil || f.Defeated || f.Besieged || faction.DefOf(f.Type).Hidden || silver <= 0 {
 		return
 	}
-	gw := faction.GiftGoodwill(silver)
+	gw := faction.GiftGoodwill(*f, silver)
 	gd := g.colonyGoods(true)
 	if gw <= 0 || gd.counts[item.Silver] < silver {
 		return
@@ -128,7 +128,7 @@ func (g *Game) cmdCommsGift(id, silver int) {
 }
 
 // cmdCommsRequestCaravan asks faction id for a trade caravan: it costs
-// goodwill, starts the cooldown and the caravan comes in 6-12 hours.
+// goodwill, starts the cooldown and the caravan comes after two days.
 func (g *Game) cmdCommsRequestCaravan(id int) {
 	f := g.factionByID(id)
 	now := uint64(g.clock.Now())

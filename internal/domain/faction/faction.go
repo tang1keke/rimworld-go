@@ -18,6 +18,12 @@ const (
 	Drifters
 	Freebooters
 	Swarm
+	// Keep the six historic IDs above stable in saved worlds.
+	FierceClans
+	SavageClans
+	AncientQuiet
+	AncientHostile
+	MechHive
 	NumTypes
 )
 
@@ -47,7 +53,6 @@ type Def struct {
 	GoodwillMin   int
 	GoodwillMax   int
 	Fixed         bool // goodwill never changes (Freebooters, Swarm)
-	Baseline      int  // daily drift target
 	CanBeFriendly bool
 	PerTenK       int // settlements per 10,000 land tiles at normal population, x10
 	Hidden        bool
@@ -56,6 +61,9 @@ type Def struct {
 	Leaders       []string
 	// Accent is the faction type's UI accent colour ("#rrggbb", original).
 	Accent string
+	// IconKey reuses an existing in-project faction glyph for variant types.
+	// Empty uses Key directly. It does not contain original-game artwork.
+	IconKey string
 }
 
 // Leader is a faction leader.
@@ -85,6 +93,12 @@ type Faction struct {
 	// ThankedDay is 1 + the colony day it last gave goodwill for a beaten
 	// enemy raid (0: never; EnemyBeaten's cooldown).
 	ThankedDay int
+	// DriftDay is the persisted 0..4 phase of fractional natural goodwill
+	// drift. An old save starts at phase zero.
+	DriftDay uint8
+	// TradeRemainder retains the silver value below the next 500-silver
+	// relation bonus; old saves start at zero.
+	TradeRemainder uint16
 }
 
 // Slot is one configured faction type on the Create World screen.
@@ -103,44 +117,53 @@ type Globe interface {
 	Hops(a, b, limit int) int
 }
 
-// Goodwill bands (NG-1 §3.4). A faction turns hostile at or below
-// hostileAt and only calms down at or above calmAt; it turns friendly at or
-// above friendlyAt and stays friendly while at or above friendlyKeep.
+// Wiki: Factions/Goodwill. Hostility starts at -75 and ends at 0;
+// alliances start at +75 and end at 0.
 const (
-	hostileAt    = -50
-	calmAt       = -10
-	friendlyAt   = 50
-	friendlyKeep = 30
+	hostileAt    = -75
+	calmAt       = 0
+	friendlyAt   = 75
+	friendlyKeep = 1
 	goodwillMin  = -100
 	goodwillMax  = 100
-	// HistoryDays is how many daily goodwill values are kept.
-	HistoryDays = 60
-	// EventCount is how many recent goodwill events are kept.
-	EventCount = 5
+	HistoryDays  = 60
+	EventCount   = 5
 )
 
+// Def tables are authored here. Human family names, icons, style and densities
+// are original content; natural goodwill ranges follow wiki: Factions.
 var defs = [NumTypes]Def{
 	Player: {Key: "player", Label: "Colony", Tech: Industrial, Hidden: true, PointsPct: 100, Accent: "#d8c27a"},
-	Settlers: {Key: "settlers", Label: "Settlers", Tech: Industrial, GoodwillMin: -20, GoodwillMax: 60,
-		Baseline: 10, CanBeFriendly: true, PerTenK: 12, MaxCount: 4, PointsPct: 100,
+	Settlers: {Key: "settlers", Label: "Settlers", Tech: Industrial, GoodwillMin: -50, GoodwillMax: 50,
+		CanBeFriendly: true, PerTenK: 12, MaxCount: 4, PointsPct: 100,
 		Leaders: []string{"Warden", "Steward"}, Accent: "#5b8fb9"},
-	Clans: {Key: "clans", Label: "Clans", Tech: Neolithic, GoodwillMin: -40, GoodwillMax: 40,
-		Baseline: 0, CanBeFriendly: true, PerTenK: 16, MaxCount: 4, PointsPct: 100,
+	Clans: {Key: "clans", Label: "Clans", Tech: Neolithic, GoodwillMin: -50, GoodwillMax: 50,
+		CanBeFriendly: true, PerTenK: 16, MaxCount: 4, PointsPct: 100,
 		Leaders: []string{"Elder", "Hearth-mother", "Hearth-father"}, Accent: "#7f9e4c"},
-	Drifters: {Key: "drifters", Label: "Drifters", Tech: Industrial, GoodwillMin: -60, GoodwillMax: 10,
-		Baseline: -30, CanBeFriendly: true, PerTenK: 10, MaxCount: 3, PointsPct: 100,
+	Drifters: {Key: "drifters", Label: "Drifters", Tech: Industrial, GoodwillMin: -100, GoodwillMax: -80,
+		CanBeFriendly: true, PerTenK: 10, MaxCount: 3, PointsPct: 100,
 		Leaders: []string{"Boss", "Caller"}, Accent: "#c0904e"},
 	Freebooters: {Key: "freebooters", Label: "Freebooters", Tech: Industrial, GoodwillMin: -100, GoodwillMax: -100,
-		Fixed: true, Baseline: -100, PerTenK: 8, MaxCount: 3, PointsPct: 120,
+		Fixed: true, PerTenK: 8, MaxCount: 3, PointsPct: 120,
 		Leaders: []string{"Captain", "Ringleader"}, Accent: "#b84a42"},
 	Swarm: {Key: "swarm", Label: "Swarm", Tech: Neolithic, GoodwillMin: -100, GoodwillMax: -100,
-		Fixed: true, Baseline: -100, Hidden: true, MaxCount: 1, PointsPct: 100, Accent: "#8b6bb3"},
-}
-
-func init() {
-	for i := range defs {
-		defs[i].Type = Type(i)
-	}
+		Fixed: true, Hidden: true, MaxCount: 1, PointsPct: 100, Accent: "#8b6bb3"},
+	FierceClans: {Key: "fierce-clans", Label: "Warclans", Tech: Neolithic,
+		GoodwillMin: -100, GoodwillMax: -80, CanBeFriendly: true,
+		PerTenK: 16, MaxCount: 4, PointsPct: 100,
+		Leaders: []string{"Elder", "Hearth-mother", "Hearth-father"}, Accent: "#a56e46", IconKey: "clans"},
+	SavageClans: {Key: "savage-clans", Label: "Bloodclans", Tech: Neolithic,
+		GoodwillMin: -100, GoodwillMax: -100, Fixed: true,
+		PerTenK: 16, MaxCount: 4, PointsPct: 120,
+		Leaders: []string{"Elder", "Hearth-mother", "Hearth-father"}, Accent: "#9b594a", IconKey: "clans"},
+	AncientQuiet: {Key: "old-kin", Label: "Old kin", Tech: Spacer, Hidden: true,
+		CanBeFriendly: true, MaxCount: 1, PointsPct: 100, Accent: "#718894", IconKey: "settlers"},
+	AncientHostile: {Key: "lost-kin", Label: "Lost kin", Tech: Spacer, GoodwillMin: -100,
+		GoodwillMax: -100, Fixed: true, Hidden: true, MaxCount: 1,
+		PointsPct: 100, Accent: "#665e80", IconKey: "freebooters"},
+	MechHive: {Key: "iron-host", Label: "Iron host", Tech: Spacer, GoodwillMin: -100,
+		GoodwillMax: -100, Fixed: true, Hidden: true, MaxCount: 1,
+		PointsPct: 100, Accent: "#68777a", IconKey: "swarm"},
 }
 
 // def is DefOf without copying the leader titles.
@@ -157,8 +180,18 @@ func DefOf(t Type) Def {
 		return Def{}
 	}
 	d := defs[t]
+	d.Type = t
 	d.Leaders = append([]string(nil), d.Leaders...)
 	return d
+}
+
+// Emblem returns the existing locally-created faction glyph for the type.
+func (d Def) Emblem() string {
+	key := d.Key
+	if d.IconKey != "" {
+		key = d.IconKey
+	}
+	return "ui_icon/faction_" + key
 }
 
 // All lists every type's definition in Type order.
@@ -170,15 +203,28 @@ func All() []Def {
 	return out
 }
 
-// Human reports a type whose raiders are people (not the Swarm or the
-// player).
-func (t Type) Human() bool { return t != Player && t != Swarm && t < NumTypes }
+// Human reports a human type; hidden old-kin factions remain human, but
+// do not participate in regular visits, trading or world-settlement raids.
+func (t Type) Human() bool {
+	return t < NumTypes && t != Player && t != Swarm && t != MechHive
+}
+
+// HasWorldSettlements selects ordinary surface factions.
+func (t Type) HasWorldSettlements() bool {
+	return t.Human() && !def(t).Hidden
+}
+
+// CanVisit requires a standing human faction with peaceful player relations.
+func (f Faction) CanVisit() bool {
+	return f.Type.HasWorldSettlements() && !f.Defeated && f.Relation != Hostile
+}
 
 func (t Type) String() string { return DefOf(t).Key }
 
 // DefaultSlots is the default factions of a new world.
 func DefaultSlots() []Slot {
-	return []Slot{{Settlers, 2}, {Clans, 2}, {Drifters, 1}, {Freebooters, 1}}
+	return []Slot{{Settlers, 1}, {Drifters, 1}, {Clans, 1}, {FierceClans, 1},
+		{SavageClans, 1}, {Freebooters, 1}}
 }
 
 // Generate makes the factions for the slots (names, leaders, goodwill)
@@ -234,14 +280,11 @@ func uniqueName(t Type, rng *randx.Rand, used map[string]bool) string {
 	}
 }
 
-// RelationFor applies the hysteresis bands to goodwill gw given the
-// current relation: hostile at or below -50 and calm again only at or above
-// -10; friendly at or above +50 and neutral again only below +30.
+// RelationFor uses the player relationship thresholds (wiki: Factions).
+// The two exits both occur at zero, so intermediate goodwill preserves
+// the current hostile or allied status.
 func RelationFor(cur Relation, gw int) Relation {
-	if gw <= hostileAt {
-		return Hostile
-	}
-	if cur == Hostile && gw < calmAt {
+	if gw <= hostileAt || cur == Hostile && gw < calmAt {
 		return Hostile
 	}
 	if gw >= friendlyAt || cur == Friendly && gw >= friendlyKeep {
@@ -253,6 +296,11 @@ func RelationFor(cur Relation, gw int) Relation {
 // Update refreshes f.Relation from its goodwill, honouring the type (some
 // types can never be friendly).
 func Update(f *Faction) {
+	if def(f.Type).Fixed {
+		f.Goodwill = -100
+		f.Relation = Hostile
+		return
+	}
 	r := RelationFor(f.Relation, f.Goodwill)
 	if r == Friendly && !def(f.Type).CanBeFriendly {
 		r = Neutral
@@ -278,17 +326,23 @@ func Adjust(f *Faction, delta int, event string) {
 	Update(f)
 }
 
-// DailyDrift moves goodwill one step toward the type's baseline, updates
-// the relation and appends today's value to the history (last 60 days).
-// Fixed types do not move.
+// DailyDrift approaches the natural goodwill band in fractional steps:
+// above maximum -0.4/day (two steps per five days), below minimum
+// +0.2/day (one step per five days). wiki: Factions.
+// The five-day phase is saved and resumes after a checkpoint.
 func DailyDrift(f *Faction) {
 	d := def(f.Type)
+	f.DriftDay = (f.DriftDay + 1) % 5
 	if !d.Fixed {
 		switch {
-		case f.Goodwill < d.Baseline && !f.Besieged:
-			f.Goodwill++
-		case f.Goodwill > d.Baseline:
-			f.Goodwill--
+		case f.Goodwill > d.GoodwillMax:
+			if f.DriftDay == 0 || f.DriftDay == 2 {
+				f.Goodwill--
+			}
+		case f.Goodwill < d.GoodwillMin && !f.Besieged:
+			if f.DriftDay == 0 {
+				f.Goodwill++
+			}
 		}
 	}
 	Update(f)
@@ -304,7 +358,7 @@ func DailyDrift(f *Faction) {
 func PickRaider(fs []Faction, rng *randx.Rand) int {
 	total := 0
 	weight := func(f Faction) int {
-		if !f.Type.Human() || f.Relation != Hostile || f.Defeated {
+		if !Raider(f) {
 			return 0
 		}
 		return max(len(f.Settlements), 1)

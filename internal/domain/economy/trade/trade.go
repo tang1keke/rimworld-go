@@ -90,9 +90,22 @@ type Stock struct {
 // faction's goodwill, and whether the faction is hostile (hostile
 // factions don't trade).
 type Terms struct {
-	Social   int
-	Goodwill int
-	Hostile  bool
+	Social      int
+	Goodwill    int
+	Hostile     bool
+	FactionType faction.Type // gift target; prices otherwise use the fields above
+}
+
+// TradedValue is the gross market value of the physical goods exchanged.
+// Both sides contribute to the Core faction's 500-silver goodwill unit.
+func (r Result) TradedValue() int {
+	value := 0
+	for _, lines := range [][]Line{r.Buy, r.Sell} {
+		for _, ln := range lines {
+			value += ln.Goods().Value() * ln.Qty
+		}
+	}
+	return value
 }
 
 // Delta is one line of an offer: Qty > 0 the colony buys Qty units of
@@ -359,7 +372,7 @@ func Settle(offer []Delta, colony map[item.Kind]int, st Stock, t Terms, gift boo
 		}
 	}
 	if gift {
-		res.Goodwill = faction.GiftGoodwill(GiftValue(offer))
+		res.Goodwill = faction.GiftGoodwill(faction.Faction{Type: t.FactionType, Goodwill: t.Goodwill}, GiftValue(offer))
 		return res
 	}
 	res.SilverCenti = sellC - buyC

@@ -225,8 +225,8 @@ func TestSettleHostileEmpty(t *testing.T) {
 func TestSettleGiftNoSilver(t *testing.T) {
 	col := map[item.Kind]int{item.Silver: 300, item.Wood: 500}
 	// Gifts need not be wanted and pay nothing back.
-	r := Settle([]Delta{{Kind: item.Silver, Qty: -200}, {Kind: item.Wood, Qty: -100}}, col, stock(), Terms{}, true)
-	if !r.OK() || r.SilverCenti != 0 || r.Silver != 0 || r.Goodwill != faction.GiftGoodwill(300) || len(r.Sell) != 2 {
+	r := Settle([]Delta{{Kind: item.Silver, Qty: -200}, {Kind: item.Wood, Qty: -100}}, col, stock(), Terms{FactionType: faction.Settlers}, true)
+	if !r.OK() || r.SilverCenti != 0 || r.Silver != 0 || r.Goodwill != faction.GiftGoodwill(faction.Faction{Type: faction.Settlers}, 300) || len(r.Sell) != 2 {
 		t.Fatalf("%+v", r)
 	}
 	if GiftValue([]Delta{{Kind: item.Silver, Qty: -200}, {Kind: item.Wood, Qty: -100}, {Kind: item.Rifle, Qty: 4}}) != 300 {

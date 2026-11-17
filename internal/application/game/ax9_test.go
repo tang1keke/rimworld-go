@@ -271,6 +271,7 @@ func TestTransportPodsGiftAndRange(t *testing.T) {
 	ax9Stock(g, pod, item.Silver, 300)
 	fac := g.factionOf(g.settlementFaction(dest))
 	before := fac.Goodwill
+	want := faction.GiftGoodwill(*fac, 300*item.Silver.Value())
 	g.setFuel(launcher, 2*chemfuelTicks) // 2 chemfuel: under a tile
 	g.Enqueue(command.Command{Kind: command.LaunchPods, Target: uint64(pod), Count: dest, Mode: command.PodArriveGift})
 	g.Step(1)
@@ -280,7 +281,6 @@ func TestTransportPodsGiftAndRange(t *testing.T) {
 	g.setFuel(launcher, 150*chemfuelTicks)
 	g.Enqueue(command.Command{Kind: command.LaunchPods, Target: uint64(pod), Count: dest, Mode: command.PodArriveGift})
 	g.Step(2*caravan.PodTicksPerTile + 260)
-	want := faction.GiftGoodwill(300 * item.Silver.Value())
 	if got := g.factionOf(g.settlementFaction(dest)).Goodwill - before; want <= 0 || got != want {
 		t.Fatalf("goodwill +%d, want +%d", got, want)
 	}

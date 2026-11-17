@@ -22,17 +22,17 @@ const (
 	EnemyCooldownDays = 3
 )
 
-// warPct is the chance (percent) that two human factions of types a and b
-// are at war: freebooters prey on everyone, settlers and drifters clash
-// over the same land, two of a kind seldom fight.
+// warPct models Core faction hostility toward other factions (wiki: Factions).
+// Rough industrial groups, both hostile tribal variants, and pirate groups
+// start hostile to everyone. Remaining factions use original deterministic
+// relationship tuning without a new random draw.
 func warPct(a, b Type) int {
 	switch {
-	case a == Freebooters || b == Freebooters:
-		return 70
+	case a == Freebooters || b == Freebooters || a == SavageClans || b == SavageClans ||
+		a == FierceClans || b == FierceClans || a == Drifters || b == Drifters:
+		return 100
 	case a == b:
 		return 10
-	case a == Settlers && b == Drifters || a == Drifters && b == Settlers:
-		return 50
 	}
 	return 25
 }
@@ -72,7 +72,7 @@ func SetEnemies(fs []Faction) {
 	for i := range fs {
 		for j := i + 1; j < len(fs); j++ {
 			a, b := &fs[i], &fs[j]
-			if !a.Type.Human() || !b.Type.Human() || warRoll(seed, a.ID, b.ID) >= warPct(a.Type, b.Type) {
+			if !a.Type.HasWorldSettlements() || !b.Type.HasWorldSettlements() || warRoll(seed, a.ID, b.ID) >= warPct(a.Type, b.Type) {
 				continue
 			}
 			a.Enemies = append(a.Enemies, b.ID)
@@ -146,7 +146,9 @@ func Rival(fs []Faction, of int, roll func(n int) int) int {
 }
 
 // Raider reports f can raid the colony: a standing, hostile human people.
-func Raider(f Faction) bool { return f.Type.Human() && !f.Defeated && f.Relation == Hostile }
+func Raider(f Faction) bool {
+	return f.Type.HasWorldSettlements() && !f.Defeated && f.Relation == Hostile
+}
 
 // byID is the index of the faction with id (-1: none).
 func byID(fs []Faction, id int) int {

@@ -233,7 +233,11 @@ New:
 // this pin to get a test to pass. Only a migration step that really changes a
 // v12 save's state may move the hash: re-pin it then, saying in the commit
 // why that migration changes it.
-const saveV12Hash = uint64(0xa9dcec8a9f61de28) // v18: visit group migration and world/trade save metadata preserve legacy behavior
+// The v17 SetEnemies migration now restores Core hostile-faction wars
+// deterministically, so old v12 worlds gain the correct new war graph.
+// Temporarily restoring only the former war rule reproduced the old pin.
+// Saved fixture bytes remain unchanged; new goodwill counters decode to zero.
+const saveV12Hash = uint64(0xd26445b2088311b)
 
 // v12Colony is the colony in the fixture: rich in state, so that as many
 // saved fields as practical are non-zero.
