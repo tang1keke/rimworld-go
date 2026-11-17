@@ -5,6 +5,9 @@ import "rimworld-go/internal/platform/config"
 func widget(key string) config.HUDNode         { return config.HUDNode{Kind: key} }
 func widgetFor(key, who string) config.HUDNode { return config.HUDNode{Kind: key, Who: who} }
 func generic(key, def string) config.HUDNode   { return config.HUDNode{Kind: key, Def: def} }
+func genericFor(key, def, who string) config.HUDNode {
+	return config.HUDNode{Kind: key, Def: def, Who: who}
+}
 func box(kind string, kids ...config.HUDNode) config.HUDNode {
 	return config.HUDNode{Kind: kind, Kids: kids}
 }
@@ -12,17 +15,14 @@ func boxFor(kind, who string, kids ...config.HUDNode) config.HUDNode {
 	return config.HUDNode{Kind: kind, Who: who, Kids: kids}
 }
 
-// skillBlock is the eleven skills as five rows of two and a last row that
-// pairs the odd skill with the work speed it feeds, so nothing sits beside a
-// blank.
+// skillBlock is the twelve skills as six rows of two, so no skill sits beside a blank.
 func skillBlock() config.HUDNode {
 	pair := func(a, b string) config.HUDNode {
 		return box(KindLine, generic("skill", a), generic("skill", b))
 	}
 	return boxFor(KindBlock, "c",
 		pair("shooting", "melee"), pair("construction", "mining"), pair("cooking", "plants"),
-		pair("animals", "crafting"), pair("medicine", "social"),
-		box(KindLine, generic("skill", "intellectual"), generic("stat", "work_speed")))
+		pair("animals", "crafting"), pair("medicine", "social"), pair("intellectual", "artistic"))
 }
 
 func trainRows() config.HUDNode {
@@ -31,7 +31,7 @@ func trainRows() config.HUDNode {
 
 func barsColumn() config.HUDNode {
 	return box(KindColumn, widget("vigour_bar"), widgetFor("mood_bar", "cs"), widget("hunger_bar"),
-		widget("rest_bar"), widgetFor("fun_bar", "c"))
+		widget("rest_bar"), widgetFor("fun_bar", "c"), genericFor("stat", "work_speed", "c"))
 }
 
 // rightColumn is the floating card's state column.
@@ -52,13 +52,13 @@ func compactRight() config.HUDNode {
 		widgetFor("captive", "s"))
 }
 
-// skillColumns are the eleven skills and the work speed as two columns of six.
+// skillColumns are the twelve skills as two columns of six.
 func skillColumns() (a, b config.HUDNode) {
 	return boxFor(KindColumn, "c", generic("skill", "shooting"), generic("skill", "construction"),
 			generic("skill", "cooking"), generic("skill", "animals"), generic("skill", "medicine"),
 			generic("skill", "intellectual")),
 		boxFor(KindColumn, "c", generic("skill", "melee"), generic("skill", "mining"), generic("skill", "plants"),
-			generic("skill", "crafting"), generic("skill", "social"), generic("stat", "work_speed"))
+			generic("skill", "crafting"), generic("skill", "social"), generic("skill", "artistic"))
 }
 
 // DefaultDocked is the built-in arrangement for the inspect pane (the pane

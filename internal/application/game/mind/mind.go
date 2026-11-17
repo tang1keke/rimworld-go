@@ -180,12 +180,12 @@ func (m *Mind) forget(id entity.EntityID) {
 	}
 }
 
-// end finishes break k. Only a natural end grants catharsis.
+// end finishes break k. Natural completion and interrupted Berserk grant catharsis.
 func (m *Mind) end(id entity.EntityID, k mentalbreak.Kind, natural bool) {
 	m.forget(id)
 	m.h.ClearBreak(id)
 	if k == mentalbreak.Catatonic {
 		m.h.StandUp(id)
 	}
-	m.h.Recovered(id, k, natural)
+	m.h.Recovered(id, k, natural || k == mentalbreak.Berserk)
 }

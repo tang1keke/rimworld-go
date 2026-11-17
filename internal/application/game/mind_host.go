@@ -67,7 +67,7 @@ func (h mindPawns) Pos(id entity.EntityID) (int, int, bool) {
 	return p.X, p.Y, ok
 }
 func (h mindPawns) Alive(id entity.EntityID) bool    { return h.g.onMap(id) }
-func (h mindPawns) Standing(id entity.EntityID) bool { return h.g.alive(id) && h.g.onMap(id) }
+func (h mindPawns) Standing(id entity.EntityID) bool { return h.g.standingPawn(id) }
 func (h mindPawns) Awake(id entity.EntityID) bool    { return !h.g.asleep(id) }
 func (h mindPawns) Colonists() []entity.EntityID     { return h.g.pawnIDs }
 func (h mindPawns) Mood(id entity.EntityID) int      { return h.g.moodOf(id) }
@@ -315,8 +315,8 @@ func (h mindEvents) Started(id entity.EntityID, k mentalbreak.Kind, target entit
 	g.post(MessageView{Tick: uint64(g.clock.Now()), Text: text, X: pos.X, Y: pos.Y, Danger: mind.Hostile(k), Focus: id,
 		Letter: true, Title: "Mental break: " + def.Label, Kind: kind})
 }
-func (h mindEvents) Recovered(id entity.EntityID, _ mentalbreak.Kind, natural bool) {
-	if natural {
+func (h mindEvents) Recovered(id entity.EntityID, _ mentalbreak.Kind, catharsis bool) {
+	if catharsis {
 		h.g.logEvent(id, logEntry{Kind: evlog.Recovered})
 		h.g.remember(id, mood.Catharsis)
 		pos, _ := h.g.positions.Get(id)

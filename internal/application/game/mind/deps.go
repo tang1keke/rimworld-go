@@ -106,8 +106,8 @@ type Brawls interface {
 type Events interface {
 	// Started: id broke into k, aimed at target (0: nobody).
 	Started(id entity.EntityID, k mentalbreak.Kind, target entity.EntityID)
-	// Recovered reports an ended break and grants catharsis only if natural.
-	Recovered(id entity.EntityID, k mentalbreak.Kind, natural bool)
+	// Recovered reports an ended break and whether it grants catharsis.
+	Recovered(id entity.EntityID, k mentalbreak.Kind, catharsis bool)
 	// FightStarted logs and announces starter's fight with other.
 	FightStarted(starter, other entity.EntityID)
 	// Outcome rolls f's memory of the fight with other (none for the

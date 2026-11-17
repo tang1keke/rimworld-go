@@ -95,7 +95,7 @@ func TestInterruptedBreakDoesNotForceImmunity(t *testing.T) {
 	f.mood[1] = 0
 	m.Force(1, mentalbreak.SadWander)
 	m.End(1)
-	if len(f.recovered) != 1 || len(f.naturalRecover) != 0 {
+	if len(f.recovered) != 1 || len(f.catharsisRecover) != 0 {
 		t.Fatal("forced end must not award catharsis")
 	}
 	toCheck(f, 1)
@@ -187,7 +187,7 @@ func TestBreakLastsItsMinimum(t *testing.T) {
 		}
 	}
 	f.now = until
-	if m.Tick(1, job.Record{}) || len(f.naturalRecover) != 1 {
+	if m.Tick(1, job.Record{}) || len(f.catharsisRecover) != 1 {
 		t.Fatal("the break ends naturally at its time with recovery")
 	}
 	if _, _, ok := f.Break(1); ok {
@@ -237,12 +237,23 @@ func TestEndAndEatJobKept(t *testing.T) {
 		t.Fatal("a starving berserker still eats")
 	}
 	m.End(1)
-	if _, _, ok := f.Break(1); ok || len(f.recovered) != 1 || len(f.naturalRecover) != 0 {
-		t.Fatal("arrest must interrupt without catharsis")
+	if _, _, ok := f.Break(1); ok || len(f.recovered) != 1 || len(f.catharsisRecover) != 1 {
+		t.Fatal("arrest interrupts Berserk with catharsis")
 	}
 	m.End(1) // nothing to end
 	if len(f.recovered) != 1 {
 		t.Fatal("ending twice")
+	}
+}
+
+func TestDownedNonBerserkBreakDoesNotGrantCatharsis(t *testing.T) {
+	f := newFake(1)
+	m := New(f)
+	m.Force(1, mentalbreak.SadWander)
+	f.down[1] = true
+	m.Downed(1)
+	if _, _, ok := f.Break(1); ok || len(f.recovered) != 1 || len(f.catharsisRecover) != 0 {
+		t.Fatal("downing interrupts a non-Berserk break without catharsis")
 	}
 }
 

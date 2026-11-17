@@ -45,7 +45,7 @@ type fakeHost struct {
 	started           []brk
 	targets           []entity.EntityID
 	recovered         []mentalbreak.Kind
-	naturalRecover    []mentalbreak.Kind
+	catharsisRecover  []mentalbreak.Kind
 	punches           []pair
 	fakeMuses         // inspiration_test.go (PRD-2)
 	fakeSmash         // tantrum_test.go (CBT-4)
@@ -134,10 +134,10 @@ func (f *fakeHost) Started(_ entity.EntityID, k mentalbreak.Kind, t entity.Entit
 	f.started = append(f.started, brk{k: k})
 	f.targets = append(f.targets, t)
 }
-func (f *fakeHost) Recovered(_ entity.EntityID, k mentalbreak.Kind, natural bool) {
+func (f *fakeHost) Recovered(_ entity.EntityID, k mentalbreak.Kind, catharsis bool) {
 	f.recovered = append(f.recovered, k)
-	if natural {
-		f.naturalRecover = append(f.naturalRecover, k)
+	if catharsis {
+		f.catharsisRecover = append(f.catharsisRecover, k)
 	}
 }
 

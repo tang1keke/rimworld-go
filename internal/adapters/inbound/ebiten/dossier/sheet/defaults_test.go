@@ -45,7 +45,7 @@ func TestDockedTreeKeepsEveryWidget(t *testing.T) {
 	t.Parallel()
 	old := map[Who][]string{
 		WhoColonist: {"area_pick", "body_state", "diet_pick", "doing", "fun_bar", "hour_pick", "hunger_bar", "identity",
-			"in_hand", "mind_state", "mood_bar", "next_up", "rest_bar", "rule", "skill:animals", "skill:construction",
+			"in_hand", "mind_state", "mood_bar", "next_up", "rest_bar", "rule", "skill:animals", "skill:artistic", "skill:construction",
 			"skill:cooking", "skill:crafting", "skill:intellectual", "skill:medicine", "skill:melee", "skill:mining",
 			"skill:plants", "skill:shooting", "skill:social", "standing", "stat:work_speed", "vigour_bar"},
 		WhoStranger: {"body_state", "captive", "doing", "hunger_bar", "identity", "in_hand", "mind_state", "mood_bar",
@@ -91,6 +91,14 @@ func TestDefaultTargetsShowTheRightRows(t *testing.T) {
 		return found
 	}
 	col, str, tame, wild := Default(false, WhoColonist), Default(false, WhoStranger), Default(false, WhoPrisoner), Default(false, WhoWild)
+	for _, docked := range []bool{true, false} {
+		for w := WhoColonist; w <= WhoWild; w++ {
+			hasWorkSpeed := slices.Contains(widgetKeys(Default(docked, w)), "stat:work_speed")
+			if hasWorkSpeed != (w == WhoColonist) {
+				t.Errorf("work speed in docked=%t target %c: got %t", docked, w.Letter(), hasWorkSpeed)
+			}
+		}
+	}
 	for _, k := range []string{"skill", "hour_pick", "fun_bar", "traits", "mood_bar"} {
 		if !has(col, k) {
 			t.Errorf("colonist lacks %s", k)

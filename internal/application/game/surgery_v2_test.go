@@ -283,7 +283,7 @@ func TestHarvestMood(t *testing.T) {
 		t.Fatalf("a kidney costs 80 goodwill: %d", f.Goodwill)
 	}
 	g.organHarvested(ada, rid, body.KidneyR)
-	if v, n := value(bo, mood.KnowOrganHarvested); n != 2 || v != -5-3 {
+	if v, n := value(bo, mood.KnowOrganHarvested); n != 2 || v != -5-4 {
 		t.Fatalf("stacking at 75 %%: %d over %d", v, n)
 	}
 	for i := 0; i < 6; i++ {

@@ -250,10 +250,11 @@ func TestGrownGolden(t *testing.T) {
 	// bashing) moved it to 0xaec676f00f802a1c, then cc8ba7a0d's wealth
 	// tracker (its cursor, hour and partial sum are saved state); the
 	// manhunter search bounds (25bfd0d6e, 4db4d03c4) keep it.
-	// MED-14: Core item IDs and research unlocks expanded, human body
-	// hit selection now includes damageable bionics and the tongue.
-	// The grown simulation's authoritative state intentionally changes.
-	const want uint64 = 0x3735025917c5ff9a
+	// MED-14 and the consolidated core-gameplay changes add the Artistic
+	// skill, update mood-memory and difficulty state, and remove the extra
+	// low-mood work-rate slowdown. Seed 7's authoritative state is stable
+	// across two runs with these rules.
+	const want uint64 = 0x9267c07871599204
 	g, _, err := Build(7, 120, 120)
 	if err != nil {
 		t.Fatal(err)

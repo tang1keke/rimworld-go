@@ -38,10 +38,12 @@ func TestDefInputs(t *testing.T) {
 	if multi.InputsLabel() != "4 wood + 2 steel" || len(multi.InputKinds()) != 2 {
 		t.Fatalf("label %q kinds %v", multi.InputsLabel(), multi.InputKinds())
 	}
-	for _, d := range All()[:MakeMace] { // every older recipe takes what it always took (PRD-3's guns take two)
+	for _, d := range All()[:MakeMace] { // legacy inputs plus the multi-material prosthetic recipes remain valid
 		if len(d.Inputs) > 0 && (len(d.Inputs) != 2 || d.Output != item.ServoArm && d.Output != item.ServoLeg &&
 			d.Output != item.OpticImplant && d.Output != item.CochlearImplant && d.Output != item.SpinalBrace &&
-			d.Output != item.PumpHeart && d.Output != item.SynthStomach) ||
+			d.Output != item.PumpHeart && d.Output != item.SynthStomach &&
+			d.Output != item.ProstheticLeg && d.Output != item.ProstheticArm &&
+			d.Output != item.ValveHeart && d.Output != item.AcousticImplant) ||
 			!d.Accepts(d.Input.Kind) && !d.Input.AnyRaw && !d.Input.AnyDryable && !d.Input.AnyStoneBlocks {
 			t.Fatalf("%s: inputs %v", d.Name, d.Inputs)
 		}

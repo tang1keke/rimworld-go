@@ -18,6 +18,7 @@ import (
 	"rimworld-go/internal/domain/sim/command"
 	"rimworld-go/internal/domain/sim/entity"
 	"rimworld-go/internal/domain/world/terrain"
+	"rimworld-go/pkg/randx"
 )
 
 // toppedOff is a colonist at full recreation in a Recreation block, with rock to
@@ -534,14 +535,53 @@ func TestPackDoseKeepsPolicy(t *testing.T) {
 }
 
 // giftScene: a sick colonist awake in bed, not entertained, a friend with beer in
-// reach and recreation to find.
+// reach and recreation to find. Start the first normal AI tick on a real visit
+// slot whose unchanged deterministic draw selects the available gift.
 func giftScene(t *testing.T) (g *Game, pat, fri entity.EntityID) {
 	t.Helper()
 	g, pat, _ = sickPatient(t)
 	fri = friendAt(t, g, pat, 8, 4)
 	stack(t, g, item.Beer, 6, 8, 6)
 	applyNow(g, command.Command{Kind: command.SetDrugPolicy, Pawn: uint64(fri), Mode: uint8(drug.NoDrugs)}) // the beer is for the patient
+	if !g.lyingAwake(pat) {
+		g.SetNeeds(pat, 9000, 9000)
+		restFed(g, 1)
+	}
+	if !g.lyingAwake(pat) {
+		t.Fatal("setup: patient must be lying awake before a friend visits")
+	}
+	now := uint64(g.clock.Now())
+	tick := nextGiftVisitTick(g, fri, pat)
+	g.clock.Advance(int(tick - now))
 	return g, pat, fri
+}
+
+// nextGiftVisitTick mirrors care.visitSlot and care.Giving.chosen without
+// changing either production rule. It uses the actual available kind and
+// tolerance after the visitor and dose stack have been created.
+func nextGiftVisitTick(g *Game, visitor, patient entity.EntityID) uint64 {
+	const (
+		visitWindow = 2400
+		visitStart  = 600
+		giftWeight  = 4
+		visitWeight = 6
+	)
+	gifts := careGifts{g}
+	pair := uint64(visitor)<<32 | uint64(patient)
+	for tick := uint64(g.clock.Now()); ; tick++ {
+		if tick%visitWindow >= visitStart || (tick/visitWindow+uint64(visitor)+uint64(patient))%2 != 0 {
+			continue
+		}
+		draw := randx.SplitMix64(tick ^ randx.SplitMix64(pair))
+		kind, _, _, _, ok := gifts.GiftFor(visitor, patient, draw)
+		if !ok {
+			continue
+		}
+		gift := uint64(giftWeight * max(100-gifts.Tolerance(patient, kind), 0))
+		if gift > 0 && draw>>32%uint64(gift+visitWeight*100) < gift {
+			return tick
+		}
+	}
 }
 
 // giftsOver steps n ticks and counts the doses patient had.
