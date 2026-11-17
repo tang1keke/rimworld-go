@@ -3,9 +3,11 @@ package game
 import (
 	"bytes"
 	"encoding/gob"
+	"os"
 	"reflect"
 	"testing"
 
+	"rimworld-go/internal/application/game/savefmt"
 	"rimworld-go/internal/application/game/savelegacy"
 	"rimworld-go/internal/domain/pawn/skill"
 	"rimworld-go/internal/domain/pawn/trait"
@@ -125,5 +127,63 @@ func TestV17SkillArraysMigrateIntoCanonicalFields(t *testing.T) {
 	if current.Skills != nil || current.Bios != nil || current.SkillLive != nil ||
 		current.NG1 != nil || current.People != nil || current.Skills18[id] != want {
 		t.Fatal("v18 save retained legacy data or lost the migrated skills")
+	}
+}
+
+func TestMedicalV18LegacySkillFixtureMigrates(t *testing.T) {
+	data, err := os.ReadFile("testdata/medical_v18_legacy.sav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, info, err := Load(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("load medical v18 legacy payload: %v", err)
+	}
+	if info.Version != 18 || !g.hasSetup() || len(g.pawnIDs) == 0 {
+		t.Fatalf("medical v18 fixture header/setup: %+v", info)
+	}
+	id := g.pawnIDs[0]
+	if got, want := g.skillOf(id, skill.Melee), (skill.Skill{
+		Level: 13, XP: 12345, Carry: 12, Passion: skill.Major,
+	}); got != want {
+		t.Fatalf("medical v18 melee skill %+v, want %+v", got, want)
+	}
+	if got := g.skillOf(id, skill.Artistic); got.Level != skill.Neutral {
+		t.Fatalf("new Artistic skill %+v, want neutral", got)
+	}
+	if len(g.ng.setup.Colonists) == 0 ||
+		g.ng.setup.Colonists[0].Skills[skill.Artistic].Level != skill.Neutral {
+		t.Fatal("medical v18 setup colonist skills were not expanded")
+	}
+
+	// A re-save uses only the canonical v18 fields and marks that schema,
+	// so the next load must not run the historical converter again.
+	var buf bytes.Buffer
+	if err := g.Save(&buf, "canonical-v18"); err != nil {
+		t.Fatal(err)
+	}
+	zr, err := savefmt.NewReader(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dec := gob.NewDecoder(zr)
+	var savedInfo SaveInfo
+	if err := dec.Decode(&savedInfo); err != nil {
+		t.Fatal(err)
+	}
+	var saved saveState
+	if err := savefmt.Finish(dec.Decode(&saved), zr); err != nil {
+		t.Fatal(err)
+	}
+	if !saved.SkillSchema18 || saved.Bios != nil || saved.Skills != nil ||
+		saved.SkillLive != nil || saved.NG1 != nil || saved.People != nil {
+		t.Fatal("canonical v18 save retained legacy fields or omitted its marker")
+	}
+	h, info2, err := Load(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatalf("load canonical v18 re-save: %v", err)
+	}
+	if info2.Version != 18 || h.StateHash() != g.StateHash() {
+		t.Fatal("medical v18 migration did not survive a canonical save/load")
 	}
 }

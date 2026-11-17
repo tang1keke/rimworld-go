@@ -60,6 +60,7 @@ func normalisedFields(info SaveInfo, s *saveState) map[string]any {
 	delete(f, "Skills18")
 	delete(f, "NG118")
 	delete(f, "People18")
+	delete(f, "SkillSchema18") // serialization discriminator, not authoritative game state
 	research := ints(f["ResearchAll"])
 	if research == nil {
 		research = ints(f["Research"])

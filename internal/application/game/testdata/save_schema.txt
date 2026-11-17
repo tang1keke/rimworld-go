@@ -1925,6 +1925,7 @@ saveState.SkillLive18.Working{key} rimworld-go/internal/domain/sim/entity.Entity
 saveState.SkillLive18.Working{} rimworld-go/internal/application/game.savedWorking
 saveState.SkillLive18.Working{}.Skill rimworld-go/internal/domain/pawn/skill.ID = uint8
 saveState.SkillLive18.Working{}.Tick uint64
+saveState.SkillSchema18 bool
 saveState.Skills map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/application/game/savelegacy.SkillSet
 saveState.Skills18 map[rimworld-go/internal/domain/sim/entity.EntityID]rimworld-go/internal/domain/pawn/skill.Set
 saveState.Skills18{key} rimworld-go/internal/domain/sim/entity.EntityID = uint64
