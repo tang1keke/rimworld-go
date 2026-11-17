@@ -2223,7 +2223,7 @@ Use aggregated/analytical updates rather than simulating local-map jobs.
 
 ## 28.4 Caravan interactions
 
--   [x] **Visit friendly settlement** (WORLD-ECON-01: one-day visit, World inspector trade modal; stock, negotiator, goodwill gifts and paid transactions committed from actual caravan cargo)
+-   [x] **Visit friendly settlement** (WORLD-ECON-01: one-day visit, stock, negotiator, goodwill gifts and paid transactions committed from actual caravan cargo; player UI in s1-mini)
     -   [x] Trade using persistent faction-base stock, settlement silver and caravan capacity.
     -   [x] Gifts transfer physical cargo and adjust faction goodwill.
 -   [x] **Attack hostile settlement** (MAP-2, MAP-15: `AttackSettlement` from the caravan inspector or by pod, any human base, with -200 goodwill and the faction turning hostile; a non-hostile base asks for a confirmation)

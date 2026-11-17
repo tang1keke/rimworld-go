@@ -57,7 +57,7 @@ func TestCaravanTradePreservesDistinctPhysicalStacks(t *testing.T) {
 		{Kind: item.Silver, Qty: 5, Forbidden: true},
 		{Kind: item.Silver, Qty: 3},
 		{Kind: item.Cloth, Qty: 2, Quality: 3},
-		{Kind: item.Cloth, Qty: 4, Quality: 4, TradeBought: true},
+		{Kind: item.Cloth, Qty: 4, Quality: 4},
 	}}
 	state := &State{cargo: map[uint64]*Hold{7: hold}}
 	plan, why := state.Ops(nil).PlanTrade(7, 1,
@@ -76,14 +76,14 @@ func TestCaravanTradePreservesDistinctPhysicalStacks(t *testing.T) {
 			normalSilver += st.Qty
 		case st.Kind == item.Cloth && st.Quality == 3:
 			original += st.Qty
-		case st.Kind == item.Cloth && st.Quality == 4 && st.TradeBought:
+		case st.Kind == item.Cloth && st.Quality == 4:
 			bought += st.Qty
 		default:
 			t.Fatalf("unexpected physical stack %+v", st)
 		}
 	}
 	if len(hold.Items) != 4 || forbidden != 5 || normalSilver != 5 || original != 2 || bought != 6 {
-		t.Fatalf("a different provenance or attribute was merged: %+v", hold.Items)
+		t.Fatalf("a different quality or forbidden flag was merged: %+v", hold.Items)
 	}
 }
 

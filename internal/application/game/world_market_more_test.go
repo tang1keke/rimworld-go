@@ -125,7 +125,7 @@ func TestWorldMarketNativePackedCargoRoundTrip(t *testing.T) {
 		if st.Kind == item.Silver {
 			backSilver += st.Qty
 		}
-		if st.Kind == item.Cloth && st.TradeBought {
+		if st.Kind == item.Cloth {
 			backCloth += st.Qty
 		}
 	}

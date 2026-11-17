@@ -121,6 +121,36 @@ func (f marketOps) clearMarket(tile int) {
 	}
 }
 
+// RestoreVisits backfills markets missing from saves written before
+// settlement inventories existed. Only live visits are considered; the
+// initial stock is seeded at the original arrival tick.
+func (f marketOps) RestoreVisits(now uint64) {
+	if f.market == nil {
+		return
+	}
+	for i := range *f.list {
+		c := &(*f.list)[i]
+		if c.Back || c.C.State != caravan.Visiting || c.Ask.Letter != 0 || now >= c.C.VisitUntil {
+			continue
+		}
+		tile := c.C.Tile
+		if _, ok := f.marketIndex(tile); ok {
+			continue
+		}
+		fa := f.h.Faction(tile)
+		if fa == nil || fa.Defeated || fa.Besieged || fa.Relation == faction.Hostile ||
+			!fa.Type.Human() || !slices.Contains(fa.Settlements, tile) {
+			continue
+		}
+		start := uint64(0)
+		if c.C.VisitUntil > clock.TicksPerDay {
+			start = c.C.VisitUntil - clock.TicksPerDay
+		}
+		f.VisitMarket(tile, fa, start)
+		f.VisitMarket(tile, fa, now)
+	}
+}
+
 // takeStock builds the purchased physical stacks from the base's current
 // stock. The caller works on a clone and commits it only after cargo passes
 // preflight. Existing sold stacks keep all their physical attributes.

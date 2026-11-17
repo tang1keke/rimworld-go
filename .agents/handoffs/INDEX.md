@@ -423,7 +423,6 @@ One row per handoff section. Open the ledger at `#<lowercased ID>`. A new task a
 | UI-026-play017-scale-fixes | Scale fixes, zone labels, hauling, chase UI (PLAY-017) | 2026-10-25 | [UI.md](UI.md#ui-026-play017-scale-fixes) |
 | UI-027-play018-hud-relayout | HUD relayout and learning helper (PLAY-018) | 2026-10-25 | [UI.md](UI.md#ui-027-play018-hud-relayout) |
 | UI-028-play020-zones-beds-lamps | Zones, beds, lamps, bed rest (PLAY-020) | 2026-10-25 | [UI.md](UI.md#ui-028-play020-zones-beds-lamps) |
-| UI-ECON-01-world-market-trade | Caravan trade on the World tab | 2026-11-17 | [UI.md](UI.md#ui-econ-01-world-market-trade) |
 | UIS-4 | Options, letters and window sizes | 2026-11-07 | [UI.md](UI.md#uis-4) |
 | UIS-gap-analysis | UI size and scale gap analysis | 2026-11-06 | [UI.md](UI.md#uis-gap-analysis) |
 | UIS-implementation | Gameplay UI sizes and scaling to the reference | 2026-11-07 | [UI.md](UI.md#uis-implementation) |

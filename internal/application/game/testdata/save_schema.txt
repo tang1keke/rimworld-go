@@ -1464,7 +1464,6 @@ saveState.Sense.Packs[].Pack.Items[].Stack.Quality uint8
 saveState.Sense.Packs[].Pack.Items[].Stack.Rot int
 saveState.Sense.Packs[].Pack.Items[].Stack.Stuff rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.Sense.Packs[].Pack.Items[].Stack.Tame bool
-saveState.Sense.Packs[].Pack.Items[].Stack.TradeBought bool
 saveState.Sense.Packs[].Pack.Items[].Stack.Unclaimed bool
 saveState.Sense.Packs[].Pack.Items[].Stack.Wear int
 saveState.Sense.Packs[].Pack.Items[].Stack.X int
@@ -1700,7 +1699,6 @@ saveState.Stacks[].V.Quality uint8
 saveState.Stacks[].V.Rot int
 saveState.Stacks[].V.Stuff rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.Stacks[].V.Tame bool
-saveState.Stacks[].V.TradeBought bool
 saveState.Stacks[].V.Unclaimed bool
 saveState.Stacks[].V.Wear int
 saveState.Stacks[].V.X int
@@ -1940,7 +1938,6 @@ saveState.Turrets.Gear[].K.Held.Quality uint8
 saveState.Turrets.Gear[].K.Held.Rot int
 saveState.Turrets.Gear[].K.Held.Stuff rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.Turrets.Gear[].K.Held.Tame bool
-saveState.Turrets.Gear[].K.Held.TradeBought bool
 saveState.Turrets.Gear[].K.Held.Unclaimed bool
 saveState.Turrets.Gear[].K.Held.Wear int
 saveState.Turrets.Gear[].K.Held.X int
@@ -2261,7 +2258,6 @@ saveState.World.AX9.Cargo[].Hold.Items[].Quality uint8
 saveState.World.AX9.Cargo[].Hold.Items[].Rot int
 saveState.World.AX9.Cargo[].Hold.Items[].Stuff rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Cargo[].Hold.Items[].Tame bool
-saveState.World.AX9.Cargo[].Hold.Items[].TradeBought bool
 saveState.World.AX9.Cargo[].Hold.Items[].Unclaimed bool
 saveState.World.AX9.Cargo[].Hold.Items[].Wear int
 saveState.World.AX9.Cargo[].Hold.Items[].X int
@@ -2410,7 +2406,6 @@ saveState.World.AX9.Flights[].Load.Items[].Quality uint8
 saveState.World.AX9.Flights[].Load.Items[].Rot int
 saveState.World.AX9.Flights[].Load.Items[].Stuff rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Flights[].Load.Items[].Tame bool
-saveState.World.AX9.Flights[].Load.Items[].TradeBought bool
 saveState.World.AX9.Flights[].Load.Items[].Unclaimed bool
 saveState.World.AX9.Flights[].Load.Items[].Wear int
 saveState.World.AX9.Flights[].Load.Items[].X int
@@ -2566,7 +2561,6 @@ saveState.World.AX9.Holds[].Hold.Items[].Quality uint8
 saveState.World.AX9.Holds[].Hold.Items[].Rot int
 saveState.World.AX9.Holds[].Hold.Items[].Stuff rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.AX9.Holds[].Hold.Items[].Tame bool
-saveState.World.AX9.Holds[].Hold.Items[].TradeBought bool
 saveState.World.AX9.Holds[].Hold.Items[].Unclaimed bool
 saveState.World.AX9.Holds[].Hold.Items[].Wear int
 saveState.World.AX9.Holds[].Hold.Items[].X int
@@ -2893,7 +2887,6 @@ saveState.World.SettlementStocks[].Preserved[].Quality uint8
 saveState.World.SettlementStocks[].Preserved[].Rot int
 saveState.World.SettlementStocks[].Preserved[].Stuff rimworld-go/internal/domain/economy/item.Kind = uint8
 saveState.World.SettlementStocks[].Preserved[].Tame bool
-saveState.World.SettlementStocks[].Preserved[].TradeBought bool
 saveState.World.SettlementStocks[].Preserved[].Unclaimed bool
 saveState.World.SettlementStocks[].Preserved[].Wear int
 saveState.World.SettlementStocks[].Preserved[].X int

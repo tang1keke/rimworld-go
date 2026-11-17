@@ -36,7 +36,13 @@ func BenchmarkCaravanTradePreflight(b *testing.B) {
 			b.Fatal(why)
 		}
 	}
-	if len(last.items) != 9 || len(last.sold) != 1 {
-		b.Fatalf("unexpected preflight: %+v", last)
+	components := 0
+	for _, st := range last.items {
+		if st.Kind == item.Components {
+			components += st.Qty
+		}
+	}
+	if len(last.items) != 8 || len(last.sold) != 1 || components != 4 {
+		b.Fatalf("preflight lost physical goods or failed to merge bought components: %+v", last)
 	}
 }

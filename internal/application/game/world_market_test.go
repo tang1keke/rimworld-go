@@ -131,7 +131,7 @@ func TestWorldMarketTradeConservesAndPersists(t *testing.T) {
 	found := false
 	for _, st := range acquired {
 		if st.Kind == sold.Kind && st.Quality == sold.Quality && st.Wear == sold.Wear &&
-			st.Stuff == sold.Stuff && st.TradeBought {
+			st.Stuff == sold.Stuff {
 			found = true
 		}
 	}
@@ -149,7 +149,7 @@ func TestWorldMarketTradeConservesAndPersists(t *testing.T) {
 	landed := false
 	for _, id := range g.itemIDs {
 		if st := g.stacks.Ref(id); st != nil && st.Kind == sold.Kind &&
-			st.Quality == sold.Quality && st.Wear == sold.Wear && st.Stuff == sold.Stuff && st.TradeBought {
+			st.Quality == sold.Quality && st.Wear == sold.Wear && st.Stuff == sold.Stuff {
 			landed = true
 			break
 		}

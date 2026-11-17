@@ -35,6 +35,10 @@ func (g *Game) ApplyPending() {
 }
 
 func (g *Game) phaseCommands() {
+	if w := g.worldSt; primary(g) && w != nil && w.marketLegacy {
+		w.marketLegacy = false
+		fleetOf(g).RestoreVisits(uint64(g.clock.Now()))
+	}
 	cmds := g.pending
 	g.pending = nil
 	var later []command.Command

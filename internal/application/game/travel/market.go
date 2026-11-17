@@ -23,8 +23,8 @@ type TradePlan struct {
 // quality, material, wear and other item attributes.
 func (p TradePlan) Sold() []item.Stack { return slices.Clone(p.sold) }
 
-// appendTradeGood joins only identical physical stacks. Goods obtained
-// through repeated trades retain their own provenance and metadata.
+// appendTradeGood joins fully identical physical stacks, regardless of
+// purchase source. Different quality, make or condition stay separate.
 func appendTradeGood(items []item.Stack, st item.Stack) []item.Stack {
 	for i := range items {
 		if items[i].Kind != st.Kind {
@@ -116,7 +116,6 @@ func (o Ops) PlanTrade(cid uint64, members int, res trade.Result, incoming []ite
 			return TradePlan{}, "The settlement cargo is inconsistent."
 		}
 		expected[k] -= st.Qty
-		st.TradeBought = true
 		st.X, st.Y, st.Carrier = 0, 0, 0
 		next = appendTradeGood(next, st)
 	}

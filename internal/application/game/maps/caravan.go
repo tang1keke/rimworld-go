@@ -63,6 +63,18 @@ func (c Caravan) Clone() Caravan {
 	return c
 }
 
+// CloneCaravans detaches a saved or restored caravan list from live routes.
+func CloneCaravans(caravans []Caravan) []Caravan {
+	if len(caravans) == 0 {
+		return nil
+	}
+	out := make([]Caravan, len(caravans))
+	for i, c := range caravans {
+		out[i] = c.Clone()
+	}
+	return out
+}
+
 // Fleet is the caravans (ascending id, the caller's slice) and the open
 // maps' atlas over the host.
 type Fleet struct{ marketOps }

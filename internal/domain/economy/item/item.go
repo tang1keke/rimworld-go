@@ -652,9 +652,8 @@ type Stack struct {
 	// colony (ruin loot, stone chunks, a predator's kill): haulers leave
 	// them where they lie unless HaulMarked. Picking one up or storing it
 	// claims it (PLAY-017).
-	Unclaimed   bool
-	TradeBought bool // preserves provenance of goods brought home from settlement trading
-	HaulMarked  bool
+	Unclaimed  bool
+	HaulMarked bool
 	// Poison is a cooked meal's chance to give food poisoning, permille
 	// per meal eaten (set by the cook from skill and kitchen, WS-M); 0
 	// for everything else and for stacks from older saves.
@@ -791,8 +790,7 @@ func DryRate(tenthsC int) int {
 // CanMerge reports whether a and b may combine on the same tile.
 // Rotten corpses never merge with fresh ones, one person's body (or
 // bones) never merges with another's, and animal corpses stack by species;
-// fertile eggs stack by species and by whose they are (Tame), and the
-// merged stack keeps the incubation of the one it joins. Made items
+// fertile eggs stack by species, ownership and incubation progress. Made items
 // stack only with their own quality, material and wear (PRD-2); food
 // stacks merge whatever their wear (MergeFood averages it, FOOD-4).
 func CanMerge(a, b Stack) bool {
@@ -805,7 +803,7 @@ func CanMerge(a, b Stack) bool {
 // CanMerge without the place, carrier and mark checks.
 func SameLoad(a, b Stack) bool {
 	return a.Kind == b.Kind && a.Rotten() == b.Rotten() && a.Dried == b.Dried && a.Of == b.Of &&
-		a.Animal == b.Animal && a.Tame == b.Tame && a.TradeBought == b.TradeBought && a.Quality == b.Quality && a.Stuff == b.Stuff && (a.Wear == b.Wear || a.Kind.IsFood()) &&
+		a.Animal == b.Animal && a.Tame == b.Tame && a.Building == b.Building && a.Hatch == b.Hatch && a.Quality == b.Quality && a.Stuff == b.Stuff && (a.Wear == b.Wear || a.Kind.IsFood()) &&
 		a.Yield == b.Yield && a.Book == b.Book // A7: two books are never one load
 }
 

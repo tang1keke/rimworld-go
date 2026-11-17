@@ -1545,7 +1545,7 @@ the player what just happened and what requires attention.
 -   [ ] **Rest state**
 -   [ ] **Foraging**
 -   [ ] **Reform/enter settlement actions**
--   [x] **Trade** (UI-ECON-01: friendly visiting caravan's World gizmo opens a native inventory, quantity, prices and gifts modal; Accept sends typed `WorldCaravanTrade`)
+-   [ ] **Trade** (WORLD-ECON-01 provides the simulation command/read model; s1-mini owns the user-facing web trading UI)
 -   [ ] **Attack**
 -   [ ] **Settle**
 -   [ ] **Return/change destination**

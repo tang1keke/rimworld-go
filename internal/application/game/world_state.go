@@ -58,19 +58,18 @@ import (
 // allowed areas); caravans advance on the hour.
 const worldStep = 250
 
-// worldState is the world beyond the map: caravans, the pawns away on
-// them, the visitors on the map and the allowed-area assignments. nil
-// until first needed; saved as World. The Game field is worldSt (g.world
-// is the World read model).
+// worldState owns caravans, off-map pawns, visitors and allowed areas.
+// It is persisted as the save's World block.
 type worldState struct {
 	// planet is rebuilt from the setup's World params on first use (never
 	// saved); planetTried: the build was attempted (nil: no world).
-	planet      *planet.Planet
-	planetTried bool
-	caravans    []maps.Caravan         // ascending ID (game/maps)
-	market      []maps.SettlementStock // tile-sorted faction-base inventory (game/maps)
-	stashed     []stashRec             // ascending ID (world_stash.go)
-	visitors    []visitorRec           // ascending ID (visitors.go)
+	planet       *planet.Planet
+	planetTried  bool
+	caravans     []maps.Caravan         // ascending ID (game/maps)
+	market       []maps.SettlementStock // tile-sorted faction-base inventory (game/maps)
+	marketLegacy bool                   // one authoritative pass backfills visits from pre-market World v2 saves
+	stashed      []stashRec             // ascending ID (world_stash.go)
+	visitors     []visitorRec           // ascending ID (visitors.go)
 	// areaOf is each restricted colonist's or tame animal's allowed area
 	// ref (areas.go): an area id, or command.AreaHome; absent means
 	// unrestricted. Looked up only, never iterated for output unsorted.
@@ -114,8 +113,7 @@ type worldSave struct {
 	SettlementStocks []maps.SettlementStock // world market: nil in older saves
 }
 
-// worldSaveVersion is the format exportWorld writes. Base stock is an
-// additive field on v2; old saves decode it as nil without migration.
+// World v2 remains compatible; older visiting caravans backfill markets on their first command pass.
 const worldSaveVersion = 2
 
 // areaAssign is one pawn's allowed area in a save.
@@ -289,9 +287,7 @@ func (g *Game) exportWorld() *worldSave {
 		return nil
 	}
 	s := &worldSave{Version: worldSaveVersion, Stashed: slices.Clone(w.stashed), Visitors: slices.Clone(w.visitors), Quests: qs}
-	for _, c := range w.caravans {
-		s.Caravans = append(s.Caravans, c.Clone())
-	}
+	s.Caravans = maps.CloneCaravans(w.caravans)
 	s.SettlementStocks = maps.CloneMarkets(w.market)
 	for id, a := range w.areaOf {
 		s.AreaOf = append(s.AreaOf, areaAssign{Pawn: id, Area: a})
@@ -311,10 +307,9 @@ func (g *Game) importWorld(s *worldSave) {
 		return
 	}
 	w := g.worldS()
-	for _, c := range s.Caravans {
-		w.caravans = append(w.caravans, c.Clone())
-	}
+	w.caravans = maps.CloneCaravans(s.Caravans)
 	w.market = maps.CloneMarkets(s.SettlementStocks)
+	w.marketLegacy = len(s.SettlementStocks) == 0 && len(s.Caravans) > 0
 	w.stashed = slices.Clone(s.Stashed)
 	w.visitors = slices.Clone(s.Visitors)
 	for _, a := range s.AreaOf {
