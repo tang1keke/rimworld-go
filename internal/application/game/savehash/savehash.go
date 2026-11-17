@@ -2,6 +2,7 @@
 package savehash
 
 import (
+	"maps"
 	"reflect"
 	"slices"
 
@@ -9,6 +10,24 @@ import (
 	"rimworld-go/internal/domain/sim/statehash"
 	"rimworld-go/internal/domain/world/temperature"
 )
+
+// CanonicalSliceValues replaces empty non-nil map slice values with nil,
+// matching gob's decoded representation without mutating the source map.
+func CanonicalSliceValues[K comparable, V ~[]E, E any](src map[K]V) map[K]V {
+	var out map[K]V
+	for key, value := range src {
+		if value != nil && len(value) == 0 {
+			if out == nil {
+				out = maps.Clone(src)
+			}
+			out[key] = nil
+		}
+	}
+	if out != nil {
+		return out
+	}
+	return src
+}
 
 // Options contains the game-owned projections that cannot be read from the
 // exported save fields alone.

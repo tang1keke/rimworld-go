@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"testing"
 
+	"rimworld-go/internal/domain/pawn/mood"
 	"rimworld-go/internal/domain/sim/statehash"
 )
 
-// Direct hashing must match the canonical gob-decoded save. In particular,
-// empty exported slices and derived, unexported wildlife caches differ in memory.
+// Direct hashing must match the canonical gob-decoded save. Gob drops derived
+// wildlife caches and decodes empty slice values nested in maps as nil.
 func TestStateHashMatchesEncodedSavedState(t *testing.T) {
 	check := func(t *testing.T, g *Game) {
 		t.Helper()
@@ -56,6 +57,15 @@ func TestStateHashMatchesEncodedSavedState(t *testing.T) {
 			t.Run("reloaded", func(t *testing.T) { check(t, loaded) })
 		})
 	}
+	t.Run("empty-memory-slices", func(t *testing.T) {
+		g := NewColony(Config{Seed: 7, Width: 48, Height: 40})
+		g.memories[1] = mood.Memories{}
+		g.memories[2] = mood.Memories{}
+		check(t, g)
+		if g.memories[1] == nil || g.memories[2] == nil {
+			t.Fatal("state hashing mutated live empty memories")
+		}
+	})
 	t.Run("multiple-maps", func(t *testing.T) {
 		g, _, _, _, _, _ := twoMaps(t)
 		check(t, g)

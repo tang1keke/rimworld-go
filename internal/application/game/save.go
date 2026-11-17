@@ -26,6 +26,7 @@ import (
 	"rimworld-go/internal/application/game/resize"
 	"rimworld-go/internal/application/game/rest"
 	"rimworld-go/internal/application/game/savefmt"
+	"rimworld-go/internal/application/game/savehash"
 	"rimworld-go/internal/application/game/sense"
 	"rimworld-go/internal/application/game/ship"
 	"rimworld-go/internal/application/game/thermo"
@@ -562,7 +563,7 @@ func snapshotForSave(g *Game, stamp savefmt.Stamp) (SaveInfo, *saveState, error)
 		NoFood: g.noFood, RestedFree: g.rest.Export(), RestNeeds: g.rest.Needs.Export(), Calm: g.calm, Banked: g.banked,
 		OrderQueue: map[entity.EntityID][]savedOrder{}, Worn: craft.ExportOutfits(g.apparel), Joy: g.joy,
 		PrioList: exportPrios(g.prio), Scheds: g.scheds, NextThreat: g.nextThreat, ThreatsOn: g.threatsOn,
-		Breaks: map[entity.EntityID]savedBreak{}, Memories: g.memories, Pending: g.pending,
+		Breaks: map[entity.EntityID]savedBreak{}, Memories: savehash.CanonicalSliceValues(g.memories), Pending: g.pending,
 		AteAt: g.ateAt, Draft: g.draft, SleptAt: g.sleptAt, Equip: g.equip,
 		Carrying: g.care.Carry.Export(), TendedUntil: g.care.Doctor.ExportTended(),
 		Research: g.lab.Prog.V1(), ResearchAll: g.lab.Prog.Slice(), NG1: g.exportSetupState(), ResearchCur: g.lab.Cur, ResearchSet: g.lab.Set,
