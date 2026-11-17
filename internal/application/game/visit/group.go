@@ -203,14 +203,13 @@ func (v Visits) TickGroups(now uint64) {
 		lost := 0
 		for j := range g.Members {
 			m := &g.Members[j]
-			if m.Departed {
-				continue
+			if !m.Departed {
+				gone, harmed := v.h.MemberGone(m.ID, m.Role == RolePackAnimal)
+				if gone {
+					m.Departed = true
+				}
+				m.Lost = m.Lost || harmed
 			}
-			gone, harmed := v.h.MemberGone(m.ID, m.Role == RolePackAnimal)
-			if gone {
-				m.Departed = true
-			}
-			m.Lost = m.Lost || harmed
 			if m.Lost {
 				lost++
 			}

@@ -3,6 +3,7 @@ package visit
 import (
 	"slices"
 
+	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/economy/trade"
 	"rimworld-go/internal/domain/sim/entity"
 )
@@ -32,6 +33,92 @@ func AssignCargo(st trade.Stock, owners []entity.EntityID) []Cargo {
 	}
 	out[0].Silver = st.Silver
 	return out
+}
+
+// SettleCargo applies a validated trade to the existing carrier manifest.
+// Goods leave in ascending owner-ID order; newly received goods and silver
+// belong to the trader. All unaffected lines remain with their owners.
+// The caller applies the same trade.Result to Stock after this succeeds.
+func SettleCargo(cargo []Cargo, trader entity.EntityID, res trade.Result) bool {
+	traderIndex := slices.IndexFunc(cargo, func(c Cargo) bool { return c.Owner == trader })
+	if traderIndex < 0 {
+		return false
+	}
+	for _, bought := range res.Buy {
+		available := 0
+		for _, hold := range cargo {
+			for _, line := range hold.Lines {
+				if line.Goods() == bought.Goods() {
+					available += line.Qty
+				}
+			}
+		}
+		if available < bought.Qty {
+			return false
+		}
+	}
+	if res.Silver > 0 {
+		available := 0
+		for _, hold := range cargo {
+			available += hold.Silver
+		}
+		if available < res.Silver {
+			return false
+		}
+	}
+	for _, bought := range res.Buy {
+		left := bought.Qty
+		for i := range cargo {
+			for j := 0; j < len(cargo[i].Lines) && left > 0; {
+				line := &cargo[i].Lines[j]
+				if line.Goods() != bought.Goods() {
+					j++
+					continue
+				}
+				n := min(left, line.Qty)
+				line.Qty -= n
+				left -= n
+				if line.Qty == 0 {
+					cargo[i].Lines = slices.Delete(cargo[i].Lines, j, j+1)
+				} else {
+					j++
+				}
+			}
+			if left == 0 {
+				break
+			}
+		}
+	}
+	for _, sold := range res.Sell {
+		if sold.Kind == item.Silver {
+			cargo[traderIndex].Silver += sold.Qty
+			continue
+		}
+		lines := cargo[traderIndex].Lines
+		i, found := slices.BinarySearchFunc(lines, sold.Goods(), func(l trade.Line, g trade.Goods) int {
+			return l.Goods().Compare(g)
+		})
+		if found {
+			lines[i].Qty += sold.Qty
+		} else {
+			lines = slices.Insert(lines, i, sold)
+		}
+		cargo[traderIndex].Lines = lines
+	}
+	if res.Silver < 0 {
+		cargo[traderIndex].Silver -= res.Silver
+	} else if res.Silver > 0 {
+		left := res.Silver
+		for i := range cargo {
+			n := min(left, cargo[i].Silver)
+			cargo[i].Silver -= n
+			left -= n
+			if left == 0 {
+				break
+			}
+		}
+	}
+	return true
 }
 
 // LoseCargo removes a dead carrier's quantities from both the assignments

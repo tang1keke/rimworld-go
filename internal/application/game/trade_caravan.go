@@ -169,9 +169,11 @@ func (g *Game) traderVisitorGone(id entity.EntityID) {
 	if c == nil {
 		return
 	}
-	if i, ok := slices.BinarySearch(c.Members, id); ok {
-		c.Members = slices.Delete(c.Members, i, i+1)
+	i, ok := slices.BinarySearch(c.Members, id)
+	if !ok {
+		return // this member's loss or departure was already settled
 	}
+	c.Members = slices.Delete(c.Members, i, i+1)
 	if id != c.Trader {
 		return
 	}
@@ -195,9 +197,6 @@ func (g *Game) traderLost(c *traderCaravan) {
 	}
 	remaining, lines, silver := visit.LoseCargo(&c.Stock, c.Cargo, c.Trader)
 	c.Cargo = remaining
-	if len(c.Cargo) == 0 && len(lines) == 0 && silver == 0 {
-		lines, silver = c.Stock.Lines, c.Stock.Silver // old saves without a cargo manifest
-	}
 	for _, l := range lines {
 		g.dropGoods(l, x, y, true)
 	}

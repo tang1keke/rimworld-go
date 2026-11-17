@@ -135,6 +135,13 @@ func (g *Game) cmdProposeTrade(offer string, gift bool) {
 		s.reason = res.Reject.String()
 		return
 	}
+	if !orbital {
+		c := caravanByTrader(&g.trade, s.trader)
+		if c == nil || !visit.SettleCargo(c.Cargo, c.Trader, res) {
+			s.reason = ReasonOfferBroken
+			return
+		}
+	}
 	s.reason = ""
 	for _, l := range res.Sell {
 		g.takeGoods(gd, l.Kind, l.Qty)
@@ -169,11 +176,6 @@ func (g *Game) cmdProposeTrade(offer string, gift bool) {
 	} else {
 		for _, l := range deliver {
 			g.dropGoods(l, pos.X, pos.Y, false)
-		}
-	}
-	if !orbital {
-		if c := caravanByTrader(&g.trade, s.trader); c != nil {
-			c.Cargo = visit.AssignCargo(c.Stock, caravanCargoOwners(g, c))
 		}
 	}
 	g.message(pos.X, pos.Y, "%s traded with %s.", g.name(s.negotiator), p.name)
