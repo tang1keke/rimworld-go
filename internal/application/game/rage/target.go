@@ -49,7 +49,7 @@ func isFoe(s Sight, o entity.EntityID) bool {
 		if a.Dead() || a.Downed || a.Dormant {
 			return false
 		}
-		if a.Tame {
+		if a.Tame || s.R.h.PackAnimal(o) {
 			return true
 		}
 		if self := s.R.h.Ref(s.Self); self != nil {

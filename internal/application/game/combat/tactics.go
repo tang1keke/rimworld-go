@@ -179,12 +179,20 @@ func (t *Tactics) RaidFoes(source entity.EntityID, x, y, r int) []Seen {
 			continue
 		}
 		if a, ok := t.h.Animal(s.ID); ok {
+			if a.Dead() || a.Downed || a.Dormant {
+				continue
+			}
 			other, foreign := faction.Creature(a.Species)
 			if a.Tame {
 				other, foreign = faction.Player, hidden
 			}
-			if !foreign || a.Dead() || a.Downed || a.Dormant ||
-				!faction.HiddenEnemies(mine, other) {
+			if !foreign {
+				if t.h.PackEnemy(source, s.ID) {
+					t.out = append(t.out, s)
+				}
+				continue
+			}
+			if !faction.HiddenEnemies(mine, other) {
 				continue
 			}
 		} else if !hidden || !t.h.StandingPawn(s.ID) {

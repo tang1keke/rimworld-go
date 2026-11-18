@@ -5,6 +5,7 @@ import (
 
 	"rimworld-go/internal/application/game/combat"
 	"rimworld-go/internal/application/game/evlog"
+	"rimworld-go/internal/application/game/visit"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/animal"
@@ -18,6 +19,7 @@ import (
 	"rimworld-go/internal/domain/combat/weapon"
 	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/economy/recipe"
+	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/pawn/health"
 	"rimworld-go/internal/domain/pawn/skill"
 	"rimworld-go/internal/domain/pawn/stat"
@@ -62,6 +64,25 @@ func (h combatCreatures) Weapon(id entity.EntityID) weapon.Kind          { retur
 func (h combatCreatures) StandingPawn(id entity.EntityID) bool           { return h.g.standingPawn(id) }
 func (h combatCreatures) StandingRaider(id entity.EntityID) bool         { return h.g.standingRaider(id) }
 func (h combatCreatures) Hostile(a animal.State) bool                    { return h.g.hostile(a) }
+
+// PackEnemy uses the saved visit group and world faction wars.
+func (h combatCreatures) PackEnemy(source, target entity.EntityID) bool {
+	g := h.g
+	if g.worldSt == nil {
+		return false
+	}
+	kind, ref := faction.NumTypes, 0
+	if source == 0 {
+		kind = faction.Player
+	} else if a, ok := g.animals.Get(source); ok {
+		if t, hidden := faction.Creature(a.Species); hidden {
+			kind = t
+		}
+	} else if p := g.personOf(source); p != nil {
+		ref = p.Faction
+	}
+	return visit.PackEnemy(g.worldSt.visitGroups, g.ng.factions, ref, kind, target)
+}
 
 type combatRosters struct{ g *Game }
 

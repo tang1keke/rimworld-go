@@ -44,3 +44,7 @@ The animals' fight-or-flight brain: manhunter rage, tame guards, hunts, charges,
 For an attacking hive insect, isFoe additionally accepts an active mechanoid of another hidden faction through domain/faction.HiddenEnemies. Same-faction insects, dormant/downed/dead creatures and unrelated wild animals remain excluded. Human pawns and tame animals retain their existing treatment. Target locking, reach-first selection and re-evaluation cadence stay unchanged.
 
 Public Core wiki Mental break behavior: any enraged ordinary animal may target hostile mechanoids in addition to standing humans. The existing target-lock and chase rules apply; unrelated wild animals and insectoids remain outside the ordinary animal rage target set.
+
+## FAC-CORE visiting caravan packs
+
+- People.PackAnimal reports physical members of a saved foreign visiting group (RolePackAnimal, not departed). Existing manhunter isFoe includes them alongside standing humans and colony-tame animals, rejecting dead/downed/dormant targets first. Target memory, reach checks, hunting cycles and chase hysteresis are unchanged.

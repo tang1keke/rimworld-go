@@ -170,11 +170,12 @@ func (f *fakeHost) RaiderOn(t, id entity.EntityID) (int, int, bool) {
 	p := f.pos[t]
 	return p[0], p[1], true
 }
-func (f *fakeHost) Hostile(a animal.State) bool     { return a.Mode == animal.Attack && f.pawns[a.Target] }
-func (f *fakeHost) AnimalIDs() []entity.EntityID    { return f.animalIDs }
-func (f *fakeHost) RaiderIDs() []entity.EntityID    { return f.raiderIDs }
-func (f *fakeHost) Drafted(id entity.EntityID) bool { return f.drafted[id] }
-func (f *fakeHost) Name(id entity.EntityID) string  { return fmt.Sprintf("p%d", id) }
+func (f *fakeHost) Hostile(a animal.State) bool                   { return a.Mode == animal.Attack && f.pawns[a.Target] }
+func (f *fakeHost) PackEnemy(source, target entity.EntityID) bool { return false }
+func (f *fakeHost) AnimalIDs() []entity.EntityID                  { return f.animalIDs }
+func (f *fakeHost) RaiderIDs() []entity.EntityID                  { return f.raiderIDs }
+func (f *fakeHost) Drafted(id entity.EntityID) bool               { return f.drafted[id] }
+func (f *fakeHost) Name(id entity.EntityID) string                { return fmt.Sprintf("p%d", id) }
 func (f *fakeHost) Near(x, y, r int, who Who, buf []Seen) []Seen {
 	for id, p := range f.pos {
 		_, beast := f.animals[id]

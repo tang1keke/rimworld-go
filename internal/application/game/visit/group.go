@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"rimworld-go/internal/domain/ai/job"
+	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/sim/entity"
 )
 
@@ -161,6 +162,48 @@ func (v Visits) GroupOf(id entity.EntityID) (Group, bool) {
 		}
 	}
 	return Group{}, false
+}
+
+// PackFaction returns the faction ref (1 + world faction index) owning
+// a live visiting pack animal. Group membership is already saved; animal
+// species and the Tame flag carry no foreign faction affiliation.
+func PackFaction(groups []Group, id entity.EntityID) int {
+	for _, g := range groups {
+		if g.Faction == 0 {
+			continue
+		}
+		for _, m := range g.Members {
+			if m.ID == id && m.Role == RolePackAnimal && !m.Departed {
+				return g.Faction
+			}
+		}
+	}
+	return 0
+}
+
+// PackEnemy checks the saved relation between a visiting animal's
+// faction and an attacker. sourceRef is 1-based for a world human; for
+// a faction without a world row, sourceType identifies the attacker.
+func PackEnemy(groups []Group, factions []faction.Faction, sourceRef int, sourceType faction.Type, pack entity.EntityID) bool {
+	ref := PackFaction(groups, pack)
+	if ref <= 0 || ref > len(factions) {
+		return false
+	}
+	theirs := factions[ref-1]
+	if sourceRef > 0 {
+		if sourceRef > len(factions) {
+			return false
+		}
+		mine := factions[sourceRef-1]
+		return mine.AtWar(theirs.ID) && theirs.AtWar(mine.ID)
+	}
+	switch sourceType {
+	case faction.Player:
+		return theirs.Relation == faction.Hostile
+	case faction.MechHive, faction.Swarm:
+		return faction.HiddenEnemies(sourceType, theirs.Type)
+	}
+	return false
 }
 
 // LeaveGroup changes the goal once, then interrupts idle members.

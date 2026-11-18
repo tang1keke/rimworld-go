@@ -94,7 +94,7 @@ S1 counterpart: `release/vanilla-faction-core-20261117`, `docs/vanilla-faction-s
 - Raiders, mechanoids, and hive rage use the original target-job/attack/movement paths; only candidate eligibility changes. Neutral visitors are recognized as foreign human faction members by mechs even though they stay outside the hostile raider AI.
 - The first broad upstream game test found an obsolete casket movement assertion: a hostile ancient now stands still to attack a nearby vault insect. The test verifies actual attack traces or movement, preserving the observable activity contract.
 - Regression coverage now includes human versus machine/insect, machine versus raider/visitor/insect, insect versus machine, same-faction exclusions, dormancy/LOS, positive hit damage, no-flap and save/replay. No save version, RNG draw, new ID, map-wide tick scan, assets or DLC.
-- Remaining scope: dynamic non-player faction wars and independent evidence for exact item gift valuation. The present hidden-faction hostility is permanent, as published.
+- Remaining verified Core gap: evidence for exact item gift valuation. Periodic NPC declarations and truces are a separate mod feature. The present hidden-faction hostility is permanent, as published.
 
 ### Final Core animal hostility coverage
 
@@ -109,3 +109,36 @@ S1 counterpart: `release/vanilla-faction-core-20261117`, `docs/vanilla-faction-s
 - S1 counterpart: race-enabled faction, rage, raid and combat packages PASS; real-game hidden-faction, casket, mech/hive, save-schema and old fixture regression PASS; go build ./... and affected vet PASS.
 - S1 full go test -short -count=1 ./internal/application/game/... still has eight previously present failing tests. The failures have exactly the same names as the baseline before this PR, with zero new failures.
 - Logs: /tmp/faction-crosscombat-release-race-20261118.log and /tmp/faction-crosscombat-s1-release-20261118.log; names: /tmp/faction-crosscombat-s1-release-fails-20261118.txt and /tmp/faction-s1-hidden-fail-names.txt.
+
+## FAC-CORE follow-up: visiting caravan animal ownership (2026-11-18)
+
+### Public Core evidence and boundaries
+
+- [Trade](https://rimworldwiki.com/wiki/Trade) and [Factions](https://rimworldwiki.com/wiki/Factions): a foreign caravan has pack animals belonging to its originating faction; neutral caravans can be attacked by other hostile groups and may defend themselves. These pack animals are foreign animals, not colony livestock or unowned wildlife.
+- [Dynamic Diplomacy mod](https://top-mods.com/mods/rimworld/gameplay/10823-dynamic-diplomacy.html) explicitly adds autonomous NPC-vs-NPC declarations of war and peace. The vanilla Core public articles specify variable player-versus-faction goodwill and NPC faction wars, but no independent recurring NPC war/peace event with a proven frequency or transition. Keep the existing generated, saved reciprocal NPC Enemies graph and avoid inventing a mod event.
+- The visit.Group already saves Faction (1+world faction index), a sorted Members list with RolePackAnimal, and Member.Departed. The physical animal.State has no faction identity and must not become Tame: Tame authorizes player ownership, food, training and name-changing. The group is the existing authoritative owner.
+- Before this change, a visiting caravan pack donkey is presented as wild, combat.Tactics.RaidFoes and rage.isFoe miss the animal, and MemberGone(pack=true) classifies any disappearance as harmed. Combat, read models and save/replay therefore disagree.
+
+### Contract (one direct worker; no agents or split branches)
+
+- Domain ownership: visit.PackFaction derives a living pack animal's 1-based world faction ref from the current saved visit group; no extra State field, group map or save-version change. Departed/lost animals resolve to no current faction. Their canonical cargo remains in the existing trader ledger.
+- Combat: enemy mechanoids and infestation insects may target foreign caravan pack animals alongside their human guards. Human raiders target the caravan animal only when their specific NPC faction is at war with the caravan's faction; same-faction or peaceful visitors remain safe. A hostile-to-colony visiting faction makes its pack animals valid colony defender/automatic-turret targets. Neutral friendly caravans stay protected from player automatic fire.
+- Rage: a manhunter may target a physical visiting pack animal. The same animal does not become a player pet or an unrelated wild animal and continues the existing pack-follow/exit lifecycle.
+- Read-only UI: AnimalView and Dossier display the group's actual faction emblem, name and colony relation instead of "wild." Departure removes foreign attribution with the group. World faction roster/diplomacy stays unchanged.
+- Preserve existing cargo loss-on-death once, retreat on loss, non-loss scheduled departure, faction identity across save/load and no surprise player ownership. Real game tests must demonstrate red before patch, then green. Run relevant race tests and upstream arch; compare S1's known existing full-suite failures. Do not push, PR, merge or deploy.
+
+### Implementation and observed regressions
+
+- The five new live-game tests failed before the change and now pass: faction displayed as wild, hostile machines ignoring packs, NPC raiders ignoring packs of rival factions, ordinary manhunters ignoring packs, and colony turrets ignoring packs after their faction turns hostile.
+- visit.PackFaction reads the existing saved group and its live RolePackAnimal member. visit.PackEnemy uses reciprocal saved NPC wars, fixed hidden-faction hostility and the visiting faction's relationship with the colony. Departed members lose affiliation.
+- Pack animals stay untamed and never acquire player training or livestock rights. AnimalView and Dossier display the group's name, existing project emblem and relationship. Standard combat, rage and turret targeting now see pack animals through their existing scan and attack paths.
+- CargoOwners, CargoLossGroup, PackReady and PacePack reside in visit. Trader and pack loss share one loss-and-drop function, with existing once-only settlement and safe departure. Live animal read-model composition moved into animalview. No new world state, save fields, IDs, assets or RNG.
+- Domain unit tests exercise world-war reciprocity, missing ID, same-faction safety and departure. Real game tests exercise battle selection, colony non-fire in peace, save/replay and card/view labels. The strict game package architecture budget remains unchanged.
+
+### Final gates and handoff
+
+- Upstream full application game and domain faction: go test -race -p 2 -count=1 ./internal/application/game/... ./internal/domain/faction PASS; go build ./... and affected go vet PASS.
+- New pack unit tests and seven pack system regressions, including actual mech damage and live downed-pack caravan retreat without cargo forfeiture: -race PASS.
+- make arch PASS with unchanged game package ceiling; git diff --check PASS. Upstream full log: /tmp/faction-pack-upstream-race-20261118.log.
+- S1 focused visit, combat, rage, raid, read models, faction and real-game -race PASS; build and affected vet PASS. S1 game suite retains the same eight existing failures as its prechange baseline (8 -> 8, zero new). Logs: /tmp/faction-pack-s1-full-20261118.log and /tmp/faction-pack-s1-fails-20261118.txt.
+- Branches are local PR candidates; no upstream push, pull request, main merge or deployment.

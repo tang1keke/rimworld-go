@@ -1,6 +1,9 @@
 package visit
 
-import "rimworld-go/internal/domain/sim/entity"
+import (
+	"rimworld-go/internal/domain/animal"
+	"rimworld-go/internal/domain/sim/entity"
+)
 
 // packStep follows the caravan's leader while staying, then leaves via the
 // saved exit. Its member flag must be set before removal: cargo leaves with
@@ -34,4 +37,17 @@ type PackSupport interface {
 	PackState(id entity.EntityID, now uint64) (x, y int, ready, ok bool)
 	PackMove(id entity.EntityID, tx, ty int, move bool, now uint64)
 	PackLeave(id entity.EntityID)
+}
+
+// PackReady reports whether the animal is free to move toward its visit
+// group's shared goal on this tick.
+func PackReady(a animal.State, now uint64) bool {
+	return a.PathI >= len(a.Path) && now >= a.RetryAt
+}
+
+// PacePack holds normal feeding/wandering decisions while the visitor
+// group owns the animal's movement.
+func PacePack(a animal.State, now uint64) animal.State {
+	a.Mode, a.NextDecide = animal.Wander, now+180
+	return a
 }

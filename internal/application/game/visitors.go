@@ -429,7 +429,8 @@ func (h visitGround) GroupID() uint64 {
 func (h visitGround) MemberGone(id entity.EntityID, pack bool) (gone, harmed bool) {
 	g := h.g
 	if pack {
-		return !g.animals.Has(id), !g.animals.Has(id)
+		a, ok := g.animals.Get(id)
+		return !ok, !ok || a.Downed
 	}
 	p := g.personOf(id)
 	if p == nil {
@@ -649,7 +650,7 @@ func (h visitGround) PackState(id entity.EntityID, now uint64) (x, y int, ready,
 		return 0, 0, false, false
 	}
 	p, _ := g.positions.Get(id)
-	return p.X, p.Y, a.PathI >= len(a.Path) && now >= a.RetryAt, true
+	return p.X, p.Y, visit.PackReady(a, now), true
 }
 func (h visitGround) PackMove(id entity.EntityID, tx, ty int, move bool, now uint64) {
 	g := h.g
@@ -660,7 +661,6 @@ func (h visitGround) PackMove(id entity.EntityID, tx, ty int, move bool, now uin
 	if move {
 		g.animalGoTo(id, &a, tx, ty)
 	}
-	a.Mode, a.NextDecide = animal.Wander, now+180
-	g.animals.Set(id, a)
+	g.animals.Set(id, visit.PacePack(a, now))
 }
 func (h visitGround) PackLeave(id entity.EntityID) { h.g.leaveMap(id) }

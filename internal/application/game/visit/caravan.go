@@ -138,6 +138,42 @@ func LoseCargo(st *trade.Stock, cargo []Cargo, owner entity.EntityID) (remaining
 	return cargo, nil, 0
 }
 
+// CargoOwners lists real carriers for an active trade group. The trader
+// always owns its own portion; departed or missing pack members own none.
+func CargoOwners(group Group, trader entity.EntityID, alive func(entity.EntityID) bool) []entity.EntityID {
+	owners := []entity.EntityID{trader}
+	for _, m := range group.Members {
+		if m.Role == RolePackAnimal && !m.Departed && alive(m.ID) {
+			owners = append(owners, m.ID)
+		}
+	}
+	return owners
+}
+
+// CargoLossGroup returns the caravan owning an active pack member. An
+// already departed carrier must never drop its manifest a second time.
+func CargoLossGroup(groups []Group, id entity.EntityID) uint64 {
+	for _, g := range groups {
+		if g.Kind != KindCaravan {
+			continue
+		}
+		for _, m := range g.Members {
+			if m.ID == id && m.Role == RolePackAnimal && !m.Departed {
+				return g.ID
+			}
+		}
+	}
+	return 0
+}
+
+// SmallStock caps goods carried by a small visiting trader.
+func SmallStock(stock *trade.Stock) {
+	stock.Silver = min(stock.Silver, 500)
+	for i := range stock.Lines {
+		stock.Lines[i].Qty = min(stock.Lines[i].Qty, 3)
+	}
+}
+
 // Caravans returns active and parked groups in their saved arrival order.
 func Caravans[T any](current *T, others []*T) []*T {
 	if current == nil {

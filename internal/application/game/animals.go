@@ -486,22 +486,12 @@ func (g *Game) animalViews() []AnimalView {
 			continue
 		}
 		p, _ := g.positions.Get(id)
-		sv := animalview.Of(a.Species)
-		out = append(out, AnimalView{
-			ID: id, Species: a.Species.String(), Label: sv.Label, Faction: sv.Faction, Emblem: sv.Emblem, X: p.X, Y: p.Y,
-			Attack: sv.Attack, Female: animalFemale(id, a),
-			Size:       sv.Size,
-			Health:     a.HP() * 100 / sv.MaxHP,
-			Mode:       a.Mode.String(),
-			Designated: a.Designated,
-			Hostile:    g.hostile(a) || a.Enraged(uint64(g.clock.Now())),
-			TargetID:   rageOf(g).ChaseTarget(a),
-			Tame:       a.Tame,
-			Name:       a.Name,
-			TameMark:   a.TameMark,
-			Manhunter:  a.Enraged(uint64(g.clock.Now())),
-		})
+		out = append(out, animalview.Live(id, a, p.X, p.Y, animalFemale(id, a),
+			g.hostile(a) || a.Enraged(now), rageOf(g).ChaseTarget(a), now))
 		av := &out[len(out)-1]
+		if g.worldSt != nil {
+			av.Visiting(g.worldSt.visitGroups, g.ng.factions)
+		}
 		m := g.motionOf(id)
 		av.StepTick, av.StepTicks = m.StepTick, m.StepTicks
 		if a.PathI < len(a.Path) {

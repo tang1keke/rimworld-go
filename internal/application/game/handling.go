@@ -6,6 +6,7 @@ import (
 	"rimworld-go/internal/application/game/evlog"
 	"rimworld-go/internal/application/game/herd"
 	"rimworld-go/internal/application/game/rage"
+	"rimworld-go/internal/application/game/visit"
 	"rimworld-go/internal/domain/ai/job"
 	"rimworld-go/internal/domain/ai/pathing"
 	"rimworld-go/internal/domain/animal"
@@ -363,6 +364,10 @@ func (h rageLook) IsRaider(id entity.EntityID) bool               { return h.g.i
 func (h rageLook) StandingPawn(id entity.EntityID) bool           { return h.g.standingPawn(id) }
 func (h rageLook) StandingRaider(id entity.EntityID) bool         { return h.g.standingRaider(id) }
 func (h rageLook) Colonist(id entity.EntityID) bool               { return slices.Contains(h.g.pawnIDs, id) }
+
+func (h rageLook) PackAnimal(id entity.EntityID) bool {
+	return h.g.worldSt != nil && visit.PackFaction(h.g.worldSt.visitGroups, id) != 0
+}
 
 func (h rageLook) DownedPawn(id entity.EntityID) bool {
 	v, ok := h.g.vital.Get(id)

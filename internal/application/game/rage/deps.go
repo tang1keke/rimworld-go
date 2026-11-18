@@ -87,6 +87,8 @@ type People interface {
 	NearestColonist(p Pos) entity.EntityID
 	// DownedPawn: id is a person lying downed (alive).
 	DownedPawn(id entity.EntityID) bool
+	// PackAnimal identifies a live visiting group's foreign pack animal.
+	PackAnimal(id entity.EntityID) bool
 }
 
 // Sight is a sight query's filter, passed by value so a query allocates

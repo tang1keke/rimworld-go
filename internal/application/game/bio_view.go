@@ -34,7 +34,7 @@ func (g *Game) Dossier(id entity.EntityID) (dossierview.Card, bool) {
 		c.Stats = fx.sheet
 	}
 	if a, ok := g.animals.Get(id); ok {
-		fillAnimalCard(g, &c, a, now)
+		fillAnimalCard(g, &c, id, a, now)
 		return c, true
 	}
 	if !g.isPawn(id) {
@@ -48,9 +48,12 @@ func (g *Game) Dossier(id entity.EntityID) (dossierview.Card, bool) {
 // factions.
 func colonyEmblem() string { return factionView(faction.Faction{Type: faction.Player}).Emblem }
 
-func fillAnimalCard(g *Game, c *dossierview.Card, a animal.State, now uint64) {
+func fillAnimalCard(g *Game, c *dossierview.Card, id entity.EntityID, a animal.State, now uint64) {
 	c.AgeDayOfYear = animal.AgeDays(a.Born, now, a.Species) % clock.DaysPerYear
 	c.AnimalFaction(a.Species, a.Tame, g.hostile(a) || a.Enraged(now))
+	if g.worldSt != nil {
+		c.PackFromVisit(g.worldSt.visitGroups, g.ng.factions, id)
+	}
 	if a.Mode == animal.Attack && a.Target != 0 {
 		c.AttackTarget = g.creatureName(a.Target)
 	}

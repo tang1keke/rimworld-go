@@ -95,6 +95,9 @@ type Creatures interface {
 	StandingRaider(id entity.EntityID) bool
 	// Hostile: animal a is attacking a colonist.
 	Hostile(a animal.State) bool
+	// PackEnemy checks faction hostility towards a foreign visiting
+	// animal; source 0 is the colony and its defenses.
+	PackEnemy(source, target entity.EntityID) bool
 }
 
 // Who picks the creatures Near collects.

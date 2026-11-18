@@ -122,10 +122,19 @@ Core hidden faction provenance and read model · 2026-11-18 · branch pr/vanilla
 ## ENG-014-hidden-faction-crosscombat
 Core cross-faction combat in existing AI · 2026-11-18 · branch pr/vanilla-faction-core
 - Research: the public RimWorld wiki Mechanoid hive and Insectoids pages describe permanent hostility toward all other factions. Only documented mechanics were used; no original code, XML, data, art or DLC.
-- Domain faction.HiddenEnemies owns the pure relationship. combat.Tactics.RaidFoes merges regular colonist candidates with the nearest additional active foreign fighter found by indexed local query and LOS; scratch buffers are reused. raid.Tactics.Foes replaces Colonists in the same eight-method role; a source ID of 0 remains the kidnapping guard query.
+- Domain faction.HiddenEnemies owns the pure relationship. combat.Tactics.RaidFoes merges regular colonist candidates with all visible active foreign fighters found by indexed local query and LOS; scratch buffers are reused. raid.Tactics.Foes replaces Colonists in the same eight-method role; a source ID of 0 remains the kidnapping guard query.
 - Humans now target hostile machines and insects, machines target humans (including neutral visitors) and insects, and hive rage targets machines. Same hidden faction, unrelated wildlife, dormant and downed opponents are excluded. Mech guard leash and target-retention margin, existing AI jobs and attack cycles are preserved.
 - Real-game regressions were red before the patch and cover actual damage, target selection, no-flap, sight, source factions and save replay. An old hostile-casket test now permits stationary fighting demonstrated by attack traces, alongside movement.
-- Next phase remains separately scoped to dynamic human faction diplomacy and research-supported gift item valuation. No push, main merge or deployment.
+- Independent NPC war/peace cycling is mod scope; evidence-based gift item valuation remains separately researched. No push, main merge or deployment.
 - After wider regression review, added ordinary manhunter versus mechanoid, a mechanoid targeting a tame colony animal, and all visible foreign candidates reaching the existing human threat scorer; each case was first observed failing in a real game test. No new timers, save fields or target queues.
 
 - Final checks: upstream full game and domain -race PASS, go build ./..., affected go vet and make arch PASS. S1 focused -race, build and vet PASS; full game failure baseline 8, candidate 8, identical names and zero new failures. Real test logs under /tmp/faction-crosscombat-release-race-20261118.log and /tmp/faction-crosscombat-s1-release-20261118.log.
+
+## ENG-015-foreign-pack-faction
+Visiting caravan pack faction allegiance · 2026-11-18 · pr/vanilla-faction-core
+- Foreign pack animals inherit their world's faction from the saved visit group and RolePackAnimal. They remain untamed, with normal group follow/departure and exact cargo loss behavior.
+- visit.PackEnemy resolves NPC reciprocal wars, permanent hidden-faction hostility and colony hostility. Existing combat target selection, turrets, auto-engage and manhunter rage read it. Dossier/AnimalView show actual world faction and relationship.
+- Cargo ownership and departure guards moved to visit. Trade seller and pack reuse one goods-drop implementation. Live animal view composition moved into animalview to preserve the strict game code budget.
+- Five real game regressions failed before the fix and passed afterward. Save/replay, peace, hostile targeting, same-faction exclusion, carried goods and departed member semantics covered.
+- Dynamic NPC war declarations/truces belong to a mod; published Core wars remain stable. Clean Room scope followed. Upstream complete game and faction race tests, build and vet PASS. S1 related race tests/build/vet PASS; same eight full-suite failures as the baseline, zero added.
+- Final gates: upstream full application game/domain faction race tests, go build, affected vet and architecture PASS. Seven pack game regressions cover real enemy damage and a downed pack's retreat with intact stock. S1 focused race and build/vet PASS; full suite pre-existing failures 8, candidate 8 with identical names. Final source change staged locally only.

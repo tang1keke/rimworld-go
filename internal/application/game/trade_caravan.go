@@ -76,10 +76,7 @@ func traderCaravanFromKind(g *Game, ref int, now uint64, requested, small bool) 
 	}
 	stock := trade.Generate(kind, faction.DefOf(f.Type).Tech, r)
 	if small {
-		stock.Silver = min(stock.Silver, 500)
-		for i := range stock.Lines {
-			stock.Lines[i].Qty = min(stock.Lines[i].Qty, 3)
-		}
+		visit.SmallStock(&stock)
 	}
 	c := &traderCaravan{GroupID: group.GroupID, Trader: group.Trader, Members: group.Members,
 		Faction: f.ID, Kind: kind, Stock: stock, LeaveAt: now + duration}
@@ -88,7 +85,8 @@ func traderCaravanFromKind(g *Game, ref int, now uint64, requested, small bool) 
 	} else {
 		g.trade.others = append(g.trade.others, c)
 	}
-	c.Cargo = visit.AssignCargo(c.Stock, caravanCargoOwners(g, c))
+	gr, _ := visitsOf(g).GroupOf(c.Trader)
+	c.Cargo = visit.AssignCargo(c.Stock, visit.CargoOwners(gr, c.Trader, g.animals.Has))
 	ids := group.Members
 	why := "has come"
 	if requested {
@@ -195,14 +193,7 @@ func (g *Game) traderLost(c *traderCaravan) {
 	if p, ok := g.positions.Get(c.Trader); ok {
 		x, y = p.X, p.Y
 	}
-	remaining, lines, silver := visit.LoseCargo(&c.Stock, c.Cargo, c.Trader)
-	c.Cargo = remaining
-	for _, l := range lines {
-		g.dropGoods(l, x, y, true)
-	}
-	if silver > 0 {
-		g.dropGoods(trade.Line{Kind: item.Silver, Qty: silver}, x, y, true)
-	}
+	dropCaravanCargo(g, c, c.Trader, x, y)
 	f := g.factionByID(c.Faction)
 	if f == nil {
 		return
@@ -284,42 +275,33 @@ func retireCaravan(t *tradeState, c *traderCaravan) {
 	})
 }
 
-// Every cargo owner is an actual living group member.
-func caravanCargoOwners(g *Game, c *traderCaravan) []entity.EntityID {
-	out := []entity.EntityID{c.Trader}
-	if gr, ok := visitsOf(g).GroupOf(c.Trader); ok {
-		for _, m := range gr.Members {
-			if m.Role == visit.RolePackAnimal && g.animals.Has(m.ID) {
-				out = append(out, m.ID)
-			}
-		}
-	}
-	return out
-}
-
 // packCargoLost changes sale stock once when a real animal is killed.
 // Walking off with its own goods is an ordinary, non-loss departure.
 func packCargoLost(g *Game, id entity.EntityID) {
-	gr, ok := visitsOf(g).GroupOf(id)
-	if !ok || gr.Kind != visit.KindCaravan {
+	if g.worldSt == nil {
 		return
 	}
-	for _, m := range gr.Members {
-		if m.ID == id && m.Departed {
-			return
-		}
+	groupID := visit.CargoLossGroup(g.worldSt.visitGroups, id)
+	if groupID == 0 {
+		return
 	}
-	c := caravanByGroup(&g.trade, gr.ID)
+	c := caravanByGroup(&g.trade, groupID)
 	if c == nil {
 		return
 	}
+	pos, _ := g.positions.Get(id)
+	dropCaravanCargo(g, c, id, pos.X, pos.Y)
+}
+
+// dropCaravanCargo settles a missing carrier's manifest and materializes
+// exactly its remaining goods once at the last known position.
+func dropCaravanCargo(g *Game, c *traderCaravan, id entity.EntityID, x, y int) {
 	remaining, lines, silver := visit.LoseCargo(&c.Stock, c.Cargo, id)
 	c.Cargo = remaining
-	pos, _ := g.positions.Get(id)
 	for _, l := range lines {
-		g.dropGoods(l, pos.X, pos.Y, true)
+		g.dropGoods(l, x, y, true)
 	}
 	if silver > 0 {
-		g.dropGoods(trade.Line{Kind: item.Silver, Qty: silver}, pos.X, pos.Y, true)
+		g.dropGoods(trade.Line{Kind: item.Silver, Qty: silver}, x, y, true)
 	}
 }

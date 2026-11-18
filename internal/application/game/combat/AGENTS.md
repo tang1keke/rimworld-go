@@ -67,3 +67,9 @@ Tactics.RaidFoes takes the usual live colonist candidates and appends all visibl
 
 
 A tame animal follows the player's faction for hidden-faction targeting. Core hostile machines may attack colony animals; raider human target selection retains its original colonist-oriented behavior. The target list uses the source type, so a tame creature is never misclassified as its original wild species.
+
+## FAC-CORE caravan pack allegiance
+
+- Creatures.PackEnemy(source,target) delegates to visit.PackEnemy through the game's adapter. Target eligibility comes from saved visit.Group.Faction and active RolePackAnimal membership, not Animal.Tame or species. World human raiders use reciprocal saved Enemies, hidden mech/swarm attackers use fixed species hostility, and colony defenses use the caravan's current Hostile relation.
+- Tactics.RaidFoes retains all visible foreign candidates in the original indexed scan and includes active visiting pack animals only when hostile to the source. Colony Strikes.AutoEngage and Turrets.Targetable include hostile caravan packs; peaceful packs stay protected. Short-circuit ordinary enemies before visiting-pack lookup on defensive scan paths.
+- The faction lookup runs during existing paced target decisions and reuses existing group membership; no extra tick phase, save schema or entity registry. Integration tests live in game/visitor_pack_faction_test.go, unit tests in visit/pack_faction_test.go.

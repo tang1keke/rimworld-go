@@ -73,7 +73,7 @@ func (s *Strikes) Ordered(id entity.EntityID) bool { return s.h.StandingRaider(i
 // or a hostile animal (foe).
 func (s *Strikes) foeID(id entity.EntityID, now uint64) bool {
 	if a, ok := s.h.Animal(id); ok {
-		return s.foe(a, now)
+		return s.foe(a, now) || !a.Downed && !a.Dead() && s.h.PackEnemy(0, id)
 	}
 	return s.h.StandingRaider(id)
 }
@@ -101,7 +101,7 @@ func (s *Strikes) Threatened(now uint64) bool {
 		}
 	}
 	for _, aid := range h.AnimalIDs() {
-		if a, ok := h.Animal(aid); ok && s.foe(a, now) {
+		if s.foeID(aid, now) {
 			return true
 		}
 	}

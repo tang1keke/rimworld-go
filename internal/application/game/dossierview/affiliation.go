@@ -2,8 +2,10 @@ package dossierview
 
 import (
 	"rimworld-go/internal/application/game/animalview"
+	"rimworld-go/internal/application/game/visit"
 	"rimworld-go/internal/domain/animal"
 	"rimworld-go/internal/domain/faction"
+	"rimworld-go/internal/domain/sim/entity"
 )
 
 // AnimalFaction sets the card's relationship and origin from the
@@ -30,5 +32,30 @@ func (c *Card) HiddenOrigin(origin faction.Type) {
 	d := faction.DefOf(origin)
 	if d.Hidden {
 		c.Faction, c.FactionEmblem = d.Label, d.Emblem()
+	}
+}
+
+// CaravanAnimal reflects the visiting pack's real foreign allegiance.
+// The animal remains untamed by the colony.
+func (c *Card) CaravanAnimal(f faction.Faction) {
+	c.Faction = f.Name
+	c.FactionEmblem = faction.DefOf(f.Type).Emblem()
+	c.Role = "pack animal"
+	switch f.Relation {
+	case faction.Hostile:
+		c.Relation = RelationFoe
+	case faction.Friendly:
+		c.Relation = RelationAlly
+	default:
+		c.Relation = RelationNone
+	}
+}
+
+// PackFromVisit applies the existing saved group affiliation to an animal
+// card without confusing a foreign carrier with player-owned livestock.
+func (c *Card) PackFromVisit(groups []visit.Group, factions []faction.Faction, id entity.EntityID) {
+	ref := visit.PackFaction(groups, id)
+	if ref > 0 && ref <= len(factions) {
+		c.CaravanAnimal(factions[ref-1])
 	}
 }
