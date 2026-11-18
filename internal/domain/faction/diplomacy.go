@@ -1,5 +1,7 @@
 package faction
 
+import "math"
+
 // Diplomacy rules. Costs from wiki: Comms console. The Trade page still
 // lists an older 15-goodwill caravan price; this uses the detailed console
 // entry. The arrival delay is documented on wiki: Factions.
@@ -33,51 +35,87 @@ type Cooldowns struct {
 	CaravanUntil uint64
 }
 
-// giftCumulative interpolates published Core gift costs when starting at
-// zero goodwill (wiki: Factions, Goodwill from gifts). The public examples
-// give 2,041 silver for +40, 3,661 for +60 and 5,539 for +75. Between
-// those anchors, the curves are our own monotone integer interpolation.
-func giftCumulative(gw int) int {
+// giftPositiveGain is an independently fitted approximation of the
+// Core goodwill curve from 0 to +75, based on public in-game measurements
+// (0->40: 2041, 0->60: 3661, 0->75: 5539 silver).
+// The model is (100-current)*(1-exp(-silver/3995)); it is a fitted
+// curve, not a reproduction of the original game's implementation.
+func giftPositiveGain(current, silver int) int {
+	if silver <= 0 || current >= goodwillMax {
+		return 0
+	}
+	return int(float64(100-current) * (1 - math.Exp(-float64(silver)/3995)))
+}
+
+// GiftCostAt estimates the base price of the next point, excluding any
+// natural-goodwill bonus. Below 0 it is 40 silver; 75+ it is 160.
+func GiftCostAt(goodwill int) int {
 	switch {
-	case gw <= 0:
-		return GiftSilverPerGoodwill * gw
-	case gw <= 40:
-		return GiftSilverPerGoodwill*gw + (441*gw*(gw-1)+780)/1560
-	case gw <= 60:
-		n := gw - 40
-		return 2041 + 62*n + (380*n*(n-1)+190)/380
-	case gw <= 75:
-		n := gw - 60
-		return 3661 + 101*n + (363*n*(n-1)+105)/210
+	case goodwill < 0:
+		return GiftSilverPerGoodwill
+	case goodwill >= 75:
+		return 160
 	default:
-		return 5539 + 160*(gw-75)
+		return int(math.Ceil(3995 * math.Log(float64(100-goodwill)/float64(99-goodwill))))
 	}
 }
 
-// GiftCostAt is the silver required for the next goodwill point. Prices
-// at negative goodwill and 75+ are the published 40 and 160; intermediate
-// prices are based on published cumulative gift examples.
-func GiftCostAt(goodwill int) int {
-	return giftCumulative(goodwill+1) - giftCumulative(goodwill)
+// baseGiftGoodwill is the design baseline for an additional 25% bonus
+// when goodwill increases toward a faction's base. Natural *bands* are
+// independent. Core base-goodwill overrides are not represented as state.
+func baseGiftGoodwill(t Type) int {
+	if def(t).GoodwillMax < 0 {
+		return def(t).GoodwillMax // rough groups: authored -80 baseline
+	}
+	return 0 // ordinary civil groups
 }
 
-// GiftGoodwill returns the goodwill gained by gifting value to faction f.
-// When moving back toward a faction's natural range, every fourth paid
-// point receives one additional goodwill (wiki: Goodwill 25% bonus).
+// GiftGoodwill converts a single gift's value into goodwill. All of the
+// gift is evaluated together, so splitting it may lose rounded points.
+// The published flat 40/160-silver ranges join the measured fitted curve
+// from 0 to +75. Bonus is +25% for raw goodwill moving toward base.
 func GiftGoodwill(f Faction, value int) int {
 	if value <= 0 || !f.Type.HasWorldSettlements() || def(f.Type).Fixed || f.Defeated {
 		return 0
 	}
-	gw, paid := f.Goodwill, 0
-	for gw < goodwillMax && value >= GiftCostAt(gw) {
-		value -= GiftCostAt(gw)
-		paid++
-		gw++
-		if paid%4 == 0 && gw <= def(f.Type).GoodwillMin && gw < goodwillMax {
-			gw++
+	start := f.Goodwill
+	gw := start
+	if gw < 0 {
+		paid := min(-gw, value/GiftSilverPerGoodwill)
+		gw += paid
+		value -= paid * GiftSilverPerGoodwill
+	}
+	if gw >= 0 && gw < 75 && value > 0 {
+		// Find the exact integer value needed to reach +75 using the
+		// same fitted function as the partial-gift branch.
+		lo, hi := 0, 6000
+		for lo < hi {
+			mid := lo + (hi-lo)/2
+			if giftPositiveGain(gw, mid) >= 75-gw {
+				hi = mid
+			} else {
+				lo = mid + 1
+			}
+		}
+		if value >= lo {
+			gw = 75
+			value -= lo
+		} else {
+			gw += giftPositiveGain(gw, value)
+			value = 0
 		}
 	}
-	return gw - f.Goodwill
+	if gw >= 75 {
+		gw += value / 160
+	}
+	base := baseGiftGoodwill(f.Type)
+	if start < base {
+		towardBase := min(gw, base) - start
+		if towardBase > 0 {
+			gw += towardBase / 4
+		}
+	}
+	return min(gw, goodwillMax) - start
 }
 
 // GiftSilverFor is the minimum gift value needed to attain target goodwill.

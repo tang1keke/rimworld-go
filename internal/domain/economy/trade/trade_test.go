@@ -226,10 +226,10 @@ func TestSettleGiftNoSilver(t *testing.T) {
 	col := map[item.Kind]int{item.Silver: 300, item.Wood: 500}
 	// Gifts need not be wanted and pay nothing back.
 	r := Settle([]Delta{{Kind: item.Silver, Qty: -200}, {Kind: item.Wood, Qty: -100}}, col, stock(), Terms{FactionType: faction.Settlers}, true)
-	if !r.OK() || r.SilverCenti != 0 || r.Silver != 0 || r.Goodwill != faction.GiftGoodwill(faction.Faction{Type: faction.Settlers}, 300) || len(r.Sell) != 2 {
+	if !r.OK() || r.SilverCenti != 0 || r.Silver != 0 || r.Goodwill != faction.GiftGoodwill(faction.Faction{Type: faction.Settlers}, 260) || len(r.Sell) != 2 {
 		t.Fatalf("%+v", r)
 	}
-	if GiftValue([]Delta{{Kind: item.Silver, Qty: -200}, {Kind: item.Wood, Qty: -100}, {Kind: item.Rifle, Qty: 4}}) != 300 {
+	if GiftValue([]Delta{{Kind: item.Silver, Qty: -200}, {Kind: item.Wood, Qty: -100}, {Kind: item.Rifle, Qty: 4}}, 0) != 260 {
 		t.Fatal("gift value counts only what the colony gives")
 	}
 	if r := Settle([]Delta{{Kind: item.Rifle, Qty: 1}}, col, stock(), Terms{}, true); r.Reject != RejectUnwanted {
@@ -240,5 +240,33 @@ func TestSettleGiftNoSilver(t *testing.T) {
 	}
 	if r := Settle([]Delta{{Kind: item.Bones, Qty: -1}}, map[item.Kind]int{item.Bones: 1}, stock(), Terms{}, true); r.Reject != RejectUnwanted {
 		t.Fatal("worthless gift")
+	}
+}
+
+// Wiki: Factions, Goodwill from gifts. Gifts use the pawn's selling
+// valuation, while silver always counts at face value.
+func TestGiftValueUsesSellingPrice(t *testing.T) {
+	ordinary := []Delta{{Kind: item.Lung, Qty: -1}}
+	if got := GiftValue(ordinary, 20); got != 780 {
+		t.Fatalf("social 20 should value a 1000-silver visiting gift at 780, got %d", got)
+	}
+	if got := GiftValue(ordinary, 1); got != 609 {
+		t.Fatalf("social 1: expected 609, got %d", got)
+	}
+	if got := GiftValue(ordinary, 0); got != 600 {
+		t.Fatalf("visitor gift counted %d silver, want 600 for a 1000-value organ", got)
+	}
+	if got := GiftValue([]Delta{{Kind: item.Silver, Qty: -1000}}, 0); got != 1000 {
+		t.Fatalf("silver gift counted %d, want face value", got)
+	}
+	if got := GiftValue([]Delta{{Kind: item.Rifle, Qty: -1}}, 0); got != 14 {
+		t.Fatalf("weapon gift counted %d, want reduced sell value", got)
+	}
+	if got := GiftValue([]Delta{{Kind: item.Silver, Qty: -1000}, {Kind: item.Lung, Qty: -1}}, 0); got != 1600 {
+		t.Fatalf("mixed gift counted %d, want 1600", got)
+	}
+	r := Settle(ordinary, map[item.Kind]int{item.Lung: 1}, stock(), Terms{FactionType: faction.Settlers}, true)
+	if !r.OK() || r.Goodwill != faction.GiftGoodwill(faction.Faction{Type: faction.Settlers}, 600) {
+		t.Fatalf("gift-mode settlement used market value for goodwill: %+v", r)
 	}
 }

@@ -372,7 +372,7 @@ func Settle(offer []Delta, colony map[item.Kind]int, st Stock, t Terms, gift boo
 		}
 	}
 	if gift {
-		res.Goodwill = faction.GiftGoodwill(faction.Faction{Type: t.FactionType, Goodwill: t.Goodwill}, GiftValue(offer))
+		res.Goodwill = faction.GiftGoodwill(faction.Faction{Type: t.FactionType, Goodwill: t.Goodwill}, GiftValue(offer, t.Social))
 		return res
 	}
 	res.SilverCenti = sellC - buyC
@@ -390,16 +390,17 @@ func Settle(offer []Delta, colony map[item.Kind]int, st Stock, t Terms, gift boo
 	return res
 }
 
-// GiftValue is the market value, in whole silver, of what the colony
-// gives in offer (its negative lines; silver counts at face value).
-func GiftValue(offer []Delta) int {
-	total := 0
+// GiftValue is the value of the outgoing offer in whole silver for
+// goodwill, after the visiting-trader sell rates and the pawn's social
+// TPI. Keep fractional cents until the whole gift is added.
+func GiftValue(offer []Delta, social int) int {
+	centi := 0
 	for _, d := range offer {
 		if d.Qty < 0 {
-			total += -d.Qty * d.Kind.Value()
+			centi += -d.Qty * GiftGoodsCenti(Goods{Kind: d.Kind, Building: d.Building}, GiftVisitor, social)
 		}
 	}
-	return total
+	return centi / 100
 }
 
 // Add adds qty (negative: removes) of kind k to st, keeping its lines

@@ -6,7 +6,7 @@ import (
 )
 
 func TestGiftGoodwillCostAndQuote(t *testing.T) {
-	if GiftCostAt(-20) != 40 || GiftCostAt(0) != 40 || GiftCostAt(75) != 160 || GiftCostAt(100) != 160 {
+	if GiftCostAt(-20) != 40 || GiftCostAt(0) != 41 || GiftCostAt(75) != 160 || GiftCostAt(100) != 160 {
 		t.Fatal("public goodwill gift-price endpoints changed")
 	}
 	for _, tc := range []struct{ target, silver int }{

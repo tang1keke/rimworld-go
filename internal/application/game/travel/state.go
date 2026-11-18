@@ -7,6 +7,7 @@ import (
 
 	"rimworld-go/internal/domain/animal"
 	"rimworld-go/internal/domain/economy/item"
+	"rimworld-go/internal/domain/economy/trade"
 	"rimworld-go/internal/domain/sim/entity"
 )
 
@@ -418,16 +419,22 @@ func (h *Hold) merge(o *Hold, r item.MealRule) {
 	}
 }
 
-// value is the hold's market value (goods and animals; a gift's worth).
-func (h *Hold) value() int {
-	v := 0
+// giftValue is the pod load's selling value at a faction settlement.
+// Silver counts at face value. Quality, material, and damage survive in
+// the saved item stack; crated furniture uses its construction value.
+func (h *Hold) giftValue() int {
+	centi := 0
 	for _, st := range h.Items {
-		v += st.Qty * st.Kind.Value()
+		market := item.StackValue(st)
+		if st.Kind == item.MinifiedBuilding {
+			market = trade.Goods{Kind: st.Kind, Building: st.Building}.Value()
+		}
+		centi += st.Qty * trade.GiftUnitCenti(st.Kind, market, trade.GiftPod, 0)
 	}
 	for _, b := range h.Animals {
-		v += animalValue(b.State.Species)
+		centi += trade.GiftBaseCenti(animalValue(b.State.Species), trade.GiftPod, 0)
 	}
-	return v
+	return centi / 100
 }
 
 // Of is *p, made on first use (the game keeps the state behind a nil-able

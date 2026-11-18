@@ -73,7 +73,7 @@ func TestTradeDialogGiftMode(t *testing.T) {
 		t.Fatalf("gift cannot buy: %v", d.net)
 	}
 	d.step(wood, -4)
-	if d.giftSilver() != 4 || d.reason() != "" {
+	if d.giftSilver() != 2 || d.reason() != "" {
 		t.Fatalf("gift value %d reason %q", d.giftSilver(), d.reason())
 	}
 	d.view.ColonySilver = 0 // a gift needs no silver
@@ -173,5 +173,21 @@ func TestTradeStepsFollowCtrlAndShift(t *testing.T) {
 	press("trade."+wood+".give.1", input.ModCtrl|input.ModShift)
 	if got := dl.trade.net[wood]; got != -30 {
 		t.Fatalf("give clamps to the colony's stock: %d", got)
+	}
+}
+
+func TestGiftDialogPreviewUsesSettlementValuation(t *testing.T) {
+	t.Parallel()
+	v := testTradeView()
+	v.Social = 20
+	v.Rows = []game.TradeRowView{{
+		Kind: item.Lung.String(), Label: "Lung", Category: "Medicine",
+		ColonyQty: 1, WillSell: true, SellC: 50000,
+	}}
+	d := newTradeDraft(v)
+	d.setGift(true)
+	d.step(v.Rows[0], -1)
+	if got := d.giftSilver(); got != 780 {
+		t.Fatalf("preview = %d, want 780; ordinary trade price must not determine gift", got)
 	}
 }

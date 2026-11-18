@@ -3,14 +3,15 @@ package travel
 import (
 	"testing"
 
+	"rimworld-go/internal/domain/building/construction"
 	"rimworld-go/internal/domain/economy/item"
 	"rimworld-go/internal/domain/faction"
 	"rimworld-go/internal/domain/sim/entity"
 )
 
-// A hold weighs its people at 60 kg, its goods by their wiki masses
-// (rounded up) and is worth its goods' market value.
-func TestHoldMassAndValue(t *testing.T) {
+// A hold weighs its people at 60 kg, goods by their wiki masses,
+// and coalesces like stacks when packing.
+func TestHoldMassAndMerging(t *testing.T) {
 	h := Hold{Pawns: []entity.EntityID{7}, Items: []item.Stack{{Kind: item.Steel, Qty: 30}}}
 	h.addItem(item.Stack{Kind: item.Steel, Qty: 10, X: 3, Y: 4})
 	if len(h.Items) != 1 || h.Items[0].Qty != 40 {
@@ -18,9 +19,6 @@ func TestHoldMassAndValue(t *testing.T) {
 	}
 	if kg := h.massKg(animalKg); kg != 60+20 {
 		t.Fatalf("mass %d kg, want 80", kg)
-	}
-	if v := h.value(); v != 40*item.Steel.Value() {
-		t.Fatalf("value %d", v)
 	}
 }
 
@@ -78,5 +76,32 @@ func TestSettlementViewsAndIDs(t *testing.T) {
 	}
 	if JoinNames([]string{"A", "B", "C"}) != "A, B and C" || JoinNames(nil) != "Nobody" {
 		t.Fatal("join names")
+	}
+}
+
+// Core gift valuation depends on delivery method, even though cargo
+// wealth still uses raw market value.
+func TestPodGiftValueUsesSellingPriceAndCondition(t *testing.T) {
+	organ := Hold{Items: []item.Stack{{Kind: item.Lung, Qty: 1}}}
+	if got := organ.giftValue(); got != 612 {
+		t.Fatalf("one 1000-silver organ by pod: %d, want 612", got)
+	}
+	organ.Items = append(organ.Items, item.Stack{Kind: item.Silver, Qty: 1000})
+	if got := organ.giftValue(); got != 1612 {
+		t.Fatalf("silver did not keep face value: %d", got)
+	}
+	rifle := item.Stack{Kind: item.Rifle, Qty: 1}
+	h := Hold{Items: []item.Stack{rifle}}
+	if got := h.giftValue(); got != 14 {
+		t.Fatalf("pod weapon gift: %d, expected 14 silver after extra 0.2", got)
+	}
+	rifle.Wear = rifle.MaxHP() / 2
+	h.Items[0] = rifle
+	if got, raw := h.giftValue(), item.StackValue(rifle); raw != 12 || got != 1 {
+		t.Fatalf("worn firearm gift: %d for market %d, want 1 for market 12", got, raw)
+	}
+	crate := Hold{Items: []item.Stack{{Kind: item.MinifiedBuilding, Building: uint8(construction.Telescope), Qty: 1}}}
+	if got := crate.giftValue(); got != 214 {
+		t.Fatalf("350-silver crated furniture gifted by pod: %d, want 214", got)
 	}
 }

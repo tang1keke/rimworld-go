@@ -636,7 +636,7 @@ func commsFactions(g *Game) *faction.Faction {
 }
 
 // TestCommsGiftRaisesGoodwill: silver sent over the radio comes from
-// beacon reach and buys goodwill (one per 40, capped); more than there is
+// beacon reach and buys goodwill at the current quote; more than there is
 // changes nothing.
 func TestCommsGiftRaisesGoodwill(t *testing.T) {
 	t.Parallel()
@@ -653,7 +653,7 @@ func TestCommsGiftRaisesGoodwill(t *testing.T) {
 			row = &cv.Factions[i]
 		}
 	}
-	if row == nil || !row.Gift.Allowed || row.Gift.Cost != faction.GiftSilverPerGoodwill || row.Aid.Allowed || row.Aid.Reason != faction.ReasonNotFriend {
+	if row == nil || !row.Gift.Allowed || row.Gift.Cost != faction.GiftCostAt(f.Goodwill) || row.Aid.Allowed || row.Aid.Reason != faction.ReasonNotFriend {
 		t.Fatalf("faction row %+v", row)
 	}
 	g.Enqueue(command.Command{Kind: command.CommsGift, Index: f.ID, Count: 400}) // more than in reach

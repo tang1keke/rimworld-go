@@ -28,8 +28,8 @@ func (o core) settlement(t int) (name string, ok, hostile, human bool) {
 	return name, true, f.Relation == faction.Hostile, f.Type.HasWorldSettlements()
 }
 
-// gift gives goods worth value to the settlement on tile t: the goodwill
-// it gained (wiki: Transport pod, by market value; faction.GiftGoodwill).
+// gift gives goods of a computed selling value to the settlement on tile
+// t: the goodwill gained (wiki: Factions, Goodwill from gifts).
 func (o core) gift(t, value int) int {
 	f, _ := o.h.Faction(t)
 	if f == nil || f.Besieged {

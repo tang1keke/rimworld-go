@@ -158,8 +158,9 @@ func (o pods) land(f Flight) {
 	}
 	name, settled, _, _ := o.settlement(f.To)
 	if f.Mode == command.PodArriveGift && settled {
-		gw := o.gift(f.To, load.value())
-		o.h.Letter("Gift delivered", hx, hy, "%s received the pods' goods, worth %d silver (%+d goodwill).", name, load.value(), gw)
+		value := load.giftValue()
+		gw := o.gift(f.To, value)
+		o.h.Letter("Gift delivered", hx, hy, "%s received the pods' goods, worth %d silver (%+d goodwill).", name, value, gw)
 		return
 	}
 	if drop && o.h.MapOpen(f.To) { // MAP-10: onto an open map, at its edge, centre or the chosen spot

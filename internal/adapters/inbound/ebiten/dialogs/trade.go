@@ -114,15 +114,9 @@ func (d *tradeDraft) totalC() int {
 	return t
 }
 
-// giftSilver is the value, in whole silver, of what a gift gives.
+// giftSilver shares the authoritative gift valuation with settlement.
 func (d *tradeDraft) giftSilver() int {
-	v := 0
-	for _, r := range d.view.Rows {
-		if n := d.net[r.Kind]; n < 0 {
-			v += -n * r.SellC
-		}
-	}
-	return v / 100
+	return trade.GiftValue(d.offer(), d.view.Social)
 }
 
 // colonyAfterC and traderAfterC are the silver on each side after the
@@ -333,7 +327,11 @@ func (dl *Dealings) tradeBody(d *tradeDraft, body gfx.Rect) {
 	colName := gfx.Rect{X: x, Y: 0, W: body.Right() - x - uikit.ScrollBarW, H: 0}
 
 	hd := gfx.WithColor(gfx.Small, uikit.TextDim)
-	dl.kit().Label(colPrice.X, top+4, dl.sh.T("Sell for"), hd)
+	sellTitle := "Sell for"
+	if d.gift {
+		sellTitle = "Gift value"
+	}
+	dl.kit().Label(colPrice.X, top+4, dl.sh.T(sellTitle), hd)
 	dl.kit().Label(colQty.X+4, top+4, dl.sh.T("Colony"), hd)
 	dl.kit().Label(colSell.X, top+4, dl.sh.T("Give to trader"), hd)
 	dl.kit().Label(colAmt.X+8, top+4, dl.sh.T("Amount"), hd)
@@ -362,12 +360,16 @@ func (dl *Dealings) tradeBody(d *tradeDraft, body gfx.Rect) {
 	}
 
 	// summary
-	total := d.totalC()
-	verb := dl.sh.T("You pay")
-	if total < 0 {
-		verb = dl.sh.T("You receive")
+	if d.gift {
+		dl.kit().Label(sum.X, sum.Y, dl.sh.Tf("Gift value: %d silver", d.giftSilver()), gfx.Label)
+	} else {
+		total := d.totalC()
+		verb := dl.sh.T("You pay")
+		if total < 0 {
+			verb = dl.sh.T("You receive")
+		}
+		dl.kit().Label(sum.X, sum.Y, dl.sh.Tf("%s %s silver", verb, SilverText(mathx.Abs(total))), gfx.Label)
 	}
-	dl.kit().Label(sum.X, sum.Y, dl.sh.Tf("%s %s silver", verb, SilverText(mathx.Abs(total))), gfx.Label)
 	if dl.kit().Check("trade.gift", gfx.Rect{X: sum.X, Y: sum.Y + 26, W: 220, H: 22}, dl.sh.T("Gift (no payment)"), &d.gift,
 		uikit.CheckOpts{Tip: dl.sh.T("Gift\nGive goods away for goodwill instead of trading.")}) {
 		d.setGift(d.gift)
@@ -394,7 +396,13 @@ func (dl *Dealings) tradeRow(d *tradeDraft, r game.TradeRowView, y float32,
 	mid := y + 6
 	dl.kit().Label(cName.X, mid, uikit.FitText(r.Label, gfx.Body, cName.W), gfx.Body)
 	if r.WillSell {
-		dl.kit().Label(cPrice.X, mid, SilverText(r.SellC), gfx.Body)
+		price := r.SellC
+		if d.gift {
+			if goods, ok := trade.ParseGoods(r.Kind); ok {
+				price = trade.GiftGoodsCenti(goods, trade.GiftVisitor, d.view.Social)
+			}
+		}
+		dl.kit().Label(cPrice.X, mid, SilverText(price), gfx.Body)
 	} else {
 		dl.kit().Label(cPrice.X, mid, "-", uikit.DimText())
 	}
